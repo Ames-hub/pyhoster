@@ -20,6 +20,6 @@ PYHOST_KEYBIND_LISTEN: Boolean, if true, pyhoster will listen for keybinds. (Def
 made toggleable for 'edge' cases where you want to use the keybinds for something else.
 
 # Keybinds/Keywords
-if a key is in brackets, I am indicating its on the keyboard and not to be typed out
-`create + [enter]` - Create a new website instance.
-`delete + [enter]` - Delete a website instance.
+if a key is in brackets, I am indicating its on the keyboard and not to be typed out<br>
+`create + [enter]` - Create a new website instance.<br>
+`delete + [enter]` - Delete a website instance.<br>
