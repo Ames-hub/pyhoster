@@ -1,6 +1,5 @@
 # pyhoster
 An nginx replacement built with python to manage multiple website instances.
-No longer a replacement, but a wrapper for nginx. God Nginx made me want to cry at first which is what started this project.
 
 ## Installation
 Install python3.11 from the website or your package manager. (Such as MS store)
@@ -24,8 +23,6 @@ made toggleable for 'edge' cases where you want to use the keybinds for somethin
 if a key is in brackets, I am indicating its on the keyboard and not to be typed out<br>
 `create + [enter]` - Create a new website instance.<br>
 `delete + [enter]` - Delete a website instance.<br>
+`start + [enter]` - Start a website instance.<br>
 `cls + [enter]` - Clear the screen of all text.<br>
 `ctrl + c` - Exit the program and shutdown all web instances.<br>
-
-<hr>
-In the future, I plan to make this independant from Nginx so that it can run without docker or nginx.

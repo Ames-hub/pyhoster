@@ -4,12 +4,11 @@ def config_dt(app_name):
     config_dt = {
         "name": app_name,
         "description": None,
-        app_name: { # Includes appname to prevent autostarting multiple instances of the same app
-            "autostart": True,
-            "apptype": app.types.webpage(),
-            "port": 8080,
-            "boundpath": None, # Temporary. Updated on creation in create def
-            "loclocated": f"instances/{app_name}/",
-        }
+        "autostart": True,
+        "apptype": app.types.webpage(),
+        "port": 80,
+        "running": False,
+        "boundpath": None, # Temporary. Updated on creation in create def
+        "contentloc": f"instances/{app_name}/content/",
     }
     return config_dt

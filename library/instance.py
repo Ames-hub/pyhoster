@@ -1,7 +1,9 @@
-import os, shutil, logging, docker
+import os, shutil, logging, sys, datetime, http.server, socketserver, json, threading
 from .application import application as app
 from .jmod import jmod
 from .data_tables import config_dt
+
+root_dir = os.getcwd()
 
 class instance: # Do not use apptype in calls until other apptypes are made
     def create(do_autostart: bool = False, apptype: app.types.webpage = app.types.webpage):
@@ -114,7 +116,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # Sets the absolute path/boundpath in the json file
         jmod.setvalue(
-            f"{app_name}.boundpath",
+            "boundpath",
             f"instances/{app_name}/config.json",
             value=boundpath,
             dt=config_dt(app_name)
@@ -126,6 +128,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
             value=app_desc,
             dt=config_dt(app_name)
             )
+        # Sets the port
+        jmod.setvalue(
+            "port",
+            f"instances/{app_name}/config.json",
+            value=port,
+            dt=config_dt(app_name)
+        )
 
 
         os.system('cls' if os.name == "nt" else "clear")
@@ -167,41 +176,156 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("\033[92m" + f"Deleted app \"{app_name}\" successfully!" + "\033[0m")
         logging.info(f"Deleted app \"{app_name}\" successfully!")
 
-    def manage(app_name, start=True):
+    def start_interface():
+        '''a def for the user to start an app from the command line easily via getting the app name from the user'''
+        input() # Aesthetic input statement to catch the 'start' text entered to call this def
+        
+        # Prints all app names, then asks for the app name they want to start
+        os.system('cls' if os.name == "nt" else "clear")
+        print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
+        for app in os.listdir("instances/"):
+            print(app)
+            # Prints description in gray then resets to white
+            print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+        else:
+            print("\nType Cancel to cancel initialization.")
+        
         try:
-            client = docker.from_env()
-            client.ping()  # Check if the Docker daemon is accessible
-            
-            try:
-                # Check if the container exists
-                container = client.containers.get(f"{app_name}_nginx")
-                
-                # If the container exists and we want to start it
-                if start:
-                    container.start()
-                    print(f"Container for {app_name} started.")
+            app_name: str = str(input("What is the name of the app? TEXT : "))
+            if app_name.lower() == "cancel":
+                print("Cancelled!")
+                return True
+            assert app_name in os.listdir("instances/"), "The app must exist!"
+        except AssertionError as err:
+            print(str(err))
+            return
+        
+        # REMAINS LIKE THIS UNTIL I FIGURE OUT SUPRESSIONS
+        # # Gets if the user wants it silent or not
+        # try:
+        #     inp = input(f"Would you like to start \"{app_name}\" silently? Y/N\n>>> ")
+        #     if inp == "cancel":
+        #         print("Cancelled startup")
+        #         return True
+        #     else:
+        #         if "y" in inp.lower():
+        #             is_silent = True
+        #         elif "n" in inp.lower():
+        #             is_silent = False
+        #         else:
+        #             is_silent = True # Assumes true if invalid input
+        #             
+        # except AssertionError as err:
+        #     print(str(err))
+        #     return
+        
+        # Ensures no other apps are running on the same port by using requests
+        for app in os.listdir("instances/"):
+            config_file = f"instances/{app}/config.json"
+            if jmod.getvalue(key=f"autostart", json_dir=config_file) == True:
+                port = jmod.getvalue(key='port', json_dir=config_file)
+                if port == jmod.getvalue(key='port', json_dir=f"instances/{app_name}/config.json"):
+                    if jmod.getvalue(key="running", json_dir=config_file) == True:
+                        print(f"Port {port} is already in use by project {app}! Please change the port of one of the projects to add to autostart.")
+                        return True
+
+        # Starts the app
+        threading.Thread(target=instance.start, args=(app_name, False)).start()
+
+    def start(app_name, silent=False): # Silent = True makes it buggy as fuck because of how I suppressed prints. whoops 
+        # Define the base directory for instances
+        base_directory = os.path.abspath("instances/")
+
+        # Construct the directory path for the specific app
+        directory = os.path.join(base_directory, app_name)
+        os.makedirs(directory, exist_ok=True)  # Create the directory if it doesn't exist
+
+        # Get the port from the config.json file
+        config_path = os.path.abspath(f"instances/{app_name}/config.json")
+        with open(config_path, 'r') as config_file:
+            config_data = json.load(config_file)
+        port = config_data.get("port")
+
+        if port is None:
+            print(f"Port is not defined in config.json for {app_name}!")
+            return False
+
+        # Define a custom request handler with logging
+        class CustomHandler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                self.content_directory = os.path.abspath(f"{base_directory}/{app_name}/content/")
+                super().__init__(*args, directory=self.content_directory, **kwargs)
+
+            def do_GET(self):
+                self.log_request_action()
+                # Check if the content directory is empty
+                if not os.listdir(self.content_directory):
+                    self.serve_default_html()
                 else:
-                    # If the container exists but we want to stop it, do nothing and return True
-                    print(f"Container for {app_name} already exists.")
-                    return True
-                
-            except docker.errors.NotFound:
-                if start:
-                    # If the container does not exist and we want to start it, create and start it
-                    image_name = "nginx:latest"
-                    preferred_port = jmod.getvalue(key=f"{app_name}.port", json_dir=f"instances/{app_name}/config.json")
-                    container = client.containers.create(
-                        image=image_name,
-                        name=f"{app_name}_nginx",
-                        ports={f'{preferred_port}/tcp': preferred_port},
-                        volumes={f"./instances/{app_name}/content": {'bind': '/usr/share/nginx/html', 'mode': 'ro'}}
-                    )
-                    container.start()
-                    print(f"Container for {app_name} created and started.")
-                else:
-                    # If the container does not exist and we want to stop it, do nothing and return True
-                    print(f"Container for {app_name} does not exist.")
-                    return True
-                    
-        except docker.errors.DockerException as e:
-            raise RuntimeError(f"Error accessing Docker: {e}")
+                    super().do_GET()
+
+            def serve_default_html(self):
+                default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
+                with open(default_html_path, 'rb') as default_html_file:
+                    content = default_html_file.read()
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(content)
+
+            def log_request_action(self):
+                client_address = self.client_address[0]
+                requested_file = self.path
+                current_date = datetime.date.today().strftime("%Y-%m-%d")
+                log_file_path = f"{base_directory}/{app_name}/logs/{current_date}.log"
+
+                with open(log_file_path, "a") as log_file:
+                    if requested_file == "/":
+                        log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested the landing page\n")
+                    else:
+                        log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested file {requested_file}\n")
+
+        # Define a custom log message function
+        def log_message(message):
+            current_date = datetime.date.today().strftime("%Y-%m-%d")
+            log_file_path = os.path.abspath(f"logs/{current_date}.log")
+
+            with open(log_file_path, "a") as log_file:
+                log_file.write(f"{datetime.datetime.now()} - {app_name} - {message}\n")
+
+        # Create the log directory if it doesn't exist
+        log_directory = f"{base_directory}/{app_name}/logs/"
+        os.makedirs(log_directory, exist_ok=True)
+
+        # Redirect stdout and stderr to /dev/null if silent is True
+        if silent:
+            sys.stdout = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w")
+
+        try:
+            # Create a socket server with the custom handler
+            with socketserver.TCPServer(("", port), CustomHandler) as httpd:
+                # Print a message to indicate the server has started unless silent is True
+                if not silent:
+                    print(f"Server \"{app_name}\" is running. Check the logs for actions.\n"
+                        f"You can visit it on http://localhost:{port}")
+
+                log_message(f"Server \"{app_name}\" is running.")
+                # Sets server to running in Json file.
+                jmod.setvalue(
+                    key="running",
+                    json_dir=f"instances/{app_name}/config.json",
+                    value=True,
+                    dt=config_dt(app_name)
+                )
+
+                # Start the server and keep it running until interrupted
+                logging.info(f"Server \"{app_name}\" is now running on port {port}")
+                httpd.serve_forever()
+
+        except OSError as e:
+            print(f"Server \"{app_name}\" failed to start: {e}")
+            log_message(f"Server \"{app_name}\" failed to start: {e}")
+
+    def close(app_name):
+        pass

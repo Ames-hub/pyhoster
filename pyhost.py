@@ -5,7 +5,7 @@
 # Have fun!
 
 # Importing modules
-import os, logging, datetime
+import os, logging, datetime, threading
 from library.jmod import jmod
 from library.application import application
 from library.instance import instance
@@ -39,15 +39,20 @@ logging.info("Pyhost logging started successfully!")
 # Autostarts the autostarts
 # Finds how many autostarts there are
 launch_amount = 0
+thread_arr = []
 for app in os.listdir("instances/"):
     config_file = f"instances/{app}/config.json"
-    if jmod.getvalue(key=f"{app}.autostart", json_dir=f"{config_file}") == True:
-        print(f"Initializing project: \"{jmod.getvalue(key='name', json_dir=f'{config_file}')}\"")
-        instance.manage(app, start=True)
+    if jmod.getvalue(key=f"autostart", json_dir=config_file) == True:
+        name = jmod.getvalue(key='name', json_dir=config_file)
+        port = jmod.getvalue(key='port', json_dir=config_file)
+        print(f"Auto-Initializing project: \"{name}\" on port {port}")
+        logging.info(f"Auto-Initializing project: \"{name}\" on port {port}")
+        threading.Thread(target=instance.start, args=(app, False)).start()
+        
         launch_amount += 1
 
 if launch_amount != 0:
-    print(f"AutoLaunching {launch_amount} instances...")
+    print(f"AutoLaunched {launch_amount} instances...\n")
 
 # The main loop to keep the program running
 application.run(
