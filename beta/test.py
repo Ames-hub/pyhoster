@@ -52,8 +52,9 @@ def start_custom_web_server(port, directory, app_name, silent=True):
     with socketserver.TCPServer(("", port), CustomHandler) as httpd:
         # Print a message to indicate the server has started unless silent is True
         if not silent:
-            print(f"Server \"{app_name}\" is running. Check the logs for actions.")
-            print(f"You can visit it on http://localhost:{port}")
+            print(f"Server \"{app_name}\" is running. Check the logs for actions.\n"\
+                  f"You can visit it on http://localhost:{port}")
+            
         log_message(f"Server \"{app_name}\" is running.")
 
         # Start the server and keep it running until interrupted
