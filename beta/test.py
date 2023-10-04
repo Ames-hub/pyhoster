@@ -64,17 +64,13 @@ def start_custom_web_server(port, directory, app_name, silent=True):
             if not silent: print(f"\nServer \"{app_name}\" stopped.")
             log_message(f"Server \"{app_name}\" stopped.")
 
-# Use absolute paths for both directories
-directory1 = os.path.abspath("./beta/testweb")
-directory2 = os.path.abspath("./beta/testweb2")
-
 # Run two instances of the web server concurrently
 threading.Thread(
     target=start_custom_web_server,
-    args=(8080, directory1, "mytestapp", False)).start()
+    args=(8080, "website1", "mytestapp", False)).start()
 
 threading.Thread(
     target=start_custom_web_server,
-    args=(8081, directory2, "mytestapp2", False)).start()
+    args=(8081, "testweb", "mytestapp2", False)).start()
 
 # A Function I am developing to replace nginx. Not working on main app for now
