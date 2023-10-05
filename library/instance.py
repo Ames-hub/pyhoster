@@ -329,9 +329,10 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 httpd.serve_forever()
 
         except OSError as e:
+            logging.error(f"Server \"{app_name}\" failed to start: {e}\n\n"+str(e.with_traceback(e.__traceback__)))
             if not silent:
-                print(f"Server \"{app_name}\" failed to start: {e}")
-            log_message(f"Server \"{app_name}\" failed to start: {e}")
+                print(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
+            log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
