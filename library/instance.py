@@ -1,7 +1,8 @@
-import os, shutil, logging, sys, datetime, http.server, socketserver, json, threading
+import os, shutil, logging, sys, datetime, http.server, socketserver, json
 from .application import application as app
 from .jmod import jmod
 from .data_tables import config_dt
+import multiprocessing as threading
 
 root_dir = os.getcwd()
 
@@ -71,6 +72,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         while True:
             try:
+                print("\nThis directory will be copied to the app's content folder. You work on the project in this directory.")
+                print("Internal binding will be: "+str(os.path.abspath(f"instances/{app_name}/content/")))
                 boundpath: str = str(input("What is the full path to the app's content? TEXT (blank for no external binding) : "))
                 if str(boundpath).lower() == "cancel":
                     print("Cancelled!")
@@ -114,28 +117,35 @@ class instance: # Do not use apptype in calls until other apptypes are made
         if do_autostart == True:
             autostart.add(app_name)
 
+        config_path = f"instances/{app_name}/config.json"
         # Sets the absolute path/boundpath in the json file
         jmod.setvalue(
             "boundpath",
-            f"instances/{app_name}/config.json",
+            config_path,
             value=boundpath,
             dt=config_dt(app_name)
             )
         # Sets description
         jmod.setvalue(
             "description",
-            f"instances/{app_name}/config.json",
+            config_path,
             value=app_desc,
             dt=config_dt(app_name)
             )
         # Sets the port
         jmod.setvalue(
             "port",
-            f"instances/{app_name}/config.json",
+            config_path,
             value=port,
             dt=config_dt(app_name)
         )
-
+        # Sets the content directory
+        jmod.setvalue(
+            "contentloc",
+            config_path,
+            value=os.path.abspath(f"instances/{app_name}/content/"),
+            dt=config_dt(app_name)
+        )
 
         os.system('cls' if os.name == "nt" else "clear")
         # Prints with green
@@ -200,25 +210,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print(str(err))
             return
         
-        # REMAINS LIKE THIS UNTIL I FIGURE OUT SUPRESSIONS
-        # # Gets if the user wants it silent or not
-        # try:
-        #     inp = input(f"Would you like to start \"{app_name}\" silently? Y/N\n>>> ")
-        #     if inp == "cancel":
-        #         print("Cancelled startup")
-        #         return True
-        #     else:
-        #         if "y" in inp.lower():
-        #             is_silent = True
-        #         elif "n" in inp.lower():
-        #             is_silent = False
-        #         else:
-        #             is_silent = True # Assumes true if invalid input
-        #             
-        # except AssertionError as err:
-        #     print(str(err))
-        #     return
-        
         # Ensures no other apps are running on the same port by using requests
         for app in os.listdir("instances/"):
             config_file = f"instances/{app}/config.json"
@@ -228,9 +219,19 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     if jmod.getvalue(key="running", json_dir=config_file) == True:
                         print(f"Port {port} is already in use by project {app}! Please change the port of one of the projects to add to autostart.")
                         return True
-
-        # Starts the app
-        threading.Thread(target=instance.start, args=(app_name, False)).start()
+        
+        website = threading.Process(
+            target=instance.start, args=(app, False),
+            name=f"{app_name}_webserver"
+            )
+        website.start()
+        pid = website.pid
+        jmod.setvalue(
+            key="pid",
+            json_dir=f"instances/{app_name}/config.json",
+            value=pid,
+            dt=config_dt(app_name)
+        )
 
     def start(app_name, silent=False): # Silent = True makes it buggy as fuck because of how I suppressed prints. whoops 
         # Define the base directory for instances
@@ -243,7 +244,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         # Get the port from the config.json file
         config_path = os.path.abspath(f"instances/{app_name}/config.json")
         with open(config_path, 'r') as config_file:
-            config_data = json.load(config_file)
+            config_data: dict = json.load(config_file)
         port = config_data.get("port")
 
         if port is None:
@@ -253,7 +254,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
-                self.content_directory = os.path.abspath(f"{base_directory}/{app_name}/content/")
+                self.content_directory = config_data.get("contentloc")
                 super().__init__(*args, directory=self.content_directory, **kwargs)
 
             def do_GET(self):
@@ -307,11 +308,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
             with socketserver.TCPServer(("", port), CustomHandler) as httpd:
                 # Print a message to indicate the server has started unless silent is True
                 if not silent:
-                    print(f"Server \"{app_name}\" is running. Check the logs for actions.\n"
+                    print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
                         f"You can visit it on http://localhost:{port}")
 
                 log_message(f"Server \"{app_name}\" is running.")
-                # Sets server to running in Json file.
+                # Get the PID of the current thread (web server)
+
+                # Sets server to running in JSON file and save the PID
                 jmod.setvalue(
                     key="running",
                     json_dir=f"instances/{app_name}/config.json",
@@ -324,8 +327,72 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 httpd.serve_forever()
 
         except OSError as e:
-            print(f"Server \"{app_name}\" failed to start: {e}")
+            if not silent:
+                print(f"Server \"{app_name}\" failed to start: {e}")
             log_message(f"Server \"{app_name}\" failed to start: {e}")
 
-    def close(app_name):
-        pass
+    def stop_interface():
+        '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
+        input()
+
+        # Prints all app names, then asks for the app name they want to stop
+        os.system('cls' if os.name == "nt" else "clear")
+        print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
+        for app in os.listdir("instances/"):
+            # Ensures app is running
+            if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
+                print(app)
+                # Prints description in gray then resets to white
+                print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+        else:
+            print("\nType Cancel to cancel stopping an app.")
+            while True: # Retry logic
+                try:
+                    app_name = input(">>> ")
+                    if app_name.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert app_name in os.listdir("instances/"), "The app must exist!"
+                    break
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+
+        # Stops the app
+        instance.stop(app_name)
+
+    def stop(app_name):
+        try:
+            # Get the process ID (PID) of the running web server for the specified app
+            config_path = os.path.abspath(f"instances/{app_name}/config.json")
+            with open(config_path, 'r') as config_file:
+                config_data = json.load(config_file)
+            pid = config_data.get("pid")
+
+            if pid is None:
+                print(f"PID is not defined in config.json for {app_name}!")
+                return False
+
+            # Terminate the web server process gracefully.
+            try:
+                os.kill(pid, 2)
+            except PermissionError:
+                print("I don't have permission to do that! Try again later.")
+            # signal 2 = CTRL + C
+            # This works because the process its interrupting is actually a python script
+            # And this causes a keyboardinterrupt exception, which causes it to stop.
+
+            # Update the JSON file to indicate that the server is not running
+            jmod.setvalue(
+                key="running",
+                json_dir=f"instances/{app_name}/config.json",
+                value=False,
+                dt=config_dt(app_name)
+            )
+
+            print(f"Server \"{app_name}\" has been stopped.")
+            logging.info(f"Server \"{app_name}\" has been stopped.")
+
+        except Exception as e:
+            print(f"Failed to stop server \"{app_name}\": {e}")
+            logging.error(f"Failed to stop server \"{app_name}\": {e}")

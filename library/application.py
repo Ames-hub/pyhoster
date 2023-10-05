@@ -3,7 +3,7 @@ import logging
 import os
 import keyboard
 import threading
-import ctypes  # Import ctypes to forcefully terminate a thread
+import json
 
 root_dir = os.getcwd()
 
@@ -22,6 +22,7 @@ class application:
             keyboard.add_word_listener("create", lambda: instance.create(), triggers=trigger_list)
             keyboard.add_word_listener("delete", lambda: instance.delete(), triggers=trigger_list)
             keyboard.add_word_listener("start", lambda: instance.start_interface(), triggers=trigger_list)
+            keyboard.add_word_listener("stop", lambda: instance.stop_interface(), triggers=trigger_list)
             keyboard.add_word_listener("cls", lambda: os.system("cls" if os.name == "nt" else "clear"), triggers=trigger_list)
         else:
             logging.warning("Keybind listening is disabled. To enable it, set keybind_listen to True in application.run() on file pyhost.py or setting an environment variable called PYHOST_KEYBIND_LISTEN to string 'True'.")
@@ -44,13 +45,27 @@ class application:
                 # Check if the thread is not the main thread
                 if thread != threading.current_thread():
                     try:
-                        thread.join(timeout=2)  # Wait for the thread to finish for a maximum of 2 seconds
+                        for app in os.listdir("instances/"):
+                            config_path = os.path.abspath(f"instances/{app}/config.json")
+                            with open(config_path, 'r') as config_file:
+                                config_data = json.load(config_file)
+                            pid = config_data.get("pid")
+
+                            if pid is None:
+                                print(f"PID is not defined in config.json for {app}!")
+                                choice = input("Would you like to forcefully terminate? (y/n): ")
+                                if choice.lower() == "y":
+                                    os.kill(pid, 9)
+                                    # signal 9 == SIGKILL
+                                else:
+                                    print("Skipping...")
+                                    continue
+
+                            # Terminate the web server process gracefully.
+                            os.kill(pid, 2)
+                            # signal 2 == CTRL + C
                     except Exception as e:
                         logging.error(f"Error stopping thread: {e}")
-                        # Forcefully terminate the thread if an exception occurs
-                        thread_id = ctypes.c_long(thread.ident)
-                        ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, ctypes.py_object(SystemExit))
-                        logging.info(f"terminated thread: {thread}")
             print("All web instances have been shut down.")
 
             # Sets all the JSON file's running key to False
@@ -58,6 +73,7 @@ class application:
             from .data_tables import config_dt
 
             print("Setting all instances to not running...")
+            os.makedirs("instances", exist_ok=True)
             for app in os.listdir("instances/"):
                 jmod.setvalue(
                     key="running",
@@ -66,6 +82,17 @@ class application:
                     dt=config_dt(app)
                 )
             print("All instances have been set to not running.")
+
+            # Sets all PID's to None
+            print("Setting all PID's to None...")
+            for app in os.listdir("instances/"):
+                jmod.setvalue(
+                    key="pid",
+                    json_dir=f"instances/{app}/config.json",
+                    value=None,
+                    dt=config_dt(app)
+                )
+            print("All PID's have been set to None.")
 
             print("Exiting...")
             exit(1)

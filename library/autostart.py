@@ -1,9 +1,9 @@
-import os,time
+import os,multiprocessing as threading
 from .jmod import jmod
 from .data_tables import config_dt
 root_dir = os.getcwd()
 class autostart:
-    def add(app_name):
+    def add(app_name, start_app=True):
 
         port_taken = False
         # Checks all other projects for other autostarts that have the same port
@@ -22,6 +22,24 @@ class autostart:
             value=True if not port_taken else False, # If the port is taken, it will not add it to autostart
             dt=config
         )
+
+        if start_app is True:
+            from .instance import instance
+            website = threading.Process(
+                target=instance.start, args=(app, False),
+                name=f"{app_name}_webserver"
+                )
+            website.start()
+            pid = website.pid
+            jmod.setvalue(
+                key="pid",
+                json_dir=f"instances/{app_name}/config.json",
+                value=pid,
+                dt=config_dt(app_name)
+            )
+            del instance # Free up memory (Idk if it already does this)
+        
+        return True if not port_taken else False
 
     def remove(app_name):
         config = config_dt(app_name)

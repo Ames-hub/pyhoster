@@ -5,7 +5,8 @@ An nginx replacement built with python to manage multiple website instances.
 Install python3.11 from the website or your package manager. (Such as MS store)
 then run these commands in the directory you want to install pyhoster in.
 ```
-git clone https://github.com/Ames-hub/pyhoster .
+git clone https://github.com/Ames-hub/pyhoster . 
+(or download files from the github page)
 python3.11 -m venv venv
 ```
 on windows, use `venv\Scripts\activate.bat` to activate the virtual environment.<br>
@@ -24,5 +25,6 @@ if a key is in brackets, I am indicating its on the keyboard and not to be typed
 `create + [enter]` - Create a new website instance.<br>
 `delete + [enter]` - Delete a website instance.<br>
 `start + [enter]` - Start a website instance.<br>
+`stop + [enter]` - Stop a website instance<br>
 `cls + [enter]` - Clear the screen of all text.<br>
 `ctrl + c` - Exit the program and shutdown all web instances.<br>
