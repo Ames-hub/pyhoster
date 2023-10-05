@@ -24,6 +24,7 @@ made toggleable for 'edge' cases where you want to use the keybinds for somethin
 if a key is in brackets, I am indicating its on the keyboard and not to be typed out<br>
 `create + [enter]` - Create a new website instance.<br>
 `delete + [enter]` - Delete a website instance.<br>
+`edit + [enter]` - Edit a website instance.<br>
 `start + [enter]` - Start a website instance.<br>
 `stop + [enter]` - Stop a website instance<br>
 `cls + [enter]` - Clear the screen of all text.<br>
