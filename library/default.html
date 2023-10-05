@@ -73,10 +73,9 @@
                 Hello! Welcome to the Pyhost Website Management Tool!<br>
                 <br>
                 The page you are seeing is for when an index page is not found.<br>
-                In this case, it'd be because the <br>`instances/(your app name here)/content/`<br> folder does not have the file!<br>
+                In this case, it'd be because the <br>`${CONTENT_DIR}`<br> folder does not have the index.html file!<br>
                 <br>
-                To fix this, simply add a file called index.html to the content folder then reload the page!<br><br>
-                or if you've added a bound path, add the file in the bound path, start the program, wait a bit, and it should copy there as well, also resolving the problem!<br>
+                If it does, try running the command "update" with "${APP_NAME}"
             </p>
         </div>
         <p id="reveal-button" class="reveal-button" onclick="revealInstructions()">Click to reveal instructions</p>

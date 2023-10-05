@@ -53,6 +53,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 print(str(err))
                 continue
 
+        # Gets the port
         while True:
             try:
                 port: int = input("What port should the app run on? NUMBER (Default: 80) : ")
@@ -69,6 +70,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 print(str(err))
                 continue
 
+        # Gets external bound directory
         while True:
             try:
                 print("\nThis directory will be copied to the app's content folder. You work on the project in this directory.")
@@ -86,6 +88,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 print(str(err))
                 continue
         
+        # asks if the app should autostart
         while True:
             try:
                 do_autostart: str = input("Should the app autostart? Y/N : ").lower()
@@ -118,32 +121,39 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         config_path = f"instances/{app_name}/config.json"
         # Sets the absolute path/boundpath in the json file
+        config = config_dt
+        jmod.setvalue(
+            "name",
+            config_path,
+            value=app_name,
+            dt=config
+            )
         jmod.setvalue(
             "boundpath",
             config_path,
             value=boundpath,
-            dt=config_dt(app_name)
+            dt=config
             )
         # Sets description
         jmod.setvalue(
             "description",
             config_path,
             value=app_desc,
-            dt=config_dt(app_name)
+            dt=config
             )
         # Sets the port
         jmod.setvalue(
             "port",
             config_path,
             value=port,
-            dt=config_dt(app_name)
+            dt=config
         )
         # Sets the content directory
         jmod.setvalue(
             "contentloc",
             config_path,
             value=os.path.abspath(f"instances/{app_name}/content/"),
-            dt=config_dt(app_name)
+            dt=config
         )
 
         os.system('cls' if os.name == "nt" else "clear")
@@ -232,7 +242,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             key="pid",
             json_dir=f"instances/{app_name}/config.json",
             value=pid,
-            dt=config_dt(app_name)
+            dt=config_dt
         )
 
     def start(app_name, silent=False): # Silent = True makes it buggy as fuck because of how I suppressed prints. whoops 
@@ -271,6 +281,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
                 with open(default_html_path, 'rb') as default_html_file:
                     content = default_html_file.read()
+
+                    content.replace("${APP_NAME}", app_name)
+                    content.replace("${CONTENT_DIR}", jmod.getvalue(key="contentloc", json_dir=config_path))
                 self.send_response(200)
                 self.send_header("Content-type", "text/html")
                 self.end_headers()
@@ -321,7 +334,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     key="running",
                     json_dir=f"instances/{app_name}/config.json",
                     value=True,
-                    dt=config_dt(app_name)
+                    dt=config_dt
                 )
 
                 # Start the server and keep it running until interrupted
@@ -333,6 +346,18 @@ class instance: # Do not use apptype in calls until other apptypes are made
             if not silent:
                 print(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
             log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
+
+    def restart_interface():
+        for app in os.listdir("instances/"):
+            print(app)
+            # Prints description in gray then resets to white
+            print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+
+        print("\nEnter app name to restart.")
+        app_name = input(">>> ")
+        instance.stop(app_name)
+        instance.start(app_name)
+        print("Restarted app successfully.")
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
@@ -393,7 +418,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="running",
                 json_dir=f"instances/{app_name}/config.json",
                 value=False,
-                dt=config_dt(app_name)
+                dt=config_dt
             )
 
             print(f"Server \"{app_name}\" has been stopped.")
@@ -473,9 +498,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     else:
                         option = option.lower()
                         
-                        if "stop" in option:
-                            self.end_edit()
-                        elif "name" in option:
+                        for word in option.split(" "):
+                            if word in ["cancel", "stop", "exit", "quit"]:
+                                self.end_edit()
+                        
+                        if "name" in option:
                             self.name()
                         elif "port" in option:
                             self.port()
@@ -485,8 +512,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             self.boundpath()
                         elif "autostart" in option:
                             self.autostart()
-                        elif "cancel" in option:
-                            self.end_edit()
                         else:
                             raise KeyError
 
@@ -543,7 +568,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     key="name",
                     json_dir=self.config_dir,
                     value=new_name,
-                    dt=config_dt(new_name)
+                    dt=config_dt
                 )
                 print(f"Changed name to {new_name} successfully!")
 
@@ -573,7 +598,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="port",
                 json_dir=self.config_dir,
                 value=new_port,
-                dt=config_dt(self.app_name)
+                dt=config_dt
             )
             print(f"Changed port to {new_port} successfully!")
 
@@ -599,7 +624,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="description",
                 json_dir=self.config_dir,
                 value=new_desc,
-                dt=config_dt(self.app_name)
+                dt=config_dt
             )
             print(f"Changed description to\n\"{new_desc}\"\nsuccessfully!")
 
@@ -637,7 +662,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="boundpath",
                 json_dir=self.config_dir,
                 value=new_boundpath,
-                dt=config_dt(self.app_name)
+                dt=config_dt
             )
             print(f"Changed externally boundpath to {new_boundpath} successfully!")
 

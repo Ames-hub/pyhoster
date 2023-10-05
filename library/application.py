@@ -5,35 +5,47 @@ root_dir = os.getcwd()
 class application:
     def run(keybind_listen: bool = True):
         application.running = True
-        # List of triggers for all word listeners
-        # Adds a capital version of each trigger, making all keys a trigger
 
-        trigger_list = ['enter']
-        logging.info("All triggers have been added to the trigger list!")
+        def help_msg():
+            print("Available Commands:")
+            if bool(os.environ.get("PYHOST_KEYBIND_LISTEN",True)) == False:
+                print("NONE: Input has been disabled. How did you even get here?")
+            else:
+                print("create: Creates a new app")
+                print("delete: Deletes an app")
+                print("edit: Edits an app")
+                print("start: Starts an app")
+                print("restart: Turns off then on an app")
+                print("stop: Stops an app")
+                print("help: Displays this message")
+                print("cls: Clears the screen")
 
         from .instance import instance
         try:
             while True:
-                while True:
-                    if keybind_listen == True:
-                        cmd: str = str(input("Enter a command: "))
-                        # Begins listening for create, delete, edit, etc commands
-                        if cmd == "create":
-                            instance.create()
-                        elif cmd == "delete":
-                            instance.delete()
-                        elif cmd == "edit":
-                            instance.edit()
-                        elif cmd == "start":
-                            instance.start_interface()
-                        elif cmd == "stop":
-                            instance.stop_interface()
-                        elif cmd == "cls":
-                            os.system("cls" if os.name == "nt" else "clear")
-                        elif cmd == "":
-                            pass # Idk why, but it takes 1 press of enter to have the message appear. weird
-                        else:
-                            print("Invalid command. Please try again or do `help`")
+                if keybind_listen == True:
+                    cmd: str = str(input("Enter a command: "))
+                    # Begins listening for create, delete, edit, etc commands
+                    if cmd == "create":
+                        instance.create()
+                    elif cmd == "delete":
+                        instance.delete()
+                    elif cmd == "edit":
+                        instance.edit()
+                    elif cmd == "start":
+                        instance.start_interface()
+                    elif cmd == "restart":
+                        instance.restart_interface()
+                    elif cmd == "stop":
+                        instance.stop_interface()
+                    elif cmd == "help":
+                        help_msg()
+                    elif cmd == "cls":
+                        os.system("cls" if os.name == "nt" else "clear")
+                    elif cmd == "":
+                        pass # Idk why, but it takes 1 press of enter to have the message appear. weird
+                    else:
+                        print("Invalid command. Please try again or do `help`")
         except KeyboardInterrupt:
             application.running = False
             # os.system('cls' if os.name == "nt" else "clear")
@@ -78,7 +90,7 @@ class application:
                     key="running",
                     json_dir=f"instances/{app}/config.json",
                     value=False,
-                    dt=config_dt(app)
+                    dt=config_dt
                 )
             print("All instances have been set to not running.")
 
@@ -89,7 +101,7 @@ class application:
                     key="pid",
                     json_dir=f"instances/{app}/config.json",
                     value=None,
-                    dt=config_dt(app)
+                    dt=config_dt
                 )
             print("All PID's have been set to None.")
 

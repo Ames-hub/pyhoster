@@ -60,7 +60,7 @@ if __name__ == '__main__': # Prevents errors with multiprocessing
                 key="pid",
                 json_dir=f"instances/{app}/config.json",
                 value=pid,
-                dt=config_dt(app)
+                dt=config_dt
             )
 
             launch_amount += 1

@@ -15,12 +15,11 @@ class autostart:
                     print(f"Port {port} is already in use by project {app}! Please change the port of one of the projects to add to autostart.")
                     port_taken = True
 
-        config = config_dt(app_name)
         jmod.setvalue(
             key="autostart",
             json_dir=f"instances/{app_name}/config.json",
             value=True if not port_taken else False, # If the port is taken, it will not add it to autostart
-            dt=config
+            dt=config_dt
         )
 
         if start_app is True:
@@ -35,17 +34,16 @@ class autostart:
                 key="pid",
                 json_dir=f"instances/{app_name}/config.json",
                 value=pid,
-                dt=config_dt(app_name)
+                dt=config_dt
             )
             del instance # Free up memory (Idk if it already does this)
         
         return True if not port_taken else False
 
     def remove(app_name):
-        config = config_dt(app_name)
         jmod.setvalue(
             key="autostart",
             json_dir=f"instances/{app_name}/config.json",
             value=False,
-            dt=config
+            dt=config_dt
         )
