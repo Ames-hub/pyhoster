@@ -106,7 +106,7 @@ class application:
             print("All PID's have been set to None.")
 
             print("Exiting...")
-            exit(1)
+            exit()
 
     class types:
         def webpage():
