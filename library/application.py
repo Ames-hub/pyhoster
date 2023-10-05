@@ -21,6 +21,7 @@ class application:
             # Begins listening for create, delete, edit, etc commands
             keyboard.add_word_listener("create", lambda: instance.create(), triggers=trigger_list)
             keyboard.add_word_listener("delete", lambda: instance.delete(), triggers=trigger_list)
+            keyboard.add_word_listener("edit", lambda: instance.edit(), triggers=trigger_list)
             keyboard.add_word_listener("start", lambda: instance.start_interface(), triggers=trigger_list)
             keyboard.add_word_listener("stop", lambda: instance.stop_interface(), triggers=trigger_list)
             keyboard.add_word_listener("cls", lambda: os.system("cls" if os.name == "nt" else "clear"), triggers=trigger_list)

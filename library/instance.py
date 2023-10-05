@@ -81,7 +81,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 if boundpath != "":
                     assert os.path.exists(boundpath) and os.path.isabs(boundpath), "The path must exist and be absolute! (absolute: starting from root directory such as C:/)"
                 else:
-                    boundpath = f"instances/{app_name}/"
+                    boundpath = str(os.path.abspath(f"instances/{app_name}/content/"))
                 break
             except AssertionError as err: # Forces the path to be valid and absolute
                 print(str(err))
@@ -217,8 +217,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 port = jmod.getvalue(key='port', json_dir=config_file)
                 if port == jmod.getvalue(key='port', json_dir=f"instances/{app_name}/config.json"):
                     if jmod.getvalue(key="running", json_dir=config_file) == True:
-                        print(f"Port {port} is already in use by project {app}! Please change the port of one of the projects to add to autostart.")
-                        return True
+                        if app != app_name:
+                            print(f"Port {port} is already in use by project {app}! Please change the port of one of the other projects or stop a one.")
+                            return True
+                        else:
+                            print(f"That app is already running! To stop it, use the stop command.")
+                            return True
         
         website = threading.Process(
             target=instance.start, args=(app, False),
@@ -289,7 +293,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         # Define a custom log message function
         def log_message(message):
             current_date = datetime.date.today().strftime("%Y-%m-%d")
-            log_file_path = os.path.abspath(f"logs/{current_date}.log")
+            log_file_path = os.path.abspath(f"instances/{app_name}/logs/{current_date}.log")
 
             with open(log_file_path, "a") as log_file:
                 log_file.write(f"{datetime.datetime.now()} - {app_name} - {message}\n")
@@ -343,7 +347,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
                 print(app)
                 # Prints description in gray then resets to white
-                print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+                print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
         else:
             print("\nType Cancel to cancel stopping an app.")
             while True: # Retry logic
@@ -377,7 +381,10 @@ class instance: # Do not use apptype in calls until other apptypes are made
             try:
                 os.kill(pid, 2)
             except PermissionError:
-                print("I don't have permission to do that! Try again later.")
+                try:
+                    os.kill(pid, 9) # Try by force, if 2 wont work.
+                except:
+                    print("I don't have permission to do that! Try again later.")
             # signal 2 = CTRL + C
             # This works because the process its interrupting is actually a python script
             # And this causes a keyboardinterrupt exception, which causes it to stop.
@@ -396,3 +403,271 @@ class instance: # Do not use apptype in calls until other apptypes are made
         except Exception as e:
             print(f"Failed to stop server \"{app_name}\": {e}")
             logging.error(f"Failed to stop server \"{app_name}\": {e}")
+
+    class edit():
+        def __init__(self, app_name=None, is_interface=True) -> None:
+            if is_interface:
+                input() # Catches the edit command
+                while True: # Retry logic
+                    try:
+                        print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
+                        for app in os.listdir("instances/"):
+                            print(app)
+                            # Prints description in gray then resets to white
+                            print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+                        else:
+                            print("\nType Cancel to cancel editing.")
+                        app_name: str = str(input("What is the name of the app? TEXT : "))
+                        if app_name.lower() == "cancel":
+                            print("Cancelled!")
+                            return True
+                        assert app_name in os.listdir("instances/"), "The app must exist!"
+                        break
+                    except:
+                        pass
+
+            # Ensure an app_name can be gotten
+            try:
+                if not is_interface:
+                        assert app_name is not None, "App name is not defined!"
+                elif app_name is None:
+                    assert is_interface == True
+            except:
+                print("App name is not defined!")
+                return
+
+            self.app_name = app_name
+            self.config_dir = os.path.abspath(f"instances/{app_name}/config.json")
+            with open (self.config_dir, "r") as config_file:
+                self.config_data = json.load(config_file)
+
+            # Stops the server if its not already stopped
+            print("Stopping selected server for stability purposes.")
+            instance.stop(self.app_name)
+
+            self.take_command()
+
+        def take_command(self):
+            '''The def that handles input from the user on how to edit the app.'''
+            print("What would you like to edit about the app?")
+            print("1. Name")
+            print("2. Port")
+            print("3. Description")
+            print("4. Bound Path")
+            print("5. Autostart")
+            print("6. Cancel\n")
+            while True:
+                try:
+                    option = input(">>> ")
+                    if option.isnumeric() == True:
+                        choice_dict = {
+                            1: "name",
+                            2: "port",
+                            3: "description",
+                            4: "boundpath",
+                            5: "autostart",
+                            6: "stop edit"
+                        }
+                        option = choice_dict[int(option)]
+                        
+                        if "stop" in option:
+                            self.end_edit()
+                    else:
+                        option = option.lower()
+                        
+                        if "stop" in option:
+                            self.end_edit()
+                        elif "name" in option:
+                            self.name()
+                        elif "port" in option:
+                            self.port()
+                        elif "description" in option:
+                            self.description()
+                        elif "boundpath" in option:
+                            self.boundpath()
+                        elif "autostart" in option:
+                            self.autostart()
+                        elif "cancel" in option:
+                            self.end_edit()
+                        else:
+                            raise KeyError
+
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+                except KeyError:
+                    print("Invalid option!")
+                    continue
+
+        def end_edit(self):
+            '''Ends the edit process'''
+            print("Stoping edit...")
+            startup = input("Would you like to start the app up? Y/N : ").lower()
+            if "y" in startup:
+                instance.start(self.app_name, True)
+                print("App started.")
+            return True
+
+        def name(self, new_name=None):
+            '''edits an apps name'''
+            # Stops the server if its not already stopped
+            instance.stop(self.app_name)
+
+            # Gets new name input if not provided
+            if new_name == None:
+                new_name = input("What is the new name of the app? TEXT : ")
+                if new_name.lower() == "cancel":
+                    print("Cancelled!")
+                    return True
+                
+                # Makes sure the app name is valid and can be made into a directory folder
+                assert not new_name.startswith(" "), "The name cannot start with a space!"
+                assert not new_name.endswith(" "), "The name cannot end with a space!"
+                assert "." not in new_name, "The name cannot have a period!"
+                assert "/" not in new_name and "\\" not in new_name, "The name cannot contain a slash!"
+                assert "_" not in new_name, "The name cannot contain an underscore!"
+                assert "-" not in new_name, "The name cannot contain a dash!"
+                assert ":" not in new_name, "The name cannot contain a colon!"
+                assert new_name != "", "The name cannot be blank!"
+
+                # Renames folder, and updates the self variable
+                old_dir = os.path.abspath(f"instances/{self.app_name}/")
+                new_dir = os.path.abspath(f"instances/{new_name}/")
+                os.rename(old_dir, new_dir)
+
+                self.app_name = new_name
+                self.config_dir = os.path.abspath(f"instances/{new_name}/config.json")
+                with open (self.config_dir, "r") as config_file:
+                    self.config_data = json.load(config_file)
+
+                # Updates the json file with the new name
+                jmod.setvalue(
+                    key="name",
+                    json_dir=self.config_dir,
+                    value=new_name,
+                    dt=config_dt(new_name)
+                )
+                print(f"Changed name to {new_name} successfully!")
+
+        def port(self, new_port=None):
+            '''edits an apps port'''
+            # Stops the server if its not already stopped
+            instance.stop(self.app_name)
+
+            # Gets new port input if not provided
+            if new_port == None:
+                while True:
+                    try:
+                        new_port = input("What is the new port of the app? NUMBER : ")
+                        if new_port.lower() == "cancel":
+                            print("Cancelled!")
+                            return True
+                        assert type(int(new_port)) is int, "The port must be an integer!"
+                        new_port = int(new_port)
+                        assert new_port > 0 and new_port < 65535, "The port must be between 0 and 65535!"
+                        break
+                    except (AssertionError, ValueError) as err:
+                        print(str(err))
+                        continue
+
+            # Updates the json file with the new port
+            jmod.setvalue(
+                key="port",
+                json_dir=self.config_dir,
+                value=new_port,
+                dt=config_dt(self.app_name)
+            )
+            print(f"Changed port to {new_port} successfully!")
+
+        def description(self, new_desc=None):
+            '''edits an apps description'''
+            # Stops the server if its not already stopped
+            instance.stop(self.app_name)
+
+            # Gets new description input if not provided
+            if new_desc == None:
+                print("\nInstructions: <nl> = new line")
+                new_desc = input("What is the new description of the app? TEXT (optional) : ")
+                if new_desc.lower() == "cancel":
+                    print("Cancelled!")
+                    return True
+                assert type(new_desc) == str, "The description must be a string!"
+                if new_desc == "":
+                    new_desc = "A Website hosted by Pyhost."
+                new_desc.replace("<nl>", "\n") # Replaces <nl> with a new line
+
+            # Updates the json file with the new description
+            jmod.setvalue(
+                key="description",
+                json_dir=self.config_dir,
+                value=new_desc,
+                dt=config_dt(self.app_name)
+            )
+            print(f"Changed description to\n\"{new_desc}\"\nsuccessfully!")
+
+        def boundpath(self, new_boundpath=None):
+            '''edits an apps boundpath'''
+            # Stops the server if its not already stopped
+            instance.stop(self.app_name)
+
+            # Gets new boundpath input if not provided
+            if new_boundpath == None:
+                abs_content_dir = str(os.path.abspath(f"instances/{self.app_name}/content/"))
+                while True:
+                    try:
+                        print("\nThis directory will be copied to the app's content folder. You work on the project in this directory.")
+                        print("Internal binding will be: "+abs_content_dir)
+                        new_boundpath = input("What is the new full path to the app's content? TEXT (blank for no external binding) : ")
+                        if new_boundpath.lower() == "cancel":
+                            print("Cancelled!")
+                            return True
+                        if new_boundpath != "":
+                            assert os.path.exists(new_boundpath) and os.path.isabs(new_boundpath), "The path must exist and be absolute! (absolute: starting from root directory such as C:/)"
+                        else:
+                            new_boundpath = abs_content_dir
+                        break
+                    except AssertionError as err:
+                        print(str(err))
+                        continue
+
+            # Copies all the content from the absolute path to the app's content folder using shutil
+            if new_boundpath != abs_content_dir:
+                shutil.copytree(new_boundpath, abs_content_dir, dirs_exist_ok=True)
+
+            # Updates the json file with the new boundpath
+            jmod.setvalue(
+                key="boundpath",
+                json_dir=self.config_dir,
+                value=new_boundpath,
+                dt=config_dt(self.app_name)
+            )
+            print(f"Changed externally boundpath to {new_boundpath} successfully!")
+
+        def autostart(self, is_autostart=None):
+            '''edits an apps autostart'''
+            # Stops the server if its not already stopped
+            instance.stop(self.app_name)
+
+            # Gets new autostart input if not provided
+            if is_autostart == None:
+                while True:
+                    try:
+                        is_autostart = input("Should the app autostart? Y/N : ").lower()
+                        from .autostart import autostart
+                        
+                        if is_autostart == "cancel":
+                            print("Cancelled!")
+                            return True
+                        if "y" in is_autostart:
+                            autostart.add(self.app_name)
+                            print("Added to autostart successfully!")
+                        elif "n" in is_autostart:
+                            autostart.remove(self.app_name)
+                            print("Removed from autostart successfully!")
+                        else:
+                            raise AssertionError("The autostart must be either 'Y' or 'N'!")
+                        assert type(is_autostart) is bool, "The autostart must be a boolean!"
+                        break
+                    except AssertionError as err:
+                        print(str(err))
+                        continue
