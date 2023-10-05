@@ -1,4 +1,4 @@
-import os, shutil, logging, sys, datetime, http.server, socketserver, json
+import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib
 from .application import application as app
 from .jmod import jmod
 from .data_tables import config_dt
@@ -281,9 +281,10 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
                 with open(default_html_path, 'rb') as default_html_file:
                     content = default_html_file.read()
+                    # Replace the placeholder text with the app name
+                    content = content.replace(b"{{app_name}}", bytes(app_name, "utf-8"))
+                    content = content.replace(b"{{content_dir}}", bytes(self.content_directory, "utf-8"))
 
-                    content.replace("${APP_NAME}", app_name)
-                    content.replace("${CONTENT_DIR}", jmod.getvalue(key="contentloc", json_dir=config_path))
                 self.send_response(200)
                 self.send_header("Content-type", "text/html")
                 self.end_headers()
@@ -428,6 +429,84 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print(f"Failed to stop server \"{app_name}\": {e}")
             logging.error(f"Failed to stop server \"{app_name}\": {e}")
 
+    def update(app_name=None, is_interface=False):
+
+        def calculate_file_hash(file_path):
+            BLOCKSIZE = 65536
+            hasher = hashlib.sha1()
+            with open(file_path, 'rb') as file:
+                buf = file.read(BLOCKSIZE)
+                while len(buf) > 0:
+                    hasher.update(buf)
+                    buf = file.read(BLOCKSIZE)
+            return hasher.hexdigest()
+
+        if is_interface:
+            while True:
+                try:
+                    print("\nAll app names below...\nDescriptions are in " + "\033[90m" + "gray" + "\033[0m \nName is "+"\033[91m"+"red"+"\033[0m"+" if outdated, "+"\033[96m"+"cyan"+"\033[0m"+" if up to date and finally "+"\033[93m"+"yellow"+"\033[0m"+" if the content folder is empty\n")
+                    for app in os.listdir("instances/"):
+                        # Get the paths for external (boundpath) and internal (content_dir) directories
+                        boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app}/config.json")
+                        content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app}/config.json")
+
+                        if os.listdir(content_dir) == []: # Prints in yellow to indicate empty
+                            print("\033[93m" + app + "\033[0m")
+                            continue # Continue, nothing to compare.
+
+                        # Get the file hash for each file in the external (boundpath) directory
+                        ext_dirlist: list = os.listdir(boundpath)
+                        ext_dirlist.sort()
+                        ext_hashes = {}
+                        for file in ext_dirlist:
+                            ext_file_path = os.path.join(boundpath, file)
+                            ext_hashes[file] = calculate_file_hash(ext_file_path)
+
+                        # Get the file hash for each file in the internal (content_dir) directory
+                        int_dirlist: list = os.listdir(content_dir)
+                        int_dirlist.sort()
+                        int_hashes = {}
+                        for file in int_dirlist:
+                            int_file_path = os.path.join(content_dir, file)
+                            int_hashes[file] = calculate_file_hash(int_file_path)
+
+                        # Check for outdated files in the internal directory
+                        outdated = False
+                        for file in int_dirlist:
+                            if file not in ext_hashes or ext_hashes[file] != int_hashes[file]:
+                                outdated = True
+
+                        description = "\033[90m" + jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json") + "\033[0m"
+                        if outdated == False:
+                            print("\033[96m" + app + "\033[0m\n"+description) # prints cyan
+                        elif outdated == True:
+                            print("\033[91m" + app + "\033[0m\n"+description) # Prints red
+                        else:
+                            print(app+"\n"+description)
+
+                    app_name = input("\nPlease enter the app name to update. Press enter to refresh.\n>>> ")
+                    if app_name == "cancel":
+                        print("Cancelled!")
+                        return True
+                    elif app_name in os.listdir("instances/"):
+                        break
+                except Exception as e:
+                    pass
+
+            # Overwrites internal with external directory
+            boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
+            content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
+            # Removes all old files
+            for file in os.listdir(content_dir):
+                # Removes folders and files
+                shutil.rmtree(os.path.join(content_dir, file), ignore_errors=True)
+                os.remove(os.path.join(content_dir, file), dir_fd=None)
+            else:
+                print("Update phase 1 completed.")
+            # Updates all files
+            shutil.copytree(src=boundpath, dst=content_dir, dirs_exist_ok=True)
+            print("Phase 2 completed.\n"+"\033[92m"+"Update completed."+"\033[0m")
+
     class edit():
         def __init__(self, app_name=None, is_interface=True) -> None:
             if is_interface:
@@ -501,6 +580,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         for word in option.split(" "):
                             if word in ["cancel", "stop", "exit", "quit"]:
                                 self.end_edit()
+                                return True
                         
                         if "name" in option:
                             self.name()
@@ -528,8 +608,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
                 instance.start(self.app_name, True)
-                print("App started.")
-            return True
+                print("App started.\nEdit completed and saved")
+                return True
+            elif "n" in startup:
+                print("Edit completed and saved")
+                return True
 
         def name(self, new_name=None):
             '''edits an apps name'''

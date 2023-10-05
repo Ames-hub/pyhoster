@@ -17,6 +17,7 @@ class application:
                 print("start: Starts an app")
                 print("restart: Turns off then on an app")
                 print("stop: Stops an app")
+                print("update: Updates an app")
                 print("help: Displays this message")
                 print("cls: Clears the screen")
 
@@ -38,6 +39,8 @@ class application:
                         instance.restart_interface()
                     elif cmd == "stop":
                         instance.stop_interface()
+                    elif cmd == "update":
+                        instance.update(is_interface=True)
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls":

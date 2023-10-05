@@ -37,5 +37,6 @@ if a key is in brackets, I am indicating its on the keyboard and not to be typed
 `edit + [enter]` - Edit a website instance.<br>
 `start + [enter]` - Start a website instance.<br>
 `stop + [enter]` - Stop a website instance<br>
+`update + [enter]` - Updates the content of a website instance.<br>
 `cls + [enter]` - Clear the screen of all text.<br>
 `ctrl + c` - Exit the program and shutdown all web instances.<br>
