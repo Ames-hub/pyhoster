@@ -16,6 +16,16 @@ then run `pip install -r requirements.txt` to install what is needed.
 
 Then run `python3.11 pyhost.py -O` to start the program.
 
+# Compatibility
+This works on every OS as far as I know.<br>
+As long as the OS can run python3.11, it should be able to run this.<br>
+There's nothing stopping it from doing so at least<br>
+
+So far I've tested it on<br>
+ZorinOS (ubuntu based)<br>
+Ubuntu<br>
+Windows 11
+
 # Environment variables
 PYHOST_KEYBIND_LISTEN: Boolean, if true, pyhoster will listen for keybinds. (Default: True)
 made toggleable for 'edge' cases where you want to use the keybinds for something else.
