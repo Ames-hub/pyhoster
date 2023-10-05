@@ -51,7 +51,7 @@ if __name__ == '__main__': # Prevents errors with multiprocessing
             print(f"Auto-Initializing project: \"{name}\" on port {port}")
             logging.info(f"Auto-Initializing project: \"{name}\" on port {port}")
             website = threading.Process(
-                target=instance.start, args=(app, False),\
+                target=instance.start, args=(app, True),\
                 name=f"{app}_webserver"
                 )
             website.start()
