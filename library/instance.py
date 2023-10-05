@@ -9,7 +9,6 @@ root_dir = os.getcwd()
 class instance: # Do not use apptype in calls until other apptypes are made
     def create(do_autostart: bool = False, apptype: app.types.webpage = app.types.webpage):
         # Gets input if not provided
-        input() # This input statement catches the 'create' text entered to call this def. Its purely aesthetic, not functional.
         while True:
             try:
                 print("Type Cancel to cancel creation.")
@@ -153,7 +152,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         logging.info(f"Created app \"{app_name}\" successfully!")
 
     def delete():
-        input() # This input statement catches the 'delete' text entered to call this def. Its purely aesthetic, not functional.
+        
         try: # Asks for the app name
             os.system('cls' if os.name == "nt" else "clear")
             print("\nWARNING: "+"\033[91m"+"YOU ARE ABOUT TO DELETE AN APP\n"+"\033[0m"+"All app names below...\n")
@@ -188,7 +187,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
     def start_interface():
         '''a def for the user to start an app from the command line easily via getting the app name from the user'''
-        input() # Aesthetic input statement to catch the 'start' text entered to call this def
         
         # Prints all app names, then asks for the app name they want to start
         os.system('cls' if os.name == "nt" else "clear")
@@ -205,7 +203,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             if app_name.lower() == "cancel":
                 print("Cancelled!")
                 return True
-            assert app_name in os.listdir("instances/"), "The app must exist!"
+            assert app_name in os.listdir(os.path.abspath("instances/")), "The app must exist!"
         except AssertionError as err:
             print(str(err))
             return
@@ -225,7 +223,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             return True
         
         website = threading.Process(
-            target=instance.start, args=(app, False),
+            target=instance.start, args=(app_name, False),
             name=f"{app_name}_webserver"
             )
         website.start()
@@ -337,7 +335,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
-        input()
+        
 
         # Prints all app names, then asks for the app name they want to stop
         os.system('cls' if os.name == "nt" else "clear")
@@ -407,7 +405,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
     class edit():
         def __init__(self, app_name=None, is_interface=True) -> None:
             if is_interface:
-                input() # Catches the edit command
                 while True: # Retry logic
                     try:
                         print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
