@@ -6,15 +6,26 @@ Install python3.11 from the website or your package manager. (Such as MS store)
 then run these commands in the directory you want to install pyhoster in.
 ```
 git clone https://github.com/Ames-hub/pyhoster . 
-(or download files from the github page)
 python3.11 -m venv venv
 ```
+wait for the venv to install (may take a minute)
+
 on windows, use `venv\Scripts\activate.bat` to activate the virtual environment.<br>
 on linux, use `source venv/bin/activate` to activate the virtual environment.
 
 then run `pip install -r requirements.txt` to install what is needed.
 
 Then run `python3.11 pyhost.py -O` to start the program.
+
+# Features
+- Create and delete website's in a second (simple as `create websitename "An interesting website!"`)
+- Start and stop websites easily (simple as `stop websitename`)
+- Edit the settings and content of a website easily
+- Change the index file of a website easily
+- link a website's content to any folder in your system
+- Make your changes, then update the website with a simple command
+- Run multiple websites at once
+- User friendly design
 
 # Compatibility
 This works on every OS as far as I know.<br>
