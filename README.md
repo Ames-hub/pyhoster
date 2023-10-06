@@ -41,13 +41,14 @@ Windows 11
 PYHOST_KEYBIND_LISTEN: Boolean, if true, pyhoster will listen for keybinds. (Default: True)
 made toggleable for 'edge' cases where you want to use the keybinds for something else.
 
-# Keybinds/Keywords
+# Possible Commands
 if a key is in brackets, I am indicating its on the keyboard and not to be typed out<br>
-`create + [enter]` - Create a new website instance.<br>
-`delete + [enter]` - Delete a website instance.<br>
-`edit + [enter]` - Edit a website instance.<br>
-`start + [enter]` - Start a website instance.<br>
-`stop + [enter]` - Stop a website instance<br>
-`update + [enter]` - Updates the content of a website instance.<br>
-`cls + [enter]` - Clear the screen of all text.<br>
-`ctrl + c` - Exit the program and shutdown all web instances.<br>
+`create` - Create a new website app.<br>
+`delete` - Delete a website app.<br>
+`edit` - Edit a website app.<br>
+`start` - Start a website app.<br>
+`stop` - Stop a website app<br>
+`restart` - Stop and then start a website app. Shorthand way of doing stop app_name && start app_name<br>
+`update` - Updates the content of a website app.<br>
+`cls` - Clear the screen of all text.<br>
+`ctrl + c` - Exit the program and shutdown all web apps.<br>
