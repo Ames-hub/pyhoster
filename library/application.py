@@ -1,5 +1,6 @@
 import logging, os, multiprocessing as mp, json
 from .data_tables import app_settings, config_dt
+from .jmod import jmod
 
 root_dir = os.getcwd()
 
@@ -120,13 +121,12 @@ class application:
                                 is_interface=False
                             )
 
-                        from .jmod import jmod
                         do_restart = jmod.getvalue(
                             key="restart_queued", # Having to do this due to init not being able to
                             json_dir=f"instances/{args[0]}/config.json", # return a bool
                             dt=config_dt
                         )
-                        del jmod
+                        
 
                         if do_restart == True:
                             mp.Process(
@@ -280,14 +280,12 @@ class application:
 
                     state = True if answer == "y" else False
                     break
-            from .jmod import jmod
             jmod.setvalue(
                 key="do_autostart",
                 json_dir=self.settings_dir,
                 value=state,
                 dt=app_settings
             )
-            del jmod
             if is_interface:
                 print("Turned off autostarts." if state == False else "Turned on Autostarts.")
             
