@@ -1,5 +1,5 @@
 import logging, os, multiprocessing as mp, json
-from .data_tables import app_settings
+from .data_tables import app_settings, config_dt
 
 root_dir = os.getcwd()
 
@@ -200,7 +200,6 @@ class application:
 
             # Sets all the JSON file's running key to False
             from .jmod import jmod
-            from .data_tables import config_dt
 
             print("Setting all instances to not running...")
             os.makedirs("instances", exist_ok=True)

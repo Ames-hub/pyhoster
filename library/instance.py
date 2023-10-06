@@ -627,7 +627,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stopping selected server for stability purposes.")
             instance.stop(self.app_name)
 
-            return self.take_command()
+            self.take_command()
 
         def take_command(self):
             '''The def that handles input from the user on how to edit the app.'''
