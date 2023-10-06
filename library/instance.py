@@ -307,28 +307,41 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print(f"Port is not defined in config.json for {app_name}!")
             return False
 
+        # Loads settings
         send_404 = jmod.getvalue( # If this setting is updated, the app needs to restart
             key="send_404_page",
             json_dir=setting_dir,
             default=True,
             dt=app_settings
             )
+        default_index = jmod.getvalue(
+            key="index",
+            json_dir=config_path,
+            default="index.html",
+            dt=config_data
+            )
+        
 
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 self.content_directory = config_data.get("contentloc")
                 super().__init__(*args, directory=self.content_directory, **kwargs)
-
             
             def do_GET(self):
                 self.log_request_action()
-                # Check if the content directory is empty
-                if not os.listdir(self.content_directory):    
-                    if send_404 == True:
-                        self.serve_default_html()
+                if self.path == "/":
+                    # Serve the default_index as the landing page
+                    default_index_path = os.path.abspath(os.path.join(self.content_directory, default_index))
+                    if os.path.exists(default_index_path):
+                        with open(default_index_path, 'rb') as index_file:
+                            content = index_file.read()
+                            self.send_response(200)
+                            self.send_header("Content-type", "text/html")
+                            self.end_headers()
+                            self.wfile.write(content)
                     else:
-                        super().do_GET()
+                        self.serve_default_html()
                 else:
                     super().do_GET()
 
@@ -404,26 +417,30 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 print(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
             log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
 
-    def restart_interface():
+    def restart(app_name=None, is_interface=True):
         print("\n")
-        for app in os.listdir("instances/"):
-            if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
-                print(app)  # Only prints apps that are running
-                # Prints description in gray then resets to white
-                print("\033[90m" + jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json") + "\033[0m")
+        if is_interface == True or app_name == None:
+            for app in os.listdir("instances/"):
+                if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
+                    print(app)  # Only prints apps that are running
+                    # Prints description in gray then resets to white
+                    print("\033[90m" + jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json") + "\033[0m")
 
-        print("\nEnter app name to restart.")
-        app_name = input(">>> ")
-        
-        from .application import application
-        if application.start_timer(10):  # Change 10 to the desired timeout duration in seconds
-            print("Restart operation timed out.")
-        else:
-            instance.stop(app_name)
-            instance.start(app_name, silent=True)
-            print("Restarted app successfully.")
-        
-        del application
+            while True:
+                print("\nEnter app name to restart.")
+                app_name = input(">>> ")
+                if app_name not in os.listdir("instances/"):
+                    print("That app doesn't exist!")
+                    continue
+                else:
+                    break
+    
+        instance.stop(app_name)
+        threading.Process(
+            target=instance.start,
+            args=(app_name, False),
+        )
+        print("Restarted app successfully.")
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
@@ -571,7 +588,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("Phase 2 completed.\n"+"\033[92m"+"Update completed."+"\033[0m")
 
     class edit():
-        def __init__(self, app_name=None, is_interface=True) -> None:
+        def __init__(self, app_name=None, is_interface=True) -> bool:
             if is_interface:
                 while True: # Retry logic
                     try:
@@ -610,7 +627,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stopping selected server for stability purposes.")
             instance.stop(self.app_name)
 
-            self.take_command()
+            return self.take_command()
 
         def take_command(self):
             '''The def that handles input from the user on how to edit the app.'''
@@ -618,20 +635,22 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("1. Name")
             print("2. Port")
             print("3. Description")
-            print("4. Bound Path")
+            print("4. Boundpath")
             print("5. Autostart")
-            print("6. Cancel\n")
+            print("6. Index Page")
+            print("7. Cancel\n")
             while True:
                 try:
-                    option = input(">>> ")
+                    option = input(">>> ").lower()
                     if option.isnumeric() == True:
+                        # Handles for when the user uses a number to convert from number to text
                         choice_dict = {
                             1: "name",
                             2: "port",
                             3: "description",
                             4: "boundpath",
                             5: "autostart",
-                            6: "stop edit"
+                            6: "stop"
                         }
                         option = choice_dict[int(option)]
                         
@@ -645,6 +664,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                                 self.end_edit()
                                 return True
                         
+                        # Handles the options for when the user does not use a number
                         if "name" in option:
                             self.name()
                         elif "port" in option:
@@ -655,8 +675,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             self.boundpath()
                         elif "autostart" in option:
                             self.autostart()
+                        elif "index" in option:
+                            self.main_index()
                         else:
                             raise KeyError
+                        
+                        return False
 
                 except AssertionError as err:
                     print(str(err))
@@ -670,15 +694,14 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stoping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
-                instance.start(self.app_name, True)
                 print("App started.\nEdit completed and saved")
                 return True
             elif "n" in startup:
                 print("Edit completed and saved")
-                return True
+                return False
             else:
                 print("Invalid answer.")
-                return True
+                return False
 
         def name(self, new_name=None):
             '''edits an apps name'''
@@ -843,3 +866,22 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     except AssertionError as err:
                         print(str(err))
                         continue
+
+        def main_index(self, filename=None):
+            if filename is None:
+                while True:
+                    try:
+                        filename = input("What is the name of the index file? (Include file extension) : ")
+                        assert filename != "", "The filename cannot be blank!"
+                        assert "." in filename, "The filename must include a file extension!"
+                        break
+                    except AssertionError as err:
+                        print(str(err))
+
+            jmod.setvalue(
+                key="index",
+                json_dir=self.config_dir,
+                value=filename,
+                dt=config_dt
+            )
+            print("Changed index file successfully!")

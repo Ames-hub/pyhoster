@@ -1,20 +1,7 @@
-import logging, os, multiprocessing as mp, json, time
+import logging, os, multiprocessing as mp, json
 from .data_tables import app_settings
-from .jmod import jmod
 
 root_dir = os.getcwd()
-
-def _timer(duration):
-    time.sleep(duration)
-    raise TimeoutError("RAN OUT OF TIME")
-
-def start_timer(duration: float):
-    try:
-        process = mp.Process(target=_timer, args=(duration,))
-        process.start()
-        process.join()  # Wait for the process to finish
-    except TimeoutError:
-        return True
 
 class application:
 
@@ -129,14 +116,39 @@ class application:
                             instance.edit()
                         else:
                             instance.edit(
-                                app_name=args[0]
+                                app_name=args[0],
+                                is_interface=False
+                            )
+
+                        from .jmod import jmod
+                        do_restart = jmod.getvalue(
+                            key="restart_queued", # Having to do this due to init not being able to
+                            json_dir=f"instances/{args[0]}/config.json", # return a bool
+                            dt=config_dt
+                        )
+                        del jmod
+
+                        if do_restart == True:
+                            mp.Process(
+                                target=instance.start,
+                                args=(args[0], True),
+                                name=f"{args[0]}_webserver"
                             )
                     elif cmd == "start":
                         instance.start_interface()
                     elif cmd == "restart":
-                        instance.restart_interface()
+                        if has_args == False:
+                            instance.restart(is_interface=True)
+                        else:
+                            instance.restart(
+                                app_name=args[0],
+                                is_interface=False
+                            )
                     elif cmd == "stop":
-                        instance.stop_interface()
+                        if has_args is True:
+                            instance.stop_interface()
+                        else:
+                            instance.stop(app_name=args[0])
                     elif cmd == "update":
                         if has_args == False:
                             instance.update(is_interface=True)
@@ -269,13 +281,14 @@ class application:
 
                     state = True if answer == "y" else False
                     break
-            
+            from .jmod import jmod
             jmod.setvalue(
                 key="do_autostart",
                 json_dir=self.settings_dir,
                 value=state,
                 dt=app_settings
             )
+            del jmod
             if is_interface:
                 print("Turned off autostarts." if state == False else "Turned on Autostarts.")
             
@@ -293,12 +306,14 @@ class application:
                     state = True if answer == "y" else False
                     break
             
+            from .jmod import jmod
             jmod.setvalue(
                 key="send_404_page",
                 json_dir=self.settings_dir,
                 value=state,
                 dt=app_settings
             )
+            del jmod
             if is_interface:
                 print("Turned off the 404 Page." if state == False else "Turned on the 404 Page.")
             
