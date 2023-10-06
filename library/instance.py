@@ -713,7 +713,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stoping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
-                print(f"\"{self.app_name}\" started! (http://localhost:{self.port})\nEdit completed and saved")
+                print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=config_dt)})\nEdit completed and saved")
                 self.do_restart = True
             elif "n" in startup:
                 print("Edit completed and saved")
