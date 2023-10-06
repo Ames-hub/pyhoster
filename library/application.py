@@ -159,6 +159,7 @@ class application:
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls":
+                        print("Hello, if you see this message, that means clearing the console is not supported in your terminal (such as pufferpanel terminal).")
                         os.system("cls" if os.name == "nt" else "clear")
                     elif cmd == "":
                         pass # Idk why, but it takes 1 press of enter to have the message appear. weird
