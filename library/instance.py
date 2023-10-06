@@ -1,23 +1,36 @@
-import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib
+import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib, random
 from .application import application as app
 from .jmod import jmod
-from .data_tables import config_dt
+from .data_tables import config_dt, app_settings
 import multiprocessing as threading
 
+
 root_dir = os.getcwd()
+setting_dir = os.path.join(root_dir, "settings.json")
 
 class instance: # Do not use apptype in calls until other apptypes are made
-    def create(do_autostart: bool = False, apptype: app.types.webpage = app.types.webpage):
-        # Gets input if not provided
-        while True:
+    def create(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None,
+               do_autostart: bool = False, apptype: app.types.webpage = app.types.webpage):
+        '''All needed args that are not provided will be grabbed from the user'''
+        
+        try:
+            if app_name != None:
+                app_name = str(app_name)
+            if app_desc != None:
+                app_desc = str(app_desc)
+            if port != None:
+                port = int(port)
+            if boundpath != None:
+                boundpath = str(boundpath)
+                if os.path.isabs(boundpath) == False:
+                    raise TypeError("Boundpath must be absolute!")
+            if do_autostart != None:
+                do_autostart = bool(do_autostart)
+        except TypeError as err:
+            print("Invalid argument Types! : "+str(err))
+        
+        if app_name != None:
             try:
-                print("Type Cancel to cancel creation.")
-                app_name: str = str(input("What is the name of the app? TEXT : "))
-                if app_name.lower() == "cancel":
-                    print("Cancelled!")
-                    return True
-                assert app_name.lower() != "create", "The name cannot be 'create'!" # Prevents the app from being named create as it is a reserved word
-
                 # Makes sure the app name is valid and can be made into a directory folder
                 assert not app_name.startswith(" "), "The name cannot start with a space!"
                 assert not app_name.endswith(" "), "The name cannot end with a space!"
@@ -27,85 +40,113 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 assert "-" not in app_name, "The name cannot contain a dash!"
                 assert ":" not in app_name, "The name cannot contain a colon!"
                 assert app_name != "", "The name cannot be blank!"
-                
-                if app_name in os.listdir("instances/"):
-                    raise AssertionError("The name cannot be the same as an existing app!")
-                
-                break
-            except AssertionError as err: # Forces the name to be valid
-                print(str(err))
-                continue
+            except AssertionError:
+                print("The name must be a valid name! (Must be able to be put in a file's name)")
+                app_name = None
         
+        # Gets input if not provided. Do not use Elif, so that if it failed assertion before it'll fix here
+        if app_name == None:
+            while True:
+                try:
+                    print("Type Cancel to cancel creation.")
+                    app_name: str = str(input("What is the name of the app? TEXT : "))
+                    if app_name.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert app_name.lower() != "create", "The name cannot be 'create'!" # Prevents the app from being named create as it is a reserved word
+
+                    # Makes sure the app name is valid and can be made into a directory folder
+                    assert not app_name.startswith(" "), "The name cannot start with a space!"
+                    assert not app_name.endswith(" "), "The name cannot end with a space!"
+                    assert "." not in app_name, "The name cannot have a period!"
+                    assert "/" not in app_name and "\\" not in app_name, "The name cannot contain a slash!"
+                    assert "_" not in app_name, "The name cannot contain an underscore!"
+                    assert "-" not in app_name, "The name cannot contain a dash!"
+                    assert ":" not in app_name, "The name cannot contain a colon!"
+                    assert app_name != "", "The name cannot be blank!"
+                    
+                    if app_name in os.listdir("instances/"):
+                        raise AssertionError("The name cannot be the same as an existing app!")
+                    
+                    break
+                except AssertionError as err: # Forces the name to be valid
+                    print(str(err))
+                    continue
+
         # Gets the app description
-        while True:
-            try:
-                print("\nInstructions: <nl> = new line")
-                app_desc: str = str(input("What is the app's description? TEXT (optional) : "))
-                if app_desc.lower() == "cancel":
-                    print("Cancelled!")
-                    return True
-                assert type(app_desc) == str, "The description must be a string!"
-                if app_desc == "":
-                    app_desc = "A Website hosted by Pyhost."
-                app_desc.replace("<nl>", "\n") # Replaces <nl> with a new line
-                break
-            except AssertionError as err: # Forces the description to be valid
-                print(str(err))
-                continue
+        if app_desc == None:
+            while True:
+                try:
+                    print("\nInstructions: <nl> = new line")
+                    app_desc: str = str(input("What is the app's description? TEXT (optional) : "))
+                    if app_desc.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert type(app_desc) == str, "The description must be a string!"
+                    if app_desc == "":
+                        app_desc = "A Website hosted by Pyhost."
+                    app_desc.replace("<nl>", "\n") # Replaces <nl> with a new line
+                    break
+                except AssertionError as err: # Forces the description to be valid
+                    print(str(err))
+                    continue
 
         # Gets the port
-        while True:
-            try:
-                port: int = input("What port should the app run on? NUMBER (Default: 80) : ")
-                if str(port).lower() == "cancel":
-                    print("Cancelled!")
-                    return True
-                if str(port) == "":
-                    port = 80
-                assert type(int(port)) is int, "The port must be an integer!"
-                port = int(port)
-                assert port > 0 and port < 65535, "The port must be between 0 and 65535!"
-                break
-            except (AssertionError, ValueError) as err: # Forces the port to be valid
-                print(str(err))
-                continue
+        if port == None:
+            while True:
+                try:
+                    port: int = input("What port should the app run on? NUMBER (Default: 80) : ")
+                    if str(port).lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    if str(port) == "":
+                        port = 80
+                    assert type(int(port)) is int, "The port must be an integer!"
+                    port = int(port)
+                    assert port > 0 and port < 65535, "The port must be between 0 and 65535!"
+                    break
+                except (AssertionError, ValueError) as err: # Forces the port to be valid
+                    print(str(err))
+                    continue
 
         # Gets external bound directory
-        while True:
-            try:
-                print("\nThis directory will be copied to the app's content folder. You work on the project in this directory.")
-                print("Internal binding will be: "+str(os.path.abspath(f"instances/{app_name}/content/")))
-                boundpath: str = str(input("What is the full path to the app's content? TEXT (blank for no external binding) : "))
-                if str(boundpath).lower() == "cancel":
-                    print("Cancelled!")
-                    return True
-                if boundpath != "":
-                    assert os.path.exists(boundpath) and os.path.isabs(boundpath), "The path must exist and be absolute! (absolute: starting from root directory such as C:/)"
-                else:
-                    boundpath = str(os.path.abspath(f"instances/{app_name}/content/"))
-                break
-            except AssertionError as err: # Forces the path to be valid and absolute
-                print(str(err))
-                continue
+        if boundpath == None:
+            while True:
+                try:
+                    print("\nThis directory will be copied to the app's content folder. You work on the project in this directory.")
+                    print("Internal binding will be: "+str(os.path.abspath(f"instances/{app_name}/content/")))
+                    boundpath: str = str(input("What is the full path to the app's content? TEXT (blank for no external binding) : "))
+                    if str(boundpath).lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    if boundpath != "":
+                        assert os.path.exists(boundpath) and os.path.isabs(boundpath), "The path must exist and be absolute! (absolute: starting from root directory such as C:/)"
+                    else:
+                        boundpath = str(os.path.abspath(f"instances/{app_name}/content/"))
+                    break
+                except AssertionError as err: # Forces the path to be valid and absolute
+                    print(str(err))
+                    continue
         
         # asks if the app should autostart
-        while True:
-            try:
-                do_autostart: str = input("Should the app autostart? Y/N : ").lower()
-                if do_autostart == "cancel":
-                    print("Cancelled!")
-                    return True
-                if "y" in do_autostart:
-                    do_autostart = True
-                elif "n" in do_autostart:
-                    do_autostart = False
-                else:
-                    raise AssertionError("The autostart must be either 'Y' or 'N'!")
-                assert type(do_autostart) is bool, "The autostart must be a boolean!"
-                break
-            except AssertionError as err: # Forces the autostart to be valid
-                print(str(err))
-                continue
+        if do_autostart == None:
+            while True:
+                try:
+                    do_autostart: str = input("Should the app autostart? Y/N : ").lower()
+                    if do_autostart == "cancel":
+                        print("Cancelled!")
+                        return True
+                    if "y" in do_autostart:
+                        do_autostart = True
+                    elif "n" in do_autostart:
+                        do_autostart = False
+                    else:
+                        raise AssertionError("The autostart must be either 'Y' or 'N'!")
+                    assert type(do_autostart) is bool, "The autostart must be a boolean!"
+                    break
+                except AssertionError as err: # Forces the autostart to be valid
+                    print(str(err))
+                    continue
 
         # Makes the appropriate directories
         os.makedirs(f"instances/{app_name}/", exist_ok=True)
@@ -161,32 +202,34 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("\033[92m" + f"Created app \"{app_name}\" successfully!" + "\033[0m")
         logging.info(f"Created app \"{app_name}\" successfully!")
 
-    def delete():
+    def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True):
         
-        try: # Asks for the app name
-            os.system('cls' if os.name == "nt" else "clear")
-            print("\nWARNING: "+"\033[91m"+"YOU ARE ABOUT TO DELETE AN APP\n"+"\033[0m"+"All app names below...\n")
-            for app in os.listdir("instances/"):
-                print(app)
-                # Prints description in gray then resets to white
-                print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
-            else:
-                print("\nType Cancel to cancel deletion.")
-            app_name: str = str(input("What is the name of the app? TEXT : "))
-            if app_name.lower() == "cancel":
-                print("Cancelled!")
-                return True
-            assert app_name in os.listdir("instances/"), "The app must exist!"
-        except AssertionError as err:
-            print(str(err))
+        if is_interface == True or app_name == None:
+            try: # Asks for the app name
+                os.system('cls' if os.name == "nt" else "clear")
+                print("\nWARNING: "+"\033[91m"+"YOU ARE ABOUT TO DELETE AN APP\n"+"\033[0m"+"All app names below...\n")
+                for app in os.listdir("instances/"):
+                    print(app)
+                    # Prints description in gray then resets to white
+                    print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+                else:
+                    print("\nType Cancel to cancel deletion.")
+                app_name: str = str(input("What is the name of the app? TEXT : "))
+                if app_name.lower() == "cancel":
+                    print("Cancelled!")
+                    return True
+                assert app_name in os.listdir("instances/"), "The app must exist!"
+            except AssertionError as err:
+                print(str(err))
 
-        try:
-            inp = input(f"Are you sure you want to delete \"{app_name}?\" Press enter to confirm. Otherwise, type cancel then enter to cancel.\n>>> ")
-            if inp != "":
-                raise AssertionError("Cancelled!")
-        except AssertionError as err:
-            print(str(err))
-            return
+        if ask_confirmation:
+            try:
+                inp = input(f"Are you sure you want to delete \"{app_name}?\" Press enter to confirm. Otherwise, type cancel then enter to cancel.\n>>> ")
+                if inp != "":
+                    raise AssertionError("Cancelled!")
+            except AssertionError as err:
+                print(str(err))
+                return
         
         # Deletes the app's folder
         shutil.rmtree(f"instances/{app_name}/")
@@ -202,9 +245,10 @@ class instance: # Do not use apptype in calls until other apptypes are made
         os.system('cls' if os.name == "nt" else "clear")
         print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
         for app in os.listdir("instances/"):
-            print(app)
-            # Prints description in gray then resets to white
-            print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+            if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == False:
+                print(app) # Only prints apps that havent been started yet
+                # Prints description in gray then resets to white
+                print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
         else:
             print("\nType Cancel to cancel initialization.")
         
@@ -245,7 +289,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             dt=config_dt
         )
 
-    def start(app_name, silent=False): # Silent = True makes it buggy as fuck because of how I suppressed prints. whoops 
+    def start(app_name, silent=True): # Silent = True makes it buggy as fuck because of how I suppressed prints. whoops 
         # Define the base directory for instances
         base_directory = os.path.abspath("instances/")
 
@@ -263,32 +307,44 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print(f"Port is not defined in config.json for {app_name}!")
             return False
 
+        send_404 = jmod.getvalue( # If this setting is updated, the app needs to restart
+            key="send_404_page",
+            json_dir=setting_dir,
+            default=True,
+            dt=app_settings
+            )
+
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 self.content_directory = config_data.get("contentloc")
                 super().__init__(*args, directory=self.content_directory, **kwargs)
 
+            
             def do_GET(self):
                 self.log_request_action()
                 # Check if the content directory is empty
-                if not os.listdir(self.content_directory):
-                    self.serve_default_html()
+                if not os.listdir(self.content_directory):    
+                    if send_404 == True:
+                        self.serve_default_html()
+                    else:
+                        super().do_GET()
                 else:
                     super().do_GET()
 
-            def serve_default_html(self):
-                default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
-                with open(default_html_path, 'rb') as default_html_file:
-                    content = default_html_file.read()
-                    # Replace the placeholder text with the app name
-                    content = content.replace(b"{{app_name}}", bytes(app_name, "utf-8"))
-                    content = content.replace(b"{{content_dir}}", bytes(self.content_directory, "utf-8"))
+            if send_404 == True: # Doesn't define this function if not send 404
+                def serve_default_html(self):
+                    default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
+                    with open(default_html_path, 'rb') as default_html_file:
+                        content = default_html_file.read()
+                        # Replace the placeholder text with the app name
+                        content = content.replace(b"{{app_name}}", bytes(app_name, "utf-8"))
+                        content = content.replace(b"{{content_dir}}", bytes(self.content_directory, "utf-8"))
 
-                self.send_response(200)
-                self.send_header("Content-type", "text/html")
-                self.end_headers()
-                self.wfile.write(content)
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/html")
+                    self.end_headers()
+                    self.wfile.write(content)
 
             def log_request_action(self):
                 client_address = self.client_address[0]
@@ -349,21 +405,28 @@ class instance: # Do not use apptype in calls until other apptypes are made
             log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
 
     def restart_interface():
+        print("\n")
         for app in os.listdir("instances/"):
-            print(app)
-            # Prints description in gray then resets to white
-            print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+            if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
+                print(app)  # Only prints apps that are running
+                # Prints description in gray then resets to white
+                print("\033[90m" + jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json") + "\033[0m")
 
         print("\nEnter app name to restart.")
         app_name = input(">>> ")
-        instance.stop(app_name)
-        instance.start(app_name)
-        print("Restarted app successfully.")
+        
+        from .application import application
+        if application.start_timer(10):  # Change 10 to the desired timeout duration in seconds
+            print("Restart operation timed out.")
+        else:
+            instance.stop(app_name)
+            instance.start(app_name, silent=True)
+            print("Restarted app successfully.")
+        
+        del application
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
-        
-
         # Prints all app names, then asks for the app name they want to stop
         os.system('cls' if os.name == "nt" else "clear")
         print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
@@ -408,9 +471,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
             except PermissionError:
                 try:
                     os.kill(pid, 9) # Try by force, if 2 wont work.
-                except:
+                except PermissionError:
                     print("I don't have permission to do that! Try again later.")
-            # signal 2 = CTRL + C
+            # signal 2 = CTRL + C | signal 9 = KILL
             # This works because the process its interrupting is actually a python script
             # And this causes a keyboardinterrupt exception, which causes it to stop.
 
@@ -492,20 +555,20 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         break
                 except Exception as e:
                     pass
-
-            # Overwrites internal with external directory
-            boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
-            content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
-            # Removes all old files
-            for file in os.listdir(content_dir):
-                # Removes folders and files
-                shutil.rmtree(os.path.join(content_dir, file), ignore_errors=True)
-                os.remove(os.path.join(content_dir, file), dir_fd=None)
-            else:
-                print("Update phase 1 completed.")
-            # Updates all files
-            shutil.copytree(src=boundpath, dst=content_dir, dirs_exist_ok=True)
-            print("Phase 2 completed.\n"+"\033[92m"+"Update completed."+"\033[0m")
+        
+        # Overwrites internal with external directory
+        boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
+        content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
+        # Removes all old files
+        for file in os.listdir(content_dir):
+            # Removes folders and files
+            shutil.rmtree(os.path.join(content_dir, file), ignore_errors=True)
+            os.remove(os.path.join(content_dir, file), dir_fd=None)
+        else:
+            print("Update phase 1 completed.")
+        # Updates all files
+        shutil.copytree(src=boundpath, dst=content_dir, dirs_exist_ok=True)
+        print("Phase 2 completed.\n"+"\033[92m"+"Update completed."+"\033[0m")
 
     class edit():
         def __init__(self, app_name=None, is_interface=True) -> None:
@@ -612,6 +675,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 return True
             elif "n" in startup:
                 print("Edit completed and saved")
+                return True
+            else:
+                print("Invalid answer.")
                 return True
 
         def name(self, new_name=None):
