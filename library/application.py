@@ -114,28 +114,30 @@ class application:
                             )
                     elif cmd == "edit":
                         if has_args == False:
-                            instance.edit()
+                            inst = instance.edit()
                         else:
-                            instance.edit(
+                            inst = instance.edit(
                                 app_name=args[0],
                                 is_interface=False
                             )
 
-                        do_restart = jmod.getvalue(
-                            key="restart_queued", # Having to do this due to init not being able to
-                            json_dir=f"instances/{args[0]}/config.json", # return a bool
-                            dt=config_dt
-                        )
+                        result = inst.get_result()
                         
-
-                        if do_restart == True:
+                        if result["do_restart"] == True:
                             mp.Process(
                                 target=instance.start,
-                                args=(args[0], True),
-                                name=f"{args[0]}_webserver"
+                                args=(result["app_name"], True,),
+                                name=f"{result['app_name']}_webserver"
                             )
                     elif cmd == "start":
-                        instance.start_interface()
+                        if not has_args:
+                            instance.start_interface(is_interface=True)
+                        else:
+                            instance.start_interface(
+                                app_name=args[0],
+                                is_interface=False
+                            )
+                            # Such a weird bug and idk what's causing it
                     elif cmd == "restart":
                         if has_args == False:
                             instance.restart(is_interface=True)
@@ -145,7 +147,7 @@ class application:
                                 is_interface=False
                             )
                     elif cmd == "stop":
-                        if has_args is True:
+                        if has_args == False:
                             instance.stop_interface()
                         else:
                             instance.stop(app_name=args[0])
@@ -303,14 +305,12 @@ class application:
                     state = True if answer == "y" else False
                     break
             
-            from .jmod import jmod
             jmod.setvalue(
                 key="send_404_page",
                 json_dir=self.settings_dir,
                 value=state,
                 dt=app_settings
             )
-            del jmod
             if is_interface:
                 print("Turned off the 404 Page." if state == False else "Turned on the 404 Page.")
             

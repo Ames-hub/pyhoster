@@ -211,7 +211,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 for app in os.listdir("instances/"):
                     print(app)
                     # Prints description in gray then resets to white
-                    print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+                    print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
                 else:
                     print("\nType Cancel to cancel deletion.")
                 app_name: str = str(input("What is the name of the app? TEXT : "))
@@ -238,29 +238,30 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("\033[92m" + f"Deleted app \"{app_name}\" successfully!" + "\033[0m")
         logging.info(f"Deleted app \"{app_name}\" successfully!")
 
-    def start_interface():
+    def start_interface(app_name=None, is_interface=True):
         '''a def for the user to start an app from the command line easily via getting the app name from the user'''
         
-        # Prints all app names, then asks for the app name they want to start
-        os.system('cls' if os.name == "nt" else "clear")
-        print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
-        for app in os.listdir("instances/"):
-            if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == False:
-                print(app) # Only prints apps that havent been started yet
-                # Prints description in gray then resets to white
-                print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
-        else:
-            print("\nType Cancel to cancel initialization.")
-        
-        try:
-            app_name: str = str(input("What is the name of the app? TEXT : "))
-            if app_name.lower() == "cancel":
-                print("Cancelled!")
-                return True
-            assert app_name in os.listdir(os.path.abspath("instances/")), "The app must exist!"
-        except AssertionError as err:
-            print(str(err))
-            return
+        if is_interface == True and app_name == None:
+            # Prints all app names, then asks for the app name they want to start
+            os.system('cls' if os.name == "nt" else "clear")
+            print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
+            for app in os.listdir("instances/"):
+                if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == False:
+                    print(app) # Only prints apps that havent been started yet
+                    # Prints description in gray then resets to white
+                    print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
+            else:
+                print("\nType Cancel to cancel initialization.")
+            
+            try:
+                app_name: str = str(input("What is the name of the app? TEXT : "))
+                if app_name.lower() == "cancel":
+                    print("Cancelled!")
+                    return True
+                assert app_name in os.listdir(os.path.abspath("instances/")), "The app must exist!"
+            except AssertionError as err:
+                print(str(err))
+                return
         
         # Ensures no other apps are running on the same port by using requests
         for app in os.listdir("instances/"):
@@ -277,7 +278,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             return True
         
         website = threading.Process(
-            target=instance.start, args=(app_name, False),
+            target=instance.start, args=(app_name, True),
             name=f"{app_name}_webserver"
             )
         website.start()
@@ -424,7 +425,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
                     print(app)  # Only prints apps that are running
                     # Prints description in gray then resets to white
-                    print("\033[90m" + jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json") + "\033[0m")
+                    print("\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m")
 
             while True:
                 print("\nEnter app name to restart.")
@@ -438,9 +439,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
         instance.stop(app_name)
         threading.Process(
             target=instance.start,
-            args=(app_name, False),
-        )
-        print("Restarted app successfully.")
+            args=(app_name, True),
+        ).start()
+        print(f"Server {app_name} has started.")
+        print("\033[92m" + f"Restarted app \"{app_name}\" successfully!" + "\033[0m")
+
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
@@ -483,28 +486,33 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 return False
 
             # Terminate the web server process gracefully.
+            success = False
             try:
                 os.kill(pid, 2)
+                success = True
             except PermissionError:
                 try:
                     os.kill(pid, 9) # Try by force, if 2 wont work.
+                    success = True
                 except PermissionError:
-                    print("I don't have permission to do that! Try again later.")
+                    print("I don't have permission to stop this app! Please again later.")
             # signal 2 = CTRL + C | signal 9 = KILL
             # This works because the process its interrupting is actually a python script
             # And this causes a keyboardinterrupt exception, which causes it to stop.
+            if success:
+                # Update the JSON file to indicate that the server is not running
+                jmod.setvalue(
+                    key="running",
+                    json_dir=f"instances/{app_name}/config.json",
+                    value=False,
+                    dt=config_dt
+                )
 
-            # Update the JSON file to indicate that the server is not running
-            jmod.setvalue(
-                key="running",
-                json_dir=f"instances/{app_name}/config.json",
-                value=False,
-                dt=config_dt
-            )
-
-            print(f"Server \"{app_name}\" has been stopped.")
-            logging.info(f"Server \"{app_name}\" has been stopped.")
-
+                print(f"Server \"{app_name}\" has been stopped.")
+                logging.info(f"Server \"{app_name}\" has been stopped.")
+        except FileNotFoundError as e:
+            print(f"Server \"{app_name}\" is not an existant app!")
+            logging.error(f"Server \"{app_name}\" is not an existant app!")
         except Exception as e:
             print(f"Failed to stop server \"{app_name}\": {e}")
             logging.error(f"Failed to stop server \"{app_name}\": {e}")
@@ -556,7 +564,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             if file not in ext_hashes or ext_hashes[file] != int_hashes[file]:
                                 outdated = True
 
-                        description = "\033[90m" + jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json") + "\033[0m"
+                        description = "\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m"
                         if outdated == False:
                             print("\033[96m" + app + "\033[0m\n"+description) # prints cyan
                         elif outdated == True:
@@ -596,7 +604,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         for app in os.listdir("instances/"):
                             print(app)
                             # Prints description in gray then resets to white
-                            print("\033[90m"+jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")+"\033[0m")
+                            print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
                         else:
                             print("\nType Cancel to cancel editing.")
                         app_name: str = str(input("What is the name of the app? TEXT : "))
@@ -628,6 +636,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
             instance.stop(self.app_name)
 
             self.take_command()
+
+        def get_result(self):
+            '''returns a dict of the result'''
+            return {
+                "do_restart": self.do_restart,
+                "app_name": self.app_name
+            }
 
         def take_command(self):
             '''The def that handles input from the user on how to edit the app.'''
@@ -667,20 +682,24 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         # Handles the options for when the user does not use a number
                         if "name" in option:
                             self.name()
+                            continue
                         elif "port" in option:
                             self.port()
-                        elif "description" in option:
+                            continue
+                        elif "desc" in option:
                             self.description()
+                            continue
                         elif "boundpath" in option:
                             self.boundpath()
+                            continue
                         elif "autostart" in option:
                             self.autostart()
+                            continue
                         elif "index" in option:
                             self.main_index()
+                            continue
                         else:
                             raise KeyError
-                        
-                        return False
 
                 except AssertionError as err:
                     print(str(err))
@@ -694,14 +713,14 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stoping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
-                print("App started.\nEdit completed and saved")
-                return True
+                print(f"\"{self.app_name}\" started! (http://localhost:{self.port})\nEdit completed and saved")
+                self.do_restart = True
             elif "n" in startup:
                 print("Edit completed and saved")
-                return False
+                self.do_restart = False
             else:
                 print("Invalid answer.")
-                return False
+                self.do_restart = False
 
         def name(self, new_name=None):
             '''edits an apps name'''
@@ -746,9 +765,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         def port(self, new_port=None):
             '''edits an apps port'''
-            # Stops the server if its not already stopped
-            instance.stop(self.app_name)
-
             # Gets new port input if not provided
             if new_port == None:
                 while True:
@@ -776,8 +792,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         def description(self, new_desc=None):
             '''edits an apps description'''
-            # Stops the server if its not already stopped
-            instance.stop(self.app_name)
 
             # Gets new description input if not provided
             if new_desc == None:
@@ -802,8 +816,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         def boundpath(self, new_boundpath=None):
             '''edits an apps boundpath'''
-            # Stops the server if its not already stopped
-            instance.stop(self.app_name)
 
             # Gets new boundpath input if not provided
             if new_boundpath == None:
@@ -840,8 +852,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         def autostart(self, is_autostart=None):
             '''edits an apps autostart'''
-            # Stops the server if its not already stopped
-            instance.stop(self.app_name)
 
             # Gets new autostart input if not provided
             if is_autostart == None:
@@ -854,14 +864,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             print("Cancelled!")
                             return True
                         if "y" in is_autostart:
-                            autostart.add(self.app_name)
+                            autostart.add(self.app_name, start_app=False)
                             print("Added to autostart successfully!")
                         elif "n" in is_autostart:
                             autostart.remove(self.app_name)
                             print("Removed from autostart successfully!")
                         else:
                             raise AssertionError("The autostart must be either 'Y' or 'N'!")
-                        assert type(is_autostart) is bool, "The autostart must be a boolean!"
                         break
                     except AssertionError as err:
                         print(str(err))

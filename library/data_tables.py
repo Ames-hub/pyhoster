@@ -9,7 +9,6 @@ config_dt = {
     "boundpath": None, # Temporary. Updated on creation in create def. Type: absolute path
     "contentloc": None,
     "index": "index.html",
-    "restart_queued": False
 }
 
 app_settings = {
