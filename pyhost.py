@@ -12,6 +12,13 @@ from library.instance import instance
 from library.data_tables import config_dt, app_settings
 
 if __name__ == "__main__": # Checks if the user is running the app for the first time
+    # Checks if settings.json exists
+    if os.path.exists("settings.json") == False:
+        import json # Import here so that it never imports unless needed, freeing up memory.
+        # Creates settings.json
+        with open("settings.json", "w") as f:
+            json.dump(app_settings, f, indent=4, separators=(',', ': '))
+
     first_launch = jmod.getvalue("first_launch", "settings.json", True, dt=app_settings)
     if first_launch == True:
         # Checks if the user has backups from a previous pyhost install
