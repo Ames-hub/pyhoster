@@ -254,7 +254,7 @@ class application:
                     "exit": "Ends the settings edit session.",
                     "help": "Gives information on commands. Its this menu here",
                     "do autostart": "Set if we look for autostart apps on initialization. BOOL",
-                    "send 404 page": "Toggle if we send the default.html aka '404' page for when an app has no index or good place to route to. BOOL",
+                    "send 404 page": "Toggle if we send the default.html aka '404' page\nfor when an app has no index or good place to route to. BOOL",
                     "backups path": "Set the path to where backups are stored. TEXT",
                     "autobackup": "Toggle if we autobackup a snapshot of the app. BOOL",
                 }
