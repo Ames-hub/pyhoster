@@ -9,9 +9,15 @@ config_dt = {
     "boundpath": None, # Temporary. Updated on creation in create def. Type: absolute path
     "contentloc": None,
     "index": "index.html",
+    "last_updated": None,
+    "404page": "404.html",
+    "404page_enabled": False,
 }
 
 app_settings = {
     "do_autostart": True,
     "send_404_page": True,
+    "first_launch": True,
+    "do_autobackup": True,
+    "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
 }

@@ -26,6 +26,7 @@ class application:
                 print("restart: Turns off then on an app")
                 print("stop: Stops an app")
                 print("update: Updates an app")
+                print("rollback: Rollback to latest backup of an app or an earlier snapshot!")
                 print("help: Displays this message")
                 print("cls: Clears the screen")
 
@@ -110,24 +111,15 @@ class application:
                         else:
                             instance.delete(
                                 app_name=args[0],
-                                ask_confirmation=True
+                                ask_confirmation=True,
                             )
                     elif cmd == "edit":
                         if has_args == False:
-                            inst = instance.edit()
+                            instance.edit()
                         else:
-                            inst = instance.edit(
+                            instance.edit(
                                 app_name=args[0],
                                 is_interface=False
-                            )
-
-                        result = inst.get_result()
-                        
-                        if result["do_restart"] == True:
-                            mp.Process(
-                                target=instance.start,
-                                args=(result["app_name"], True,),
-                                name=f"{result['app_name']}_webserver"
                             )
                     elif cmd == "start":
                         if not has_args:
@@ -156,6 +148,25 @@ class application:
                             instance.update(is_interface=True)
                         else:
                             instance.update(app_name=args[0], is_interface=False)
+                    elif cmd == "rollback":
+                        if not has_args:
+                            instance.rollback(is_interface=True)
+                        else:
+                            try:
+                                args[1]
+                            except IndexError:
+                                args.append(None)
+
+                            instance.rollback(
+                                app_name=args[0],
+                                is_interface=False,
+                                rollback_ver=args[1],
+                                )
+                    elif cmd == "backup":
+                        if not has_args:
+                            instance.backup(is_interface=True)
+                        else:
+                            instance.backup(app_name=args[0], is_interface=False)
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls":
@@ -242,8 +253,10 @@ class application:
                 acceptable_choices = {
                     "exit": "Ends the settings edit session.",
                     "help": "Gives information on commands. Its this menu here",
-                    "do_autostart": "Set if we look for autostart apps on initialization. BOOL",
-                    "send_404_page": "Toggle if we send the default.html aka '404' page"
+                    "do autostart": "Set if we look for autostart apps on initialization. BOOL",
+                    "send 404 page": "Toggle if we send the default.html aka '404' page for when an app has no index or good place to route to. BOOL",
+                    "backups path": "Set the path to where backups are stored. TEXT",
+                    "autobackup": "Toggle if we autobackup a snapshot of the app. BOOL",
                 }
 
                 def help_msg():
@@ -267,10 +280,14 @@ class application:
                         return
                     elif cmd == "help":
                         help_msg()
-                    elif cmd == "do_autostart":
+                    elif cmd == "do autostart":
                         self.do_autostart(is_interface=True)
-                    elif cmd == "send_404_page":
+                    elif cmd == "send 404 page":
                         self.send_404_page(is_interface=True)
+                    elif cmd == "backups path":
+                        self.backups_path(is_interface=True)
+                    elif cmd == "autobackup":
+                        self.autobackup(is_interface=True)
 
         def do_autostart(self, state:bool=True, is_interface:bool=False):
             if is_interface:
@@ -317,3 +334,44 @@ class application:
             
             logging.info("Turned off the 404 Page." if state == False else "Turned on the 404 Page.")
             print("\nPlease restart the app at the earliest convenient time to have changes take effect\n")
+
+        def autobackup(self, enabled=None, is_interface=True):
+            '''Toggle if we autobackup a snapshot of the app before updating'''
+            if is_interface or enabled==None:
+                while True:
+                    try:
+                        answer = input("Should we autobackup apps automatically? y/n : ").lower()
+                        assert answer == "y" or answer == "n"
+                    except:
+                        print("Invalid choice. 'y' or 'n' only")
+
+                    enabled = True if answer == "y" else False
+                    break
+            
+            jmod.setvalue(
+                key="do_autobackup",
+                json_dir=self.settings_dir,
+                value=enabled,
+                dt=app_settings
+            )
+            print("Turned off autobackups." if enabled == False else "Turned on autobackups.")
+        
+        def backups_path(self, path=None, is_interface=False):
+            if is_interface:
+                while True:
+                    try:
+                        path = input("Enter the path to where backups should be stored: ")
+                        assert os.path.isabs(path)
+                    except AssertionError:
+                        print("Path must be absolute (eg, C:/Users/YOURNAME/Desktop). Try again.")
+                        continue
+                    break
+            jmod.setvalue(
+                key="backups_path",
+                json_dir=self.settings_dir,
+                value=path,
+                dt=app_settings
+            )
+            if is_interface:
+                print(f"Set backups path to \"{path}\"")
+            logging.info(f"Set backups path to \"{path}\"")

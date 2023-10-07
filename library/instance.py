@@ -1,4 +1,4 @@
-import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib, random
+import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib, time
 from .application import application as app
 from .jmod import jmod
 from .data_tables import config_dt, app_settings
@@ -202,7 +202,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("\033[92m" + f"Created app \"{app_name}\" successfully!" + "\033[0m")
         logging.info(f"Created app \"{app_name}\" successfully!")
 
-    def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True):
+    def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True, del_backups:bool=None):
         
         if is_interface == True or app_name == None:
             try: # Asks for the app name
@@ -222,6 +222,26 @@ class instance: # Do not use apptype in calls until other apptypes are made
             except AssertionError as err:
                 print(str(err))
 
+            # Asks if we should delete backups too
+            if del_backups == None:
+                while True:
+                    try:
+                        del_backups: str = input("Should the app's backups be deleted too? Y/N : ").lower()
+                        if del_backups == "cancel":
+                            print("Cancelled!")
+                            return True
+                        if "y" in del_backups:
+                            del_backups = True
+                        elif "n" in del_backups:
+                            del_backups = False
+                        else:
+                            raise AssertionError("The autostart must be either 'Y' or 'N'!")
+                        assert type(del_backups) is bool, "The autostart must be a boolean!"
+                        break
+                    except AssertionError as err:
+                        print(str(err))
+                        continue
+
         if ask_confirmation:
             try:
                 inp = input(f"Are you sure you want to delete \"{app_name}?\" Press enter to confirm. Otherwise, type cancel then enter to cancel.\n>>> ")
@@ -233,6 +253,23 @@ class instance: # Do not use apptype in calls until other apptypes are made
         
         # Deletes the app's folder
         shutil.rmtree(f"instances/{app_name}/")
+
+        # Removes backups of the app if they exist
+        # Gets the directory the backups are saved at
+        if del_backups == True:
+            backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
+            if backup_dir == None: # None means nothing was set by the user as a preference
+                linux = os.name != "nt" # If the OS is linux, it will be true
+                if linux:
+                    backup_dir = f"/var/pyhoster/backups/{app_name}/"
+                else:
+                    # Gets the appdata directory for the user
+                    appdata = os.getenv("APPDATA")
+                    backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+
+            # Deletes the backups
+            if os.path.exists(backup_dir):
+                shutil.rmtree(backup_dir)
 
         # Prints in green
         print("\033[92m" + f"Deleted app \"{app_name}\" successfully!" + "\033[0m")
@@ -321,7 +358,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
             default="index.html",
             dt=config_data
             )
-        
+        notfoundpage_enabled = jmod.getvalue(
+            key="404page_enabled",
+            json_dir=config_path,
+            default=False,
+            dt=config_data
+            )
+        notfoundpage = jmod.getvalue(key="404page", json_dir=config_path, default="404.html", dt=config_data)
 
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
@@ -344,7 +387,22 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     else:
                         self.serve_default_html()
                 else:
-                    super().do_GET()
+                    requested_file_path = os.path.abspath(os.path.join(self.content_directory, self.path.strip('/')))
+                    if os.path.exists(requested_file_path):
+                        super().do_GET()
+                    elif notfoundpage_enabled:
+                        notfoundpage_path = os.path.abspath(os.path.join(self.content_directory, notfoundpage))
+                        if os.path.exists(notfoundpage_path):
+                            with open(notfoundpage_path, 'rb') as notfoundpage_file:
+                                content = notfoundpage_file.read()
+                                self.send_response(404)
+                                self.send_header("Content-type", "text/html")
+                                self.end_headers()
+                                self.wfile.write(content)
+                        else:
+                            self.serve_default_html()
+                    else:
+                        self.serve_default_html()
 
             if send_404 == True: # Doesn't define this function if not send 404
                 def serve_default_html(self):
@@ -441,9 +499,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
             target=instance.start,
             args=(app_name, True),
         ).start()
-        print(f"Server {app_name} has started.")
+        print(f"Server \"{app_name}\" has started.")
         print("\033[92m" + f"Restarted app \"{app_name}\" successfully!" + "\033[0m")
-
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
@@ -529,7 +586,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     buf = file.read(BLOCKSIZE)
             return hasher.hexdigest()
 
-        if is_interface:
+        if is_interface == True or app_name == None:
             while True:
                 try:
                     print("\nAll app names below...\nDescriptions are in " + "\033[90m" + "gray" + "\033[0m \nName is "+"\033[91m"+"red"+"\033[0m"+" if outdated, "+"\033[96m"+"cyan"+"\033[0m"+" if up to date and finally "+"\033[93m"+"yellow"+"\033[0m"+" if the content folder is empty\n")
@@ -544,6 +601,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
                         # Get the file hash for each file in the external (boundpath) directory
                         ext_dirlist: list = os.listdir(boundpath)
+                        # Removes folders from the directory list
+                        for item in ext_dirlist:
+                            item_path = os.path.join(boundpath, item)
+                            if os.path.isdir(item_path): # Do not interact with directories, it will invariably cause a permission exception.
+                                ext_dirlist.remove(item)
                         ext_dirlist.sort()
                         ext_hashes = {}
                         for file in ext_dirlist:
@@ -552,6 +614,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
                         # Get the file hash for each file in the internal (content_dir) directory
                         int_dirlist: list = os.listdir(content_dir)
+                        # Removes folders from the directory list
+                        for item in int_dirlist:
+                            item_path = os.path.join(boundpath, item)
+                            if os.path.isdir(item_path): # Do not interact with directories, it will invariably cause a permission exception.
+                                ext_dirlist.remove(item)
                         int_dirlist.sort()
                         int_hashes = {}
                         for file in int_dirlist:
@@ -563,6 +630,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         for file in int_dirlist:
                             if file not in ext_hashes or ext_hashes[file] != int_hashes[file]:
                                 outdated = True
+                        
+                        if ext_hashes != int_hashes:
+                            outdated = True
 
                         description = "\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m"
                         if outdated == False:
@@ -578,22 +648,204 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         return True
                     elif app_name in os.listdir("instances/"):
                         break
-                except Exception as e:
-                    pass
+                except PermissionError as err:
+                    print("We encountered a permissions error while trying to read if an app is outdated!")
+                    logging.error(str(err))
+                    logging.error(str(err.with_traceback(err.__traceback__)))
+                    return False
         
         # Overwrites internal with external directory
         boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
         content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
-        # Removes all old files
-        for file in os.listdir(content_dir):
-            # Removes folders and files
-            shutil.rmtree(os.path.join(content_dir, file), ignore_errors=True)
-            os.remove(os.path.join(content_dir, file), dir_fd=None)
+        # Takes a snapshot of the current content directory to back it up
+        if jmod.getvalue(key="do_autobackup", json_dir=setting_dir, dt=app_settings) == True:
+            instance.backup(app_name=app_name, is_interface=False)
+            print("Phase 1 completed: Snapshot taken.")
         else:
-            print("Update phase 1 completed.")
+            print("Phase 1 Skipped: Auto Snapshots are disabled.")
+        # Removes all old files and directories
+        for item in os.listdir(content_dir):
+            item_path = os.path.join(content_dir, item)
+            try:
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+            except PermissionError as err:
+                print("Permission error: Unable to remove a file or directory.")
+                logging.error(str(err))
+            except Exception as err:
+                print("An error occurred while removing a file or directory:")
+                print(str(err))
+                # Logs the error
+                logging.error(str(err))
+        else:
+            print("Update phase 2 completed: File removal.")
         # Updates all files
         shutil.copytree(src=boundpath, dst=content_dir, dirs_exist_ok=True)
-        print("Phase 2 completed.\n"+"\033[92m"+"Update completed."+"\033[0m")
+        print("Phase 3 completed: File duplication\n"+"\033[92m"+"Update completed."+"\033[0m")
+        jmod.setvalue(
+            key="last_updated",
+            json_dir=f"instances/{app_name}/config.json",
+            value=time.time(),
+            dt=config_dt
+        )
+
+    def rollback(app_name=None, is_interface=False, rollback_ver=None):
+        orange = "\033[93m"
+        cyan = "\033[96m"
+        green = "\033[92m"
+        white = "\033[0m"
+        gray = "\033[90m"
+        
+        if is_interface == True or app_name == None:
+            timenow = time.time()
+            while True:
+                try:
+                    print("\nAll app names below. Descriptions are in "+gray+"gray"+white)
+                    print("Apps which were recently updated (4h ago maximum) are highlighed "+orange+"orange!"+white)
+                    print(f"If the app was not updated recently, it will be highlighted {green}green{white}.")
+                    print(f"And if we can't tell how long ago it was, we'll use {cyan}cyan{white}.\n")
+                    for app in os.listdir("instances/"):
+                        last_updated = jmod.getvalue(key="last_updated", json_dir=f"instances/{app}/config.json")
+                        app_desc = str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")
+                        if last_updated == None:
+                            print(cyan+app+white)
+                            print(gray+app_desc+white) # Time is unknown, print with cyan
+
+                        elif last_updated != None:
+                            # If its been less than 4 hours, print with orange
+                            if timenow - last_updated <= 14400:
+                                print(orange+app+white)
+                                print(gray+app_desc+white)
+                            else: # its been more than 4 hours, print with white
+                                print(app)
+                                print(gray+app_desc+white)
+
+                    app_name = input("What is the name of the app you wish to rollback? TEXT : ").lower()
+                    if app_name == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert app_name in os.listdir("instances/"), "The app must exist to be rolled back!"
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+
+        # Gets the directory to backup the app instance to
+        backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
+        if backup_dir == None: # None means nothing was set by the user as a preference
+            linux = os.name != "nt" # If the OS is linux, it will be true
+            if linux:
+                backup_dir = f"/var/pyhoster/backups/{app_name}/"
+            else:
+                # Gets the appdata directory for the user
+                appdata = os.getenv("APPDATA")
+                backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+
+        # Creates the backup directory if it doesn't exist
+        os.makedirs(backup_dir, exist_ok=True)
+        # Lists out all the versions and their last modified time
+        
+        instance.stop(app_name=app_name) # stops the app, as its about to be overwritten
+        
+        if is_interface == True or rollback_ver == None:
+            print(
+            "\nAll snapshots of the app can be seen below. The last modified time is in "+orange+"orange"+white+" if its recent, else its "+green+"green"+white+"."
+            )
+            for version in os.listdir(backup_dir):
+                try:
+                    last_modified = os.path.getmtime(os.path.join(backup_dir, version))
+                    if timenow - last_modified <= 14400:
+                        print(orange+version+white)
+                    else:
+                        print(green+version+white)
+                except:
+                    print(version+" | WARNING: POTENTIALLY UNSTABLE! (Last modified time could not be found.)")
+
+            while True:
+                try:
+                    rollback_ver = input("What version do you wish to rollback to? TEXT : ")
+                    if rollback_ver == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert rollback_ver in os.listdir(backup_dir), "The version must exist to be rolled back to!"
+                    break
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+        
+        # Validates rollback_ver as a version
+        try:
+            assert rollback_ver in os.listdir(backup_dir), "The version must exist to be rolled back to!"
+        except AssertionError as err:
+            print(str(err))
+            return
+        
+        # Completely overwrites current app with backup
+        shutil.rmtree(f"instances/{app_name}/")
+        print("Phase 1 completed.")
+        shutil.copytree(src=os.path.join(backup_dir, rollback_ver), dst=f"instances/{app_name}/", dirs_exist_ok=True)
+        print("Phase 2 completed.")
+
+        # Starts the app again
+        threading.Process(
+            target=instance.start,
+            args=(app_name, True),
+            name=f"{app_name}_webserver",
+        ).start()
+
+        print(green+"Rollback completed!"+white)
+
+    def backup(app_name=None, is_interface=True, do_alert=False):
+        if app_name == None or is_interface == True:
+            while True:
+                try:
+                    print("\n")
+                    for app in os.listdir("instances/"):
+                        print(app)
+                        print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
+                    else:
+                        print("\nType Cancel to cancel the backup.")
+
+                    app_name = input("What is the name of the app you wish to backup? TEXT : ").lower()
+                    if app_name == "cancel":
+                        print("Cancelled!")
+                        return True
+                    
+                    assert app_name in os.listdir("instances/"), "The app must exist!"
+                    break # Breaks the loop if it passes the assertion tests
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+                    
+        # Gets the directory to backup the app instance to
+        backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
+        if backup_dir == None: # None means nothing was set by the user as a preference
+            linux = os.name != "nt" # If the OS is linux, it will be true
+            if linux:
+                backup_dir = f"/var/pyhoster/backups/{app_name}/"
+            else:
+                # Gets the appdata directory for the user
+                appdata = os.getenv("APPDATA")
+                backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+
+        # Creates the backup directory if it doesn't exist
+        os.makedirs(backup_dir, exist_ok=True)
+
+        # Gets the version of the snapshot by listing the directory
+        version = "ver"+str(len(os.listdir(backup_dir)) + 1)
+        backup_dir = os.path.join(backup_dir, version) # Adds the version to the backup directory
+
+        # Gets the directory of the app
+        app_dir = os.path.abspath(f"instances/{app_name}/")
+        try:
+            # copies the app directory to the backup directory
+            shutil.copytree(src=app_dir, dst=backup_dir, dirs_exist_ok=True)
+
+            if do_alert == True or is_interface == True: 
+                print(f"Snapshot of \"{app_name}\" completed! (Version {version})")
+        except Exception as err:
+            print(f"Failed to create snapshot of \"{app_name}\": {err}")
 
     class edit():
         def __init__(self, app_name=None, is_interface=True) -> bool:
@@ -628,8 +880,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
             self.app_name = app_name
             self.config_dir = os.path.abspath(f"instances/{app_name}/config.json")
-            with open (self.config_dir, "r") as config_file:
-                self.config_data = json.load(config_file)
+            try:
+                with open (self.config_dir, "r") as config_file:
+                    self.config_data = json.load(config_file)
+            except FileNotFoundError:
+                print("That app doesn't exist!")
+                return
 
             # Stops the server if its not already stopped
             print("Stopping selected server for stability purposes.")
@@ -637,25 +893,19 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
             self.take_command()
 
-        def get_result(self):
-            '''returns a dict of the result'''
-            return {
-                "do_restart": self.do_restart,
-                "app_name": self.app_name
-            }
-
         def take_command(self):
             '''The def that handles input from the user on how to edit the app.'''
-            print("What would you like to edit about the app?")
-            print("1. Name")
-            print("2. Port")
-            print("3. Description")
-            print("4. Boundpath")
-            print("5. Autostart")
-            print("6. Index Page")
-            print("7. Cancel\n")
             while True:
                 try:
+                    print("What would you like to edit about the app?")
+                    print("1. Name")
+                    print("2. Port")
+                    print("3. Description")
+                    print("4. Boundpath")
+                    print("5. Autostart")
+                    print("6. Index Page")
+                    print("7. 404 Page Settings")
+                    print("8. Cancel\n")
                     option = input(">>> ").lower()
                     if option.isnumeric() == True:
                         # Handles for when the user uses a number to convert from number to text
@@ -665,41 +915,41 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             3: "description",
                             4: "boundpath",
                             5: "autostart",
-                            6: "stop"
+                            6: "index",
+                            7: "404",
+                            8: "cancel",
                         }
                         option = choice_dict[int(option)]
-                        
-                        if "stop" in option:
+                    
+                    option = option.lower()
+                    for word in option.split(" "):
+                        if word in ["cancel", "stop", "exit", "quit"]:
                             self.end_edit()
+                            return True
+                        
+                    # Handles the options for when the user does not use a number
+                    if "name" in option:
+                        self.name()
+                        continue
+                    elif "port" in option:
+                        self.port()
+                        continue
+                    elif "desc" in option:
+                        self.description()
+                        continue
+                    elif "boundpath" in option:
+                        self.boundpath()
+                        continue
+                    elif "autostart" in option:
+                        self.autostart()
+                        continue
+                    elif "index" in option:
+                        self.main_index()
+                        continue
+                    elif "404" in option:
+                        self.page404_interface()
                     else:
-                        option = option.lower()
-                        
-                        for word in option.split(" "):
-                            if word in ["cancel", "stop", "exit", "quit"]:
-                                self.end_edit()
-                                return True
-                        
-                        # Handles the options for when the user does not use a number
-                        if "name" in option:
-                            self.name()
-                            continue
-                        elif "port" in option:
-                            self.port()
-                            continue
-                        elif "desc" in option:
-                            self.description()
-                            continue
-                        elif "boundpath" in option:
-                            self.boundpath()
-                            continue
-                        elif "autostart" in option:
-                            self.autostart()
-                            continue
-                        elif "index" in option:
-                            self.main_index()
-                            continue
-                        else:
-                            raise KeyError
+                        raise KeyError
 
                 except AssertionError as err:
                     print(str(err))
@@ -714,18 +964,18 @@ class instance: # Do not use apptype in calls until other apptypes are made
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
                 print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=config_dt)})\nEdit completed and saved")
-                self.do_restart = True
+                threading.Process(
+                    target=instance.start,
+                    args=(self.app_name, True,),
+                    name=f"{self.app_name}_webserver"
+                ).start()
             elif "n" in startup:
                 print("Edit completed and saved")
-                self.do_restart = False
             else:
                 print("Invalid answer.")
-                self.do_restart = False
 
         def name(self, new_name=None):
             '''edits an apps name'''
-            # Stops the server if its not already stopped
-            instance.stop(self.app_name)
 
             # Gets new name input if not provided
             if new_name == None:
@@ -894,3 +1144,109 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 dt=config_dt
             )
             print("Changed index file successfully!")
+
+        def page404_interface(self):
+            while True:
+                try:
+                    print("\nWhat would you like to edit about the 404 page?")
+                    print("1. Enabled")
+                    print("2. Filename")
+                    print("3. Cancel\n")
+                    option = input(">>> ").lower()
+                    # Seperates choices from args
+                    try:
+                        option, arg = option.split(" ", 1)
+                        if arg != None or "":
+                            has_arg = True
+                    except:
+                        has_arg = False
+                        arg = None
+
+                    if option.isnumeric() == True:
+                        # Handles for when the user uses a number to convert from number to text
+                        choice_dict = {
+                            1: "enabled",
+                            2: "filename",
+                            3: "cancel",
+                        }
+                        option = choice_dict[int(option)]
+                    
+                    for word in option.split(" "):
+                        if word in ["cancel", "stop", "exit", "quit"]:
+                            print("Ending 404 edit...")
+                            return True
+
+                    print(arg)
+                    print(has_arg)
+                    print(option)
+
+                    # Handles the options for when the user does not use a number
+                    if option == "enabled":
+                        if has_arg:
+                            self.page404_enabled(arg)
+                        else:
+                            self.page404_enabled(None)
+                        continue
+                    elif option == "filename":
+                        if has_arg:
+                            self.page404(arg)
+                        else:
+                            self.page404(None)
+                        continue
+                    else:
+                        raise KeyError
+
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+                except KeyError:
+                    print("Invalid option!")
+                    continue
+
+        def page404_enabled(self, enabled=None):
+            if enabled == "y":
+                enabled = True
+            elif enabled == "n":
+                enabled = False
+
+            if enabled == None:
+                print("Set if the '404' page is enabled.\n")
+                print('What is the 404 page? The 404 page is what shows up if the directory is not empty\nbut the requested file is not found.\n')
+                print("This page is per-app, and disabled by default.\n")
+                print("Do you want to enable the 404 page? Y/N : ")
+                enabled = input('>>> ').lower()
+                if enabled == "cancel":
+                    print("Cancelled!")
+                    return True
+                if "y" in enabled:
+                    enabled = True
+                elif "n" in enabled:
+                    enabled = False
+
+            assert type(enabled) == bool
+            jmod.setvalue(
+                key="404page_enabled",
+                json_dir=self.config_dir,
+                value=enabled,
+                dt=config_dt
+            )
+            print(f"404 page {'enabled' if enabled == True else 'disabled'} successfully! ")
+
+        def page404(self, filename=None):
+            if filename is None:
+                while True:
+                    try:
+                        filename = input("What is the name of the 404 file? (Include file extension) : ")
+                        assert filename != "", "The filename cannot be blank!"
+                        assert "." in filename, "The filename must include a file extension!"
+                        break
+                    except AssertionError as err:
+                        print(str(err))
+
+            jmod.setvalue(
+                key="404page",
+                json_dir=self.config_dir,
+                value=filename,
+                dt=config_dt
+            )
+            print("Changed 404 file successfully!")

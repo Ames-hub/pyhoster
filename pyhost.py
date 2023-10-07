@@ -5,11 +5,60 @@
 # Have fun!
 
 # Importing modules
-import os, logging, datetime, multiprocessing as threading, shutil, time
+import os, logging, datetime, multiprocessing as threading, shutil
 from library.jmod import jmod
 from library.application import application
 from library.instance import instance
 from library.data_tables import config_dt, app_settings
+
+if __name__ == "__main__": # Checks if the user is running the app for the first time
+    first_launch = jmod.getvalue("first_launch", "settings.json", True, dt=app_settings)
+    if first_launch == True:
+        # Checks if the user has backups from a previous pyhost install
+        linux = os.name != "nt" # If the OS is linux, it will be true
+        if linux:
+            backup_dir = f"/var/pyhoster/backups/"
+        else:
+            # Gets the appdata directory for the user
+            appdata = os.getenv("APPDATA")
+            backup_dir = f"{appdata}/pyhoster/backups/"
+
+        if os.path.exists(backup_dir) == True:
+            found_apps = os.listdir(backup_dir)
+            if len(found_apps) != 0:
+                print("Found backups from a previous install! Would you like to import them? (y/n)")
+                try:
+                    answer = input("> ").lower()
+                    assert answer == "y" or answer == "n"
+                except KeyboardInterrupt:
+                    print("Exiting...")
+                    exit()
+                except AssertionError:
+                    print("Invalid choice! Must be 'y' (yes) or 'n' (no)")
+                    exit()
+                if answer.lower() == "y":
+                    print("Importing backups...")
+                    for app in found_apps:
+                        print(f"Importing {app}...")
+                        # All vers inside the "app" folder will be formatted as "ver<version number>". This will get the app with the highest version number
+                        versions = os.listdir(f"{backup_dir}/{app}")
+                        highest_version = 0
+                        for ver in versions:
+                            if int(ver.replace("ver", "")) > highest_version:
+                                highest_version = int(ver.replace("ver", ""))
+
+                        shutil.copytree(src=f"{backup_dir}/{app}/ver{highest_version}", dst=f"instances/{app}", dirs_exist_ok=True)
+                    print("Finished importing backups!")
+                else:
+                    print("Skipping backup import...")
+
+        # Sets the first_launch setting to false as the user has now launched the app
+        jmod.setvalue(
+            key="first_launch",
+            json_dir="settings.json",
+            value=False,
+            dt=app_settings
+        )
 
 main_pid = os.getpid()
 if __name__ == "__main__": # Prevents errors with multiprocessing
@@ -36,7 +85,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     level=logging.ERROR
 )
-
 logging.info("Pyhost logging started successfully!")
 
 if __name__ == '__main__': # Prevents errors with multiprocessing
