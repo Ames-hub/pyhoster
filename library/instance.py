@@ -583,13 +583,15 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             print("\033[93m" + app + "\033[0m")
                             continue # Continue, nothing to compare.
 
-                        outdated = instance.is_outdated(app_name=app)
+                        outdated = instance.is_outdated(app_name=app, boundpath_only=True)
 
                         description = "\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m"
                         if outdated == False:
                             print("\033[96m" + app + "\033[0m\n"+description) # prints cyan
                         elif outdated == True:
                             print("\033[91m" + app + "\033[0m\n"+description) # Prints red
+                        elif outdated == "nobp": # no boundpath result, stops it from looking in an old backup folder.
+                            pass # don't print it, so the user doesn't see it as an option to do so
                         else:
                             print(app+"\n"+description)
 
@@ -609,11 +611,14 @@ class instance: # Do not use apptype in calls until other apptypes are made
         boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
         content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
         # Takes a snapshot of the current content directory to back it up
-        if jmod.getvalue(key="do_autobackup", json_dir=setting_dir, dt=app_settings) == True:
-            instance.backup(app_name=app_name, is_interface=False)
-            print("Phase 1 completed: Snapshot taken.")
+        if os.listdir(content_dir) != []:
+            if jmod.getvalue(key="do_autobackup", json_dir=setting_dir, dt=app_settings) == True:
+                instance.backup(app_name=app_name, is_interface=False)
+                print("Phase 1 completed: Snapshot taken.")
+            else:
+                print("Phase 1 Skipped: Auto Snapshots are disabled.")
         else:
-            print("Phase 1 Skipped: Auto Snapshots are disabled.")
+            print("Phase 1 Skipped: Content directory is empty.")
         # Removes all old files and directories
         for item in os.listdir(content_dir):
             item_path = os.path.join(content_dir, item)
@@ -642,8 +647,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
             dt=config_dt
         )
 
-    def is_outdated(app_name: str):
-        '''returns a bool on if an app is outdated.'''
+    def is_outdated(app_name: str, boundpath_only: bool = False):
+        '''
+        returns a bool on if an app is outdated.
+        if boundpath is True, it will return "nobp" if the user has not set an external bound path.
+        '''
         def calculate_file_hash(file_path):
             BLOCKSIZE = 65536
             hasher = hashlib.sha1()
@@ -677,12 +685,15 @@ class instance: # Do not use apptype in calls until other apptypes are made
         boundpath = os.path.abspath(os.path.join(boundpath, ".."))
 
         # Changes the boundpath for if the app's boundpath == content_dir
-        if boundpath == app_dir:
-            boundpath = instance.get_backup_dir(app_name)  # returns something like .../pyhoster/backups/<appname>/(versions list, formatted as "ver<ver number>")
+        if boundpath_only == False:
+            if boundpath == app_dir:
+                boundpath = instance.get_backup_dir(app_name)  # returns something like .../pyhoster/backups/<appname>/(versions list, formatted as "ver<ver number>")
 
-            # Gets the latest version
-            highest_ver = len(os.listdir(boundpath))
-            boundpath = os.path.join(boundpath, f"ver{highest_ver}/")  # Sets the boundpath to the highest version
+                # Gets the latest version
+                highest_ver = len(os.listdir(boundpath))
+                boundpath = os.path.join(boundpath, f"ver{highest_ver}/")  # Sets the boundpath to the highest version
+        else:
+            return "nobp"
 
         # Get the file hashes for each file in the external (boundpath) directory
         ext_hashes = get_file_hashes(boundpath)
