@@ -182,8 +182,9 @@ class application:
         except KeyboardInterrupt:
             application.running = False
             # os.system('cls' if os.name == "nt" else "clear")
-            print("Exit signal received: Program is now exiting.")
+            print("...\nExit signal received: Program is now exiting.")
             logging.info("Exit signal received: Program is now exiting.")
+            print("Shutting down logging system...")
             logging.shutdown()
 
             print("Shutting down all web instances...")
@@ -212,10 +213,30 @@ class application:
                 logging.error(f"Error stopping thread: {e}")
             print("All web instances have been shut down.")
 
+            try:
+                active_threads = mp.active_children()
+                for thread in active_threads:
+                    os.kill(thread.pid, 2)
+                print("All threads have been gracefully shut down. (1)")
+            except PermissionError:
+                try:
+                    active_threads = mp.active_children() # Gets all active threads again as some may have been shut down
+                    for thread in active_threads:
+                        os.kill(thread.pid, 9)
+                        print("All threads have been shut down. (2)")
+                except PermissionError:
+                    try:
+                        active_threads = mp.active_children()
+                        for thread in active_threads:
+                            thread.terminate()
+                        print("All threads have been shut down. (3)")
+                    except PermissionError:
+                        print("Permission Error: Unable to shutdown all threads!")
+
             # Sets all the JSON file's running key to False
             from .jmod import jmod
 
-            print("Setting all instances to not running...")
+            print("Setting all instance configs to not running...")
             os.makedirs("instances", exist_ok=True)
             for app in os.listdir("instances/"):
                 jmod.setvalue(
@@ -224,7 +245,7 @@ class application:
                     value=False,
                     dt=config_dt
                 )
-            print("All instances have been set to not running.")
+            print("All instance configs have been set to not running.")
 
             # Sets all PID's to None
             print("Setting all PID's to None...")

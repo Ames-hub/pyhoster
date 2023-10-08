@@ -5,7 +5,7 @@
 # Have fun!
 
 # Importing modules
-import os, logging, datetime, multiprocessing as threading, shutil
+import os, logging, datetime, multiprocessing as threading, shutil, time
 from library.jmod import jmod
 from library.application import application
 from library.instance import instance
@@ -67,12 +67,47 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
             dt=app_settings
         )
 
+def auto_backup():
+    # Gets all apps
+    while True:
+        try:
+            time.sleep(10)
+        except:
+            exit()
+        apps = os.listdir("instances/")
+        backedup_1 = False
+        for app in apps:
+            boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app}/config.json")
+            contentpath = jmod.getvalue(key="contentloc", json_dir=f"instances/{app}/config.json")
+
+            if boundpath == contentpath:
+                if instance.is_outdated(app_name=app) == True:
+                    instance.backup(
+                        app_name=app,
+                        is_interface=False,
+                        do_alert=False
+                    )
+                    backedup_1 = True # If any were backed up, set this to true
+        else:
+            if backedup_1 is True:
+                print("\n") # Aesthetic
+
 main_pid = os.getpid()
 if __name__ == "__main__": # Prevents errors with multiprocessing
     os.system('cls' if os.name == "nt" else "clear")
     print(f"({main_pid}) Welcome to Pyhost! - A lightweight, simple replacement for Nginx.")
     print("https://github.com/Ames-Hub/pyhost\n")
     print("Message from developer:\nHello! If you have any issues, let me know and I will personally help out!\n")
+
+    # Makes an init backup for every app which has its boundpath == content path.
+    # This is because auto-backups often only happen if they intentionally update the app
+    # which does not always happen if the boundpath is equal to the content path (as the 'update' command is useless in that case)
+
+    auto_backup_thread = threading.Process(
+        name="auto_backup",
+        target=auto_backup
+    )
+    auto_backup_thread.start()
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)

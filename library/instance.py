@@ -576,16 +576,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
     def update(app_name=None, is_interface=False):
 
-        def calculate_file_hash(file_path):
-            BLOCKSIZE = 65536
-            hasher = hashlib.sha1()
-            with open(file_path, 'rb') as file:
-                buf = file.read(BLOCKSIZE)
-                while len(buf) > 0:
-                    hasher.update(buf)
-                    buf = file.read(BLOCKSIZE)
-            return hasher.hexdigest()
-
         if is_interface == True or app_name == None:
             while True:
                 try:
@@ -599,40 +589,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             print("\033[93m" + app + "\033[0m")
                             continue # Continue, nothing to compare.
 
-                        # Get the file hash for each file in the external (boundpath) directory
-                        ext_dirlist: list = os.listdir(boundpath)
-                        # Removes folders from the directory list
-                        for item in ext_dirlist:
-                            item_path = os.path.join(boundpath, item)
-                            if os.path.isdir(item_path): # Do not interact with directories, it will invariably cause a permission exception.
-                                ext_dirlist.remove(item)
-                        ext_dirlist.sort()
-                        ext_hashes = {}
-                        for file in ext_dirlist:
-                            ext_file_path = os.path.join(boundpath, file)
-                            ext_hashes[file] = calculate_file_hash(ext_file_path)
-
-                        # Get the file hash for each file in the internal (content_dir) directory
-                        int_dirlist: list = os.listdir(content_dir)
-                        # Removes folders from the directory list
-                        for item in int_dirlist:
-                            item_path = os.path.join(boundpath, item)
-                            if os.path.isdir(item_path): # Do not interact with directories, it will invariably cause a permission exception.
-                                ext_dirlist.remove(item)
-                        int_dirlist.sort()
-                        int_hashes = {}
-                        for file in int_dirlist:
-                            int_file_path = os.path.join(content_dir, file)
-                            int_hashes[file] = calculate_file_hash(int_file_path)
-
-                        # Check for outdated files in the internal directory
-                        outdated = False
-                        for file in int_dirlist:
-                            if file not in ext_hashes or ext_hashes[file] != int_hashes[file]:
-                                outdated = True
-                        
-                        if ext_hashes != int_hashes:
-                            outdated = True
+                        outdated = instance.is_outdated(app_name=app)
 
                         description = "\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m"
                         if outdated == False:
@@ -690,6 +647,74 @@ class instance: # Do not use apptype in calls until other apptypes are made
             value=time.time(),
             dt=config_dt
         )
+
+    def is_outdated(app_name: str):
+        '''returns a bool on if an app is outdated.'''
+        def calculate_file_hash(file_path):
+            BLOCKSIZE = 65536
+            hasher = hashlib.sha1()
+            file_path = str(file_path)
+            if os.path.isdir(file_path) or file_path.endswith('.log'):
+                return None
+            with open(file_path, 'rb') as file:
+                buf = file.read(BLOCKSIZE)
+                while len(buf) > 0:
+                    hasher.update(buf)
+                    buf = file.read(BLOCKSIZE)
+            file_hash = hasher.hexdigest()
+            return file_hash
+
+        def get_file_hashes(directory):
+            file_hashes = {}
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, directory)
+                    file_hash = calculate_file_hash(file_path)
+                    if file_hash is not None:
+                        file_hashes[relative_path] = file_hash
+            return file_hashes
+
+        boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
+        app_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
+
+        # app_dir and boundpath start in the content_dir, so move 1 directory up.
+        app_dir = os.path.abspath(os.path.join(app_dir, ".."))  # .. is up one directory
+        boundpath = os.path.abspath(os.path.join(boundpath, ".."))
+
+        # Changes the boundpath for if the app's boundpath == content_dir
+        if boundpath == app_dir:
+            boundpath = instance.get_backup_dir(app_name)  # returns something like .../pyhoster/backups/<appname>/(versions list, formatted as "ver<ver number>")
+
+            # Gets the latest version
+            highest_ver = len(os.listdir(boundpath))
+            boundpath = os.path.join(boundpath, f"ver{highest_ver}/")  # Sets the boundpath to the highest version
+
+        # Get the file hashes for each file in the external (boundpath) directory
+        ext_hashes = get_file_hashes(boundpath)
+
+        # Get the file hashes for each file in the internal (content_dir) directory
+        int_hashes = get_file_hashes(app_dir)
+
+        # Check for outdated files
+        outdated = ext_hashes != int_hashes
+
+        return outdated
+
+    def get_backup_dir(app_name):
+        # Gets the directory to backup the app instance to
+        backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
+        if backup_dir == None: # None means nothing was set by the user as a preference
+            linux = os.name != "nt" # If the OS is linux, it will be true
+            if linux:
+                backup_dir = f"/var/pyhoster/backups/{app_name}/"
+            else:
+                # Gets the appdata directory for the user
+                appdata = os.getenv("APPDATA")
+                backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+        
+        os.makedirs(backup_dir, exist_ok=True)
+        return backup_dir
 
     def rollback(app_name=None, is_interface=False, rollback_ver=None):
         orange = "\033[93m"
@@ -819,15 +844,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     continue
                     
         # Gets the directory to backup the app instance to
-        backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
-        if backup_dir == None: # None means nothing was set by the user as a preference
-            linux = os.name != "nt" # If the OS is linux, it will be true
-            if linux:
-                backup_dir = f"/var/pyhoster/backups/{app_name}/"
-            else:
-                # Gets the appdata directory for the user
-                appdata = os.getenv("APPDATA")
-                backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+        backup_dir = instance.get_backup_dir(app_name)
 
         # Creates the backup directory if it doesn't exist
         os.makedirs(backup_dir, exist_ok=True)
