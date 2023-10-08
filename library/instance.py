@@ -6,7 +6,7 @@ import multiprocessing as threading
 
 
 root_dir = os.getcwd()
-setting_dir = os.path.join(root_dir, "settings.json")
+setting_dir = "settings.json"
 
 class instance: # Do not use apptype in calls until other apptypes are made
     def create(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None,
@@ -259,13 +259,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         if del_backups == True:
             backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
             if backup_dir == None: # None means nothing was set by the user as a preference
-                linux = os.name != "nt" # If the OS is linux, it will be true
-                if linux:
-                    backup_dir = f"/var/pyhoster/backups/{app_name}/"
-                else:
-                    # Gets the appdata directory for the user
-                    appdata = os.getenv("APPDATA")
-                    backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+                backup_dir = instance.get_backup_dir(app_name)
 
             # Deletes the backups
             if os.path.exists(backup_dir):
@@ -703,16 +697,16 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
     def get_backup_dir(app_name):
         # Gets the directory to backup the app instance to
-        backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
+        backup_dir = os.path.join(jmod.getvalue(key="backups_path", json_dir=setting_dir, dt=app_settings), app_name)
         if backup_dir == None: # None means nothing was set by the user as a preference
             linux = os.name != "nt" # If the OS is linux, it will be true
             if linux:
-                backup_dir = f"/var/pyhoster/backups/{app_name}/"
+                backup_dir = f"/etc/pyhoster/backups/{app_name}/"
             else:
                 # Gets the appdata directory for the user
                 appdata = os.getenv("APPDATA")
                 backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
-        
+        backup_dir = os.path.abspath(backup_dir)
         os.makedirs(backup_dir, exist_ok=True)
         return backup_dir
 
@@ -756,16 +750,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     print(str(err))
                     continue
 
-        # Gets the directory to backup the app instance to
-        backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
-        if backup_dir == None: # None means nothing was set by the user as a preference
-            linux = os.name != "nt" # If the OS is linux, it will be true
-            if linux:
-                backup_dir = f"/var/pyhoster/backups/{app_name}/"
-            else:
-                # Gets the appdata directory for the user
-                appdata = os.getenv("APPDATA")
-                backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
+        backup_dir = instance.get_backup_dir(app)
 
         # Creates the backup directory if it doesn't exist
         os.makedirs(backup_dir, exist_ok=True)

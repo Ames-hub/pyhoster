@@ -166,7 +166,7 @@ class application:
                         if not has_args:
                             instance.backup(is_interface=True)
                         else:
-                            instance.backup(app_name=args[0], is_interface=False)
+                            instance.backup(app_name=args[0], is_interface=False, do_alert=True)
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls":
@@ -381,7 +381,12 @@ class application:
             if is_interface:
                 while True:
                     try:
+                        print("\nPlease enter the path to where backups should be stored. Must be absolute (eg, C:/Users/YOURNAME/Desktop)")
+                        print("Enter 'internal' to store backups in the pyhoster directory\n(which always works, but almost defeats the purpose of why I made a backup system)")
                         path = input("Enter the path to where backups should be stored: ")
+                        if path == "internal":
+                            os.makedirs("backups", exist_ok=True)
+                            path = os.path.abspath("backups/")
                         assert os.path.isabs(path)
                     except AssertionError:
                         print("Path must be absolute (eg, C:/Users/YOURNAME/Desktop). Try again.")

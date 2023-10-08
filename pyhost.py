@@ -69,28 +69,30 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
 
 def auto_backup():
     # Gets all apps
-    while True:
-        try:
-            time.sleep(10)
-        except:
-            exit()
-        apps = os.listdir("instances/")
-        backedup_1 = False
-        for app in apps:
-            boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app}/config.json")
-            contentpath = jmod.getvalue(key="contentloc", json_dir=f"instances/{app}/config.json")
+    try:
+        while True:
+            try:
+                time.sleep(600)
+            except:
+                exit()
+            apps = os.listdir("instances/")
+            for app in apps:
+                boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app}/config.json")
+                contentpath = jmod.getvalue(key="contentloc", json_dir=f"instances/{app}/config.json")
 
-            if boundpath == contentpath:
-                if instance.is_outdated(app_name=app) == True:
-                    instance.backup(
-                        app_name=app,
-                        is_interface=False,
-                        do_alert=False
-                    )
-                    backedup_1 = True # If any were backed up, set this to true
-        else:
-            if backedup_1 is True:
-                print("\n") # Aesthetic
+                if boundpath == contentpath:
+                    if instance.is_outdated(app_name=app) == True:
+                        instance.backup(
+                            app_name=app,
+                            is_interface=False,
+                            do_alert=False
+                        )
+    except PermissionError:
+        print("Permission error! Backups cannot be made. Please set your own backup directory by using")
+        print("1. command 'settings'")
+        print("2. option 'backups path'")
+        print("3. enter the path you want to use. Pyhost must have access to it.")
+
 
 main_pid = os.getpid()
 if __name__ == "__main__": # Prevents errors with multiprocessing
