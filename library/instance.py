@@ -708,7 +708,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
     def get_backup_dir(app_name):
         # Gets the directory to backup the app instance to
-        backup_dir = os.path.join(jmod.getvalue(key="backups_path", json_dir=setting_dir, dt=app_settings), app_name)
+        backup_dir = jmod.getvalue(key="backups_path", json_dir=setting_dir, dt=app_settings)
+        if backup_dir != None: os.path.join(backup_dir,app_name)
         if backup_dir == None: # None means nothing was set by the user as a preference
             linux = os.name != "nt" # If the OS is linux, it will be true
             if linux:
@@ -761,7 +762,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     print(str(err))
                     continue
 
-        backup_dir = instance.get_backup_dir(app)
+        backup_dir = instance.get_backup_dir(app_name)
 
         # Creates the backup directory if it doesn't exist
         os.makedirs(backup_dir, exist_ok=True)
