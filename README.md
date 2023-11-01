@@ -59,4 +59,4 @@ if a key is in brackets, I am indicating its on the keyboard and not to be typed
 `update` - Updates the content of a website app.<br>
 `rollback` - Reverts the content of a website app to the last update, or a specific version.<br>
 `cls` - Clear the screen of all text.<br>
-`ctrl + c` - Exit the program and shutdown all web apps.<br>
+`ctrl + c` (signal 2) - Exit the program and shutdown all web apps.<br>
