@@ -4,6 +4,34 @@ from .jmod import jmod
 
 root_dir = os.getcwd()
 
+def getkwrd(keywords, text):
+    try:
+        text = str(text).lower()
+        keywords = [str(keyword).lower() for keyword in keywords]
+    except ValueError as err:
+        logging.error(f"Error: Kward bad type. Error: {err}")
+
+    for keyword in keywords:
+        index = text.find(keyword + ":")
+        if index != -1:
+            text = text[index + len(keyword) + 1:]
+
+            start_quote = text[0]
+
+            singlequote = start_quote == "'"
+            if singlequote:
+                end_quote = text.find("'", 1)
+            elif not singlequote:
+                end_quote = text.find('"', 1)
+            else:
+                raise IndexError("No closing quote was found for a keyword arg!")
+
+            value = text[1:end_quote]
+            return value
+
+    # Return None if none of the keywords are found
+    return None
+
 class application:
 
     def run(keybind_listen: bool = True):
@@ -14,9 +42,10 @@ class application:
             if bool(os.environ.get("PYHOST_KEYBIND_LISTEN",True)) == False:
                 print("NONE: Input has been disabled. How did you even get here?")
             else:
-                print("Note: *<arg> = Required information, <arg> = Optional information\n")
+                print("Note: *<arg> = Required information, <arg> = Optional information")
+                print("do <arg_name>:'' = Keyword information. eg, port:'80'")
                 print("create: Creates a new app")
-                print("`create *<app_name> *<app_desc> <port> <boundpath> <do_autostart>`\n")
+                print("`create *<app_name> <do_autostart>`\n")
 
                 print("delete: Deletes an app")
                 print("`delete *<app_name>`\n")
@@ -35,82 +64,31 @@ class application:
             while True:
                 if keybind_listen == True:
                     cmd: str = str(input("Enter a command: "))
-                    args = cmd.split(" ")  # For commands that have arguments
-                    args[0] = args[0].lower()
-                    args = cmd.split(" ")  # Split the modified command again
-                    cmd = args[0]
-                    args.remove(cmd)
-                    has_args = True if len(args) >= 1 else False
+                    text = cmd
+                    cmd = cmd.lower().split(" ")[0]
+                    has_args = False if len(text.split(" ")) > 0 else True
                     # Begins listening for create, delete, edit, etc commands
                     logging.info("New command entered! Debug Info:")
-                    logging.info(f"Command: {cmd}")
-                    logging.info(f"Args: {args}")
+                    logging.info(f"Command: {cmd} | Text: {text} | Has Args: {has_args}")
+                    if has_args:
+                        app_name_arg = text.split(" ")[1]
                     if cmd == "create":
-                    # In args, find where the first and last argument with quotation marks exist
-                    # And put it into 1 argument as that is the app description
-                    # This allows for spaces in the app description
-                        if '"' in cmd:
-                            # Find the first quote, like "Hello
-                            first_quote = cmd.index('"')
-                            
-                            # Find the last quote, like World"
-                            last_quote = cmd.rindex('"')
-                            
-                            app_desc = cmd[first_quote + 1:last_quote]
-                            args.append(app_desc)
-                            
-                            # Remove the part of the command that contained the app description
-                            cmd = cmd.replace(f'"{app_desc}"', '')
-
                         if not has_args:
                             instance.create()
                         else:
-                            # If 1, 2, 3 or 4 are not provided, set them to None and let create def
-                            # handle them
-                            try:
-                                args[1] # Arg1 == Description
-                            except IndexError:
-                                args.append(None)
-
-                            try:
-                                args[2]
-                            except IndexError:
-                                args.append(None)
-
-                            try:
-                                args[3]
-                                if not os.path.isabs(args[4]):
-                                    print("Invalid absolute path. Try again.")
-                                    return False
-                            except IndexError:
-                                args.append(None)
-                            
-                            try:
-                                args[4] # 4 == do_autostart
-                            except IndexError:
-                                args.append(None)
-
-                            # Makes arg 0 and 1 required
-                            try:
-                                str(args[0])
-                                str(args[1])
-                            except:
-                                print("Invalid arguments. Try again.")
-                                return False
-
                             instance.create(
-                                app_name=args[0],
-                                app_desc=args[1],
-                                port=args[2],
-                                boundpath=args[3],
-                                do_autostart=args[4],
+                                app_name=app_name_arg,
+                                port=getkwrd(["port", "gateway", "gate"], text),
+                                do_autostart=getkwrd(["autostart", "do_start"], text),
+                                boundpath=getkwrd(["boundpath", "path"], text),
+                                app_desc=getkwrd(["desc", "description"], text),
                             )
                     elif cmd == "delete":
                         if has_args == False:
                             instance.delete(is_interface=True)
                         else:
                             instance.delete(
-                                app_name=args[0],
+                                app_name=app_name_arg,
                                 ask_confirmation=True,
                             )
                     elif cmd == "edit":
@@ -118,7 +96,7 @@ class application:
                             instance.edit()
                         else:
                             instance.edit(
-                                app_name=args[0],
+                                app_name=app_name_arg,
                                 is_interface=False
                             )
                     elif cmd == "start":
@@ -126,7 +104,7 @@ class application:
                             instance.start_interface(is_interface=True)
                         else:
                             instance.start_interface(
-                                app_name=args[0],
+                                app_name=app_name_arg,
                                 is_interface=False
                             )
                             # Such a weird bug and idk what's causing it
@@ -135,38 +113,35 @@ class application:
                             instance.restart(is_interface=True)
                         else:
                             instance.restart(
-                                app_name=args[0],
+                                app_name=app_name_arg,
                                 is_interface=False
                             )
                     elif cmd == "stop":
                         if has_args == False:
                             instance.stop_interface()
                         else:
-                            instance.stop(app_name=args[0])
+                            instance.stop(app_name=app_name_arg)
                     elif cmd == "update":
                         if has_args == False:
                             instance.update(is_interface=True)
                         else:
-                            instance.update(app_name=args[0], is_interface=False)
+                            instance.update(app_name=app_name_arg, is_interface=False)
                     elif cmd == "rollback":
                         if not has_args:
                             instance.rollback(is_interface=True)
                         else:
-                            try:
-                                args[1]
-                            except IndexError:
-                                args.append(None)
+                            rollback_ver = getkwrd(["ver", "version"], text=text)
 
                             instance.rollback(
-                                app_name=args[0],
+                                app_name=app_name_arg,
                                 is_interface=False,
-                                rollback_ver=args[1],
+                                rollback_ver=rollback_ver,
                                 )
                     elif cmd == "backup":
                         if not has_args:
                             instance.backup(is_interface=True)
                         else:
-                            instance.backup(app_name=args[0], is_interface=False, do_alert=True)
+                            instance.backup(app_name=app_name_arg, is_interface=False, do_alert=True)
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls":

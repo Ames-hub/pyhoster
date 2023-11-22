@@ -758,6 +758,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         print("Cancelled!")
                         return True
                     assert app_name in os.listdir("instances/"), "The app must exist to be rolled back!"
+                    break
                 except AssertionError as err:
                     print(str(err))
                     continue
@@ -772,7 +773,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         
         if is_interface == True or rollback_ver == None:
             print(
-            "\nAll snapshots of the app can be seen below. The last modified time is in "+orange+"orange"+white+" if its recent, else its "+green+"green"+white+"."
+            "\nAll snapshots of the app can be seen below. If it was recently added, its "+orange+"orange"+white+", else its "+green+"green"+white+"."
             )
             for version in os.listdir(backup_dir):
                 try:
@@ -1162,9 +1163,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
         def page404_interface(self):
             while True:
                 try:
-                    print("\nWhat would you like to edit about the 404 page?")
-                    print("1. Enabled")
-                    print("2. Filename")
+                    print("\nWhat would you like to edit about the 404 page? (Use numbers or text)")
+                    print("1. Enabled (True/False)")
+                    print("2. Filename (file_name.html)")
                     print("3. Cancel\n")
                     option = input(">>> ").lower()
                     # Seperates choices from args
@@ -1189,10 +1190,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         if word in ["cancel", "stop", "exit", "quit"]:
                             print("Ending 404 edit...")
                             return True
-
-                    print(arg)
-                    print(has_arg)
-                    print(option)
 
                     # Handles the options for when the user does not use a number
                     if option == "enabled":
