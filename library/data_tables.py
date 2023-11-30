@@ -1,4 +1,4 @@
-config_dt = {
+web_config_dt = {
     "name": "defaultname", # Name of the app. Identifier
     "description": None,
     "autostart": True, # If the app should be started on startup
@@ -12,7 +12,51 @@ config_dt = {
     "last_updated": None,
     "404page": "404.html",
     "404page_enabled": False,
+    "serve_default": True,
+    # Security below here mostly
+    "dir_listing": False,
+    "do_securityheaders": True,
+    "csp_directives": ["Content-Security-Policy", "default-src 'self';","script-src 'self';","style-src 'self';","img-src 'self';","font-src 'self'"], 
+    "ssl_enabled": True,
+    "warden": {
+        "pages": [],
+        "enabled": False,
+    },
 }
+
+new_ftp_user = {
+    "username": None,
+    "password": None,
+    "homedir": None,
+    "permissions": "elradfmw",
+    "connected": False,
+}
+
+wsgi_config_dt = {
+    "name": "defaultname",
+    "description": None,
+    "autostart": True,
+    "apptype": "WSGI",
+    "running": False,
+    "port": 120,
+    "pid": None,
+    "boundpath": None,
+    "last_updated": None,
+}
+
+# Generates a random password for the Root FTP user using cryptography
+def generate_root_password():
+    from cryptography.fernet import Fernet
+    import base64
+    key = Fernet.generate_key()
+    f = Fernet(key)
+    password = f.encrypt(b"password")
+    password = base64.urlsafe_b64encode(password)
+    password = password.decode("utf-8")
+    del Fernet # Save memory.
+    del base64 # Idk if it actually does anything other than make the variable inaccessible
+    return password[0:16] # 16 is the max length of a password
+    
 
 app_settings = {
     "do_autostart": True,
@@ -20,4 +64,12 @@ app_settings = {
     "first_launch": True,
     "do_autobackup": True,
     "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
+    "ssl_enabled": True,
+    "ftpLogToFile": True,
+    "FTP_Enabled": False,
+    "FtpPort": 789,
+    "ftpAnonAllowed": False,
+    "ftpRootPassword": generate_root_password(), # Password only resets if settings.json is deleted
+    "ftp_users": [], # Should be a list of dicts
+    "ftppid": None,
 }

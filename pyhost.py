@@ -5,11 +5,12 @@
 # Have fun!
 
 # Importing modules
-import os, logging, datetime, multiprocessing as threading, shutil, time
+import os, logging, datetime, multiprocessing, shutil, time
 from library.jmod import jmod
 from library.application import application
 from library.instance import instance
-from library.data_tables import config_dt, app_settings
+from library.data_tables import web_config_dt, app_settings
+from library.filetransfer import ftp
 
 if __name__ == "__main__": # Checks if the user is running the app for the first time
     # Checks if settings.json exists
@@ -96,20 +97,43 @@ def auto_backup():
 
 main_pid = os.getpid()
 if __name__ == "__main__": # Prevents errors with multiprocessing
+    reset_colour = "\033[0m" # Clears any previous colour
+    print(reset_colour)
+    # Clears the screen and prints the welcome message
     os.system('cls' if os.name == "nt" else "clear")
     print(f"({main_pid}) Welcome to Pyhost! - A lightweight, simple replacement for Nginx.")
-    print("https://github.com/Ames-Hub/pyhost\n")
+    print("https://github.com/Ames-Hub/pyhoster\n")
     print("Message from developer:\nHello! If you have any issues, let me know and I will personally help out!\n")
 
     # Makes an init backup for every app which has its boundpath == content path.
     # This is because auto-backups often only happen if they intentionally update the app
     # which does not always happen if the boundpath is equal to the content path (as the 'update' command is useless in that case)
 
-    auto_backup_thread = threading.Process(
-        name="auto_backup",
-        target=auto_backup
-    )
-    auto_backup_thread.start()
+    do_autobackup = jmod.getvalue(key="do_autobackup", json_dir="settings.json", default=True, dt=app_settings)
+    if do_autobackup:
+        auto_backup_thread = multiprocessing.Process(
+            name="auto_backup",
+            target=auto_backup
+        )
+        auto_backup_thread.start()
+
+    ssl_enabled = jmod.getvalue(key="ssl_enabled", json_dir="settings.json", default=True, dt=app_settings)
+    # Starts the FTP server if enabled
+    ftp_enabled = jmod.getvalue(key="FTP_Enabled", json_dir="settings.json", default=False, dt=app_settings)
+    if ftp_enabled == True:
+        FTP_Thread = multiprocessing.Process(
+            target=ftp.start,
+            args=(None, None, None, ssl_enabled),
+        ) # Certfile and private keyfile being none just gets it to generate a self-signed certificate
+        FTP_Thread.start()
+        jmod.setvalue(
+            key="ftppid",
+            json_dir="settings.json",
+            value=FTP_Thread.pid,
+            dt=app_settings
+        )
+    else:
+        logging.info("FTP server is disabled.")
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)
@@ -131,51 +155,74 @@ logging.basicConfig(
 )
 logging.info("Pyhost logging started successfully!")
 
-if __name__ == '__main__': # Prevents errors with multiprocessing
+if __name__ == '__main__': # This line ensures the script is being run directly and not imported
     app_settings_dir = os.path.abspath("settings.json")
-    # Autostarts the autostarts
-    # Finds how many autostarts there are
-    launch_amount = 0
+
+    # Initialize a dictionary to keep track of which ports are taken
+    ports_taken = {}
+    launch_amount = 0 # Counter for the number of applications launched
+
+    # Loop over all applications in the 'instances' directory
     for app in os.listdir("instances/"):
-        config_file = f"instances/{app}/config.json"
+        config_file = f"instances/{app}/config.json" # Path to the config file for each application
+        # If the application is set to autostart, add its port and name to the ports_taken dictionary
         if jmod.getvalue(key=f"autostart", json_dir=config_file) == True:
             name = jmod.getvalue(key='name', json_dir=config_file)
             port = jmod.getvalue(key='port', json_dir=config_file)
-            ports_taken = {}
-            ports_taken.update({port: name})
+            ports_taken[port] = name 
 
+    # Check if autostart is enabled in the main settings
     do_autostart = jmod.getvalue("do_autostart", app_settings_dir, False, dt=app_settings)
     if do_autostart is True:
+        # If autostart is enabled, loop over all applications again
         for app in os.listdir("instances/"):
+            config_file = f"instances/{app}/config.json"  # Update the config_file for each app
+            # If the application is set to autostart and its port is not taken by another application, start it
             if jmod.getvalue(key=f"autostart", json_dir=config_file) == True:
                 name = jmod.getvalue(key='name', json_dir=config_file)
                 port = jmod.getvalue(key='port', json_dir=config_file)
-                if ports_taken[port] == name: # Allows only the assigned port to the name to be used
+                apptype = jmod.getvalue(key='apptype', json_dir=config_file)
+                if ports_taken[port] == name: 
+                    # Log the start of the application and start it in a new thread
                     print(f"Auto-Initializing project: \"{name}\" on port {port} (http://localhost:{port})")
                     logging.info(f"Auto-Initializing project: \"{name}\" on port {port}")
-                    website = threading.Process(
-                        target=instance.start, args=(app, True),\
-                        name=f"{app}_webserver"
-                        )
-                    website.start()
-                    pid = website.pid
+                    if apptype == application.types.webpage():
+                        # If the application is a webpage, start it with the 'start' method of the 'instance' module
+                        website = multiprocessing.Process(
+                            target=instance.start, args=(app, True),\
+                            name=f"{app}_webserver"
+                            )
+                        website.start()
+                        pid = website.pid
+                    elif apptype == application.types.WSGI():
+                        # If the application is a WSGI application, start it with the 'start' method of the 'instance' module
+                        wsgi = multiprocessing.Process(
+                            target=instance.start, args=(app, True),\
+                            name=f"{app}_wsgi"
+                            )
+                        wsgi.start()
+                        pid = wsgi.pid
+                    # Save the process ID of the application to its config file
                     jmod.setvalue(
                         key="pid",
                         json_dir=f"instances/{app}/config.json",
                         value=pid,
-                        dt=config_dt
+                        dt=web_config_dt
                     )
                 else:
-                    print(f"Port {port} is already taken! Can't start \"{name}\". Skipping")
-                    logging.error(f"Port {port} is already taken! Can't start \"{name}\". Skipping")
+                    # If the port is already taken, log an error and skip this application
+                    print(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". Skipping")
+                    logging.error(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". Skipping")
                     continue
 
                 launch_amount += 1
 
         if launch_amount != 0:
+            # If any applications were launched, log the total number
             print(f"AutoLaunched {launch_amount} instances...\n")
     else:
-        print("Autostart is disabled. Skipping...")
+        # If autostart is disabled, log a message and end the script
+        print("Autostart is disabled. Skipping…")
 
     # The main loop to keep the program running
     application.run(

@@ -1,10 +1,23 @@
-import logging, os, multiprocessing as mp, json
-from .data_tables import app_settings, config_dt
+import logging, os, multiprocessing as mp, json, time
+from .data_tables import app_settings, web_config_dt, wsgi_config_dt
+from .filetransfer import ftp
 from .jmod import jmod
 
 root_dir = os.getcwd()
 
-def getkwrd(keywords, text):
+colours = {
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "purple": "\033[35m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "orange": "\033[38;5;208m",
+    "reset": "\033[0m"
+}
+
+def getkwrd(keywords, text, default=None):
     try:
         text = str(text).lower()
         keywords = [str(keyword).lower() for keyword in keywords]
@@ -29,13 +42,14 @@ def getkwrd(keywords, text):
             value = text[1:end_quote]
             return value
 
-    # Return None if none of the keywords are found
-    return None
+    # Return Default if none of the keywords are found
+    return default
 
 class application:
 
     def run(keybind_listen: bool = True):
         application.running = True
+        time.sleep(1) # Give the program time to start up
 
         def help_msg():
             print("Available Commands:")
@@ -44,12 +58,6 @@ class application:
             else:
                 print("Note: *<arg> = Required information, <arg> = Optional information")
                 print("do <arg_name>:'' = Keyword information. eg, port:'80'")
-                print("create: Creates a new app")
-                print("`create *<app_name> <do_autostart>`\n")
-
-                print("delete: Deletes an app")
-                print("`delete *<app_name>`\n")
-                
                 print("edit: Edits an app")
                 print("start: Starts an app")
                 print("restart: Turns off then on an app")
@@ -57,7 +65,15 @@ class application:
                 print("update: Updates an app")
                 print("rollback: Rollback to latest backup of an app or an earlier snapshot!")
                 print("help: Displays this message")
-                print("cls: Clears the screen")
+                print("cls: Clears the screen\n")
+
+                print("webcreate: Creates a new website app")
+                print("`webcreate *<app_name> port:'80' desc:'a cool app' autostart:'True|False' boundpath:'C:/users/ME/desktop/myCoolWebsitesContent/'`")
+                print("wsgicreate: Creates a new WSGI app")
+                print("`wsgicreate *<app_name> port:'80' desc:'a cool app' autostart:'True|False' boundpath:'C:/users/ME/desktop/cool_app.py'`")
+
+                print("delete: Deletes an app")
+                print("`delete *<app_name>`\n")
 
         from .instance import instance
         try:
@@ -73,15 +89,31 @@ class application:
                     if has_args:
                         app_name_arg = text.split(" ")[1]
                     if cmd == "create":
+                        print("Please specify if you want to create a website or a WSGI app.")
+                        print("webcreate: Creates a new website app")
+                        print("wsgicreate: Creates a new WSGI app")
+                    elif cmd == "webcreate" or cmd == "createweb":
                         if not has_args:
-                            instance.create()
+                            instance.create_web()
                         else:
-                            instance.create(
+                            instance.create_web(
                                 app_name=app_name_arg,
-                                port=getkwrd(["port", "gateway", "gate"], text),
-                                do_autostart=getkwrd(["autostart", "do_start"], text),
-                                boundpath=getkwrd(["boundpath", "path"], text),
-                                app_desc=getkwrd(["desc", "description"], text),
+                                port=getkwrd(["port", "gateway", "gate"], text, 80),
+                                do_autostart=getkwrd(["autostart", "do_start"], text, True),
+                                boundpath=getkwrd(["boundpath", "path"], text, None),
+                                app_desc=getkwrd(["desc", "description"], text, default="An app hosted by Pyhost."),
+                            )
+                    elif cmd == "wsgicreate" or cmd == "createwsgi":
+                        print(colours["orange"]+"Note: WSGI server's are currently in open alpha and may not work as expected."+colours["reset"])
+                        if not has_args:
+                            instance.create_wsgi()
+                        else:
+                            instance.create_wsgi(
+                                app_name=app_name_arg,
+                                port=getkwrd(["port", "gateway", "gate"], text, 80),
+                                do_autostart=getkwrd(["autostart", "do_start"], text, True),
+                                boundpath=getkwrd(["boundpath", "path"], text, None),
+                                app_desc=getkwrd(["desc", "description"], text, default="An app hosted by Pyhost."),
                             )
                     elif cmd == "delete":
                         if has_args == False:
@@ -107,7 +139,10 @@ class application:
                                 app_name=app_name_arg,
                                 is_interface=False
                             )
-                            # Such a weird bug and idk what's causing it
+                    elif cmd == "ftp":
+                        ftp.enter()
+                        # Read doc string for more info. as a summary though,
+                        # ftp.enter simply enters a GUI where logs are visible, server details are visible, etc.
                     elif cmd == "restart":
                         if has_args == False:
                             instance.restart(is_interface=True)
@@ -218,7 +253,7 @@ class application:
                     key="running",
                     json_dir=f"instances/{app}/config.json",
                     value=False,
-                    dt=config_dt
+                    dt=web_config_dt
                 )
             print("All instance configs have been set to not running.")
 
@@ -229,17 +264,115 @@ class application:
                     key="pid",
                     json_dir=f"instances/{app}/config.json",
                     value=None,
-                    dt=config_dt
+                    dt=web_config_dt
                 )
             print("All PID's have been set to None.")
 
             print("Exiting...")
             exit()
 
+    class datareqs:
+        def get_name():
+            '''Get the name for an app. Returns the name of the app.'''
+            while True:
+                try:
+                    print("Type Cancel to cancel creation.")
+                    app_name: str = str(input("What is the name of the app? TEXT : "))
+                    if app_name.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert app_name.lower() != "create", "The name cannot be 'create'!" # Prevents the app from being named create as it is a reserved word
+
+                    # Makes sure the app name is valid and can be made into a directory folder
+                    assert not app_name.startswith(" "), "The name cannot start with a space!"
+                    assert not app_name.endswith(" "), "The name cannot end with a space!"
+                    assert "." not in app_name, "The name cannot have a period!"
+                    assert "/" not in app_name and "\\" not in app_name, "The name cannot contain a slash!"
+                    assert "_" not in app_name, "The name cannot contain an underscore!"
+                    assert "-" not in app_name, "The name cannot contain a dash!"
+                    assert ":" not in app_name, "The name cannot contain a colon!"
+                    assert app_name != "", "The name cannot be blank!"
+                    
+                    if app_name in os.listdir("instances/"):
+                        raise AssertionError("The name cannot be the same as an existing app!")
+                    
+                    break
+                except AssertionError as err: # Forces the name to be valid
+                    print(str(err))
+                    continue
+
+            return app_name
+
+        def get_desc(required=False):
+            while True:
+                try:
+                    print("\nInstructions: <nl> = new line")
+                    app_desc: str = str(input("What is the app's description? TEXT (optional) : "))
+                    if app_desc.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert type(app_desc) == str, "The description must be a string!"
+                    if not required:
+                        if app_desc == "":
+                            app_desc = "An app hosted by Pyhost."
+                    else:
+                        assert app_desc != "", "The description cannot be blank!"
+                    app_desc.replace("<nl>", "\n") # Replaces <nl> with a new line
+                    break
+                except AssertionError as err: # Forces the description to be valid
+                    print(str(err))
+                    continue
+            return app_desc
+
+        def get_port():
+            while True:
+                try:
+                    port: int = input("What port should the app run on? NUMBER (Default: 80) : ")
+                    if str(port).lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    if str(port) == "":
+                        port = 80
+                    assert type(int(port)) is int, "The port must be an integer!"
+                    port = int(port)
+                    assert port > 0 and port < 65535, "The port must be between 0 and 65535!"
+                    break
+                except (AssertionError, ValueError) as err: # Forces the port to be valid
+                    print(str(err))
+                    continue
+
+            return port
+
+        def get_boundpath(
+            message, return_default=None,
+            inp_text="What is the full path to the app's content? TEXT (blank for no external binding) : "):
+            while True:
+                try:
+                    print(message)
+                    boundpath: str = str(input(inp_text))
+                    if str(boundpath).lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    elif boundpath == "cls":
+                        os.system("cls" if os.name == "nt" else "clear")
+                        continue
+                    elif boundpath != "":
+                        assert os.path.exists(boundpath), "The path must exist and be absolute!"
+                        assert os.path.isabs(boundpath), "The path must be absolute! (absolute: starting from root directory such as C:/)"
+                        break
+                    else:
+                        boundpath = return_default
+                except AssertionError as err: # Forces the path to be valid and absolute
+                    print(str(err))
+                    continue
+            return boundpath
+
     class types:
         def webpage():
             return "WEBPAGE"
-    
+        def WSGI():
+            return "WSGI"
+
     class settings():
         def __init__(self, is_interface=False) -> None:
             self.is_interface = is_interface

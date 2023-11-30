@@ -1,16 +1,28 @@
 import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib, time
 from .application import application as app
 from .jmod import jmod
-from .data_tables import config_dt, app_settings
-import multiprocessing as threading
+from .data_tables import web_config_dt, wsgi_config_dt, app_settings
+import multiprocessing
+import wsgiref.simple_server as wsgi
 
+colours = {
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "purple": "\033[35m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "orange": "\033[38;5;208m",
+    "reset": "\033[0m"
+}
 
 root_dir = os.getcwd()
 setting_dir = "settings.json"
 
 class instance: # Do not use apptype in calls until other apptypes are made
-    def create(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None,
-               do_autostart: bool = False, apptype: app.types.webpage = app.types.webpage):
+    def create_web(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None,
+               do_autostart: bool = False):
         '''All needed args that are not provided will be grabbed from the user'''
         
         try:
@@ -46,68 +58,15 @@ class instance: # Do not use apptype in calls until other apptypes are made
         
         # Gets input if not provided. Do not use Elif, so that if it failed assertion before it'll fix here
         if app_name == None:
-            while True:
-                try:
-                    print("Type Cancel to cancel creation.")
-                    app_name: str = str(input("What is the name of the app? TEXT : "))
-                    if app_name.lower() == "cancel":
-                        print("Cancelled!")
-                        return True
-                    assert app_name.lower() != "create", "The name cannot be 'create'!" # Prevents the app from being named create as it is a reserved word
-
-                    # Makes sure the app name is valid and can be made into a directory folder
-                    assert not app_name.startswith(" "), "The name cannot start with a space!"
-                    assert not app_name.endswith(" "), "The name cannot end with a space!"
-                    assert "." not in app_name, "The name cannot have a period!"
-                    assert "/" not in app_name and "\\" not in app_name, "The name cannot contain a slash!"
-                    assert "_" not in app_name, "The name cannot contain an underscore!"
-                    assert "-" not in app_name, "The name cannot contain a dash!"
-                    assert ":" not in app_name, "The name cannot contain a colon!"
-                    assert app_name != "", "The name cannot be blank!"
-                    
-                    if app_name in os.listdir("instances/"):
-                        raise AssertionError("The name cannot be the same as an existing app!")
-                    
-                    break
-                except AssertionError as err: # Forces the name to be valid
-                    print(str(err))
-                    continue
+            app_name = app.datareqs.get_name()
 
         # Gets the app description
         if app_desc == None:
-            while True:
-                try:
-                    print("\nInstructions: <nl> = new line")
-                    app_desc: str = str(input("What is the app's description? TEXT (optional) : "))
-                    if app_desc.lower() == "cancel":
-                        print("Cancelled!")
-                        return True
-                    assert type(app_desc) == str, "The description must be a string!"
-                    if app_desc == "":
-                        app_desc = "A Website hosted by Pyhost."
-                    app_desc.replace("<nl>", "\n") # Replaces <nl> with a new line
-                    break
-                except AssertionError as err: # Forces the description to be valid
-                    print(str(err))
-                    continue
+            app_desc = app.datareqs.get_desc()
 
         # Gets the port
         if port == None:
-            while True:
-                try:
-                    port: int = input("What port should the app run on? NUMBER (Default: 80) : ")
-                    if str(port).lower() == "cancel":
-                        print("Cancelled!")
-                        return True
-                    if str(port) == "":
-                        port = 80
-                    assert type(int(port)) is int, "The port must be an integer!"
-                    port = int(port)
-                    assert port > 0 and port < 65535, "The port must be between 0 and 65535!"
-                    break
-                except (AssertionError, ValueError) as err: # Forces the port to be valid
-                    print(str(err))
-                    continue
+            port = app.datareqs.get_port()
 
         # Gets external bound directory
         if boundpath == None:
@@ -148,6 +107,15 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     print(str(err))
                     continue
 
+        # SSL is enabled by default for new apps. Its more secure, and is more true to the purpose of Pyhost this way
+        # (Working immediately out-the-box)
+        jmod.setvalue(
+            key="ssl_enabled",
+            json_dir=config_path,
+            value=True,
+            dt=config
+        )
+
         # Makes the appropriate directories
         os.makedirs(f"instances/{app_name}/", exist_ok=True)
         os.makedirs(f"instances/{app_name}/content/", exist_ok=True)
@@ -162,7 +130,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         config_path = f"instances/{app_name}/config.json"
         # Sets the absolute path/boundpath in the json file
-        config = config_dt
+        config = web_config_dt
         jmod.setvalue(
             "name",
             config_path,
@@ -202,8 +170,61 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("\033[92m" + f"Created app \"{app_name}\" successfully!" + "\033[0m")
         logging.info(f"Created app \"{app_name}\" successfully!")
 
-    def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True, del_backups:bool=None):
+    def create_wsgi(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None, do_autostart:bool=True):
+        '''
+        the content file will always be named application.py and all the code in that file will be in a single function
+        This function will create a WSGI app.
+        '''
         
+        if app_name == None or app_name == "":
+            app_name = app.datareqs.get_name()
+        if app_desc == None:
+            app_desc = app.datareqs.get_desc()
+        if port == None:
+            port = app.datareqs.get_port()
+        if boundpath == None:
+            msg = (
+                "\nThis directory will be copied to the app's content folder. You work on the project in this directory."
+                "\nInternal binding will be: "+str(os.path.abspath(f"instances/{app_name}/application.py"))
+                )
+            while True:
+                boundpath = app.datareqs.get_boundpath(
+                    message=msg, inp_text="\nWhat is the full path to the app's python file? TEXT (Not optional) : "
+                    )
+                if boundpath == None:
+                    print("Boundpath cannot be None!")
+                    continue
+                elif not boundpath.endswith(".py"):
+                    print("The file must be a python file!")
+                    continue
+                break
+
+        # Sets out the file structure
+        os.makedirs(f"instances/{app_name}/", exist_ok=True)
+        os.makedirs(f"instances/{app_name}/logs/", exist_ok=True)
+
+        # Sets the config
+        config_path = f"instances/{app_name}/config.json"
+        app_config = wsgi_config_dt
+        app_config["name"] = app_name
+        app_config["description"] = app_desc
+        app_config["port"] = port
+        app_config["apptype"] = app.types.WSGI()
+        app_config["boundpath"] = boundpath
+        app_config["autostart"] = do_autostart
+        with open(config_path, "w") as cf:
+            json.dump(app_config, cf, indent=4)
+
+        print(colours["green"]+ f"Created app \"{app_name}\" successfully!" + colours["white"])
+        logging.info(f"Created app \"{app_name}\" successfully!")
+        
+        multiprocessing.Process(
+            target=instance.start,
+            name=f"{app_name}_wsgi",
+            args=(app_name, True)
+        )
+
+    def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True, del_backups:bool=None):
         if is_interface == True or app_name == None:
             try: # Asks for the app name
                 os.system('cls' if os.name == "nt" else "clear")
@@ -244,8 +265,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         if ask_confirmation:
             try:
-                inp = input(f"Are you sure you want to delete \"{app_name}?\" Press enter to confirm. Otherwise, type cancel then enter to cancel.\n>>> ")
-                if inp != "":
+                inp = input(
+                    f"\nAre you sure you want to delete \"{app_name}?\" Type the app's name to confirm.\nOtherwise, type cancel then press enter to cancel.\n---{colours['red']} {app_name}{colours['reset']}\n>>> {colours['red']}"
+                )
+                print(f"{colours['reset']}Confirmed!")
+                if inp != app_name:
                     raise AssertionError("Cancelled!")
             except AssertionError as err:
                 print(str(err))
@@ -308,7 +332,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             print(f"That app is already running! To stop it, use the stop command.")
                             return True
         
-        website = threading.Process(
+        website = multiprocessing.Process(
             target=instance.start, args=(app_name, True),
             name=f"{app_name}_webserver"
             )
@@ -318,157 +342,318 @@ class instance: # Do not use apptype in calls until other apptypes are made
             key="pid",
             json_dir=f"instances/{app_name}/config.json",
             value=pid,
-            dt=config_dt
+            dt=web_config_dt
         )
 
-    def start(app_name, silent=True): # Silent = True makes it buggy as fuck because of how I suppressed prints. whoops 
-        # Define the base directory for instances
-        base_directory = os.path.abspath("instances/")
+    def start(app_name, silent=True): # Silent = True problem resolved :D
+        '''Always run using Multiprocessing.Process()'''
+        app_type = jmod.getvalue(key="apptype", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
 
-        # Construct the directory path for the specific app
-        directory = os.path.join(base_directory, app_name)
-        os.makedirs(directory, exist_ok=True)  # Create the directory if it doesn't exist
+        # Starts the appropriate app type
+        if app_type == app.types.webpage():
+            def webserver():
+                # Define the base directory for instances
+                base_directory = os.path.abspath("instances/")
 
-        # Get the port from the config.json file
-        config_path = os.path.abspath(f"instances/{app_name}/config.json")
-        with open(config_path, 'r') as config_file:
-            config_data: dict = json.load(config_file)
-        port = config_data.get("port")
+                # Construct the directory path for the specific app
+                directory = os.path.join(base_directory, app_name)
+                os.makedirs(directory, exist_ok=True)  # Create the directory if it doesn't exist
 
-        if port is None:
-            print(f"Port is not defined in config.json for {app_name}!")
-            return False
+                # Get the port from the config.json file
+                config_path = os.path.abspath(f"instances/{app_name}/config.json")
+                with open(config_path, 'r') as config_file:
+                    config_data: dict = json.load(config_file)
+                port = config_data.get("port")
 
-        # Loads settings
-        send_404 = jmod.getvalue( # If this setting is updated, the app needs to restart
-            key="send_404_page",
-            json_dir=setting_dir,
-            default=True,
-            dt=app_settings
-            )
-        default_index = jmod.getvalue(
-            key="index",
-            json_dir=config_path,
-            default="index.html",
-            dt=config_data
-            )
-        notfoundpage_enabled = jmod.getvalue(
-            key="404page_enabled",
-            json_dir=config_path,
-            default=False,
-            dt=config_data
-            )
-        notfoundpage = jmod.getvalue(key="404page", json_dir=config_path, default="404.html", dt=config_data)
+                if port is None:
+                    print(f"Port is not defined in config.json for {app_name}!")
+                    return False
 
-        # Define a custom request handler with logging
-        class CustomHandler(http.server.SimpleHTTPRequestHandler):
-            def __init__(self, *args, **kwargs):
-                self.content_directory = config_data.get("contentloc")
-                super().__init__(*args, directory=self.content_directory, **kwargs)
-            
-            def do_GET(self):
-                self.log_request_action()
-                if self.path == "/":
-                    # Serve the default_index as the landing page
-                    default_index_path = os.path.abspath(os.path.join(self.content_directory, default_index))
-                    if os.path.exists(default_index_path):
-                        with open(default_index_path, 'rb') as index_file:
-                            content = index_file.read()
+                # Loads settings
+                send_404 = jmod.getvalue( # If this setting is updated, the app needs to restart
+                    key="send_404_page",
+                    json_dir=setting_dir,
+                    default=True,
+                    dt=app_settings
+                )
+                default_index = jmod.getvalue(
+                    key="index",
+                    json_dir=config_path,
+                    default="index.html",
+                    dt=config_data
+                )
+                notfoundpage_enabled = jmod.getvalue(
+                    key="404page_enabled",
+                    json_dir=config_path,
+                    default=False,
+                    dt=config_data
+                )
+
+                allow_dir_listing = jmod.getvalue(
+                    key="dir_listing",
+                    json_dir=config_path,
+                    default=False,
+                    dt=config_data
+                )
+                csp_directives = jmod.getvalue(
+                    key="csp_directives",
+                    json_dir=config_path,
+                    default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",\
+                             "style-src 'self';","img-src 'self';","font-src 'self'"],
+                    dt=config_data
+                )
+                add_sec_heads = jmod.getvalue(
+                    key="do_securityheaders",
+                    json_dir=config_path,
+                    default=True,
+                    dt=config_data
+                )
+                serve_default = jmod.getvalue(
+                    key="serve_default",
+                    json_dir=config_path,
+                    default=True,
+                    dt=config_data
+                )
+                
+                notfoundpage = jmod.getvalue(key="404page", json_dir=config_path, default="404.html", dt=config_data)
+
+                # Define a custom request handler with logging
+                class CustomHandler(http.server.SimpleHTTPRequestHandler):
+                    def __init__(self, *args, **kwargs):
+                        self.content_directory = config_data.get("contentloc")
+                        super().__init__(*args, directory=self.content_directory, **kwargs)
+
+                    if add_sec_heads:
+                        def add_security_headers(self):
+                            # Add security headers based on user configuration
+                            self.send_header("Content-Security-Policy", csp_directives)
+                            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+
+                    def do_GET(self):
+                        self.log_request_action()
+                        try:
+                            warden = jmod.getvalue(key="warden", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+                            warden_enabled = warden.get("enabled")
+                            wardened_pages = warden.get("pages")
+                        except Exception as err:
+                            logging.error(f"Failed to get warden settings for {app_name}: {err}")
+
+                        if warden_enabled:
+                            # Check if the requested path is wardened
+                            if self.path == wardened_pages:
+                                # If the path is wardened, check if the client is authenticated
+                                if not self.client_authenticated():
+                                    # If the client is not authenticated, send a 401 response
+                                    self.send_response(401)
+                                    self.send_header("WWW-Authenticate", "Basic realm=\"Wardened Page\"")
+                                    self.end_headers()
+                                    return
+
+                        # Handle directory listing.
+                        # Handles it by making sure the request leads to a file and not a directory
+                        if not allow_dir_listing:
+                            if self.path.endswith("/"):
+                                # If the path is a directory and not the root, return a 403
+                                if self.path != "/":
+                                    self.send_error(403, "Directory listing is disabled", "The requested path is a directory and directory listing is disabled. This has been banned in the security configuration of this pyhost instance.")
+                                    return
+
+                        # Check if the requested path is the root directory
+                        if self.path == "/":
+                            # Serve the default_index as the landing page
+                            # Get the absolute path of the default index file
+                            default_index_path = os.path.abspath(os.path.join(self.content_directory, default_index))
+                            
+                            # Check if the default index file exists
+                            if os.path.exists(default_index_path):
+                                # Open the default index file and read its content
+                                with open(default_index_path, 'rb') as index_file:
+                                    content = index_file.read()
+                                    
+                                    # Send a HTTP 200 OK response
+                                    self.send_response(200)
+                                    
+                                    # Set the Content-Type header to text/html
+                                    self.send_header("Content-type", "text/html")
+                                    self.end_headers()
+                                    
+                                    # Write the content to the response body
+                                    self.wfile.write(content)
+                            else:
+                                # If the default index file doesn't exist, serve the default HTML
+                                self.serve_default_html()
+                        else:
+                            # If the requested path is not the root directory
+                            # Get the absolute path of the requested file
+                            requested_file_path = os.path.abspath(os.path.join(self.content_directory, self.path.strip('/')))
+                            
+                            # Check if the requested file exists
+                            if os.path.exists(requested_file_path):
+                                # If the requested file exists, call the parent class's do_GET method
+                                super().do_GET()
+                            elif notfoundpage_enabled:
+                                # If the requested file doesn't exist and a custom 404 page is enabled
+                                if send_404:
+                                    # Get the absolute path of the custom 404 page
+                                    notfoundpage_path = os.path.abspath(os.path.join(self.content_directory, notfoundpage))
+                                else:
+                                    # If the custom 404 page is not enabled, serve the default HTML and return
+                                    self.serve_default_html()
+                                    return
+                                
+                                # Check if the custom 404 page exists
+                                if os.path.exists(notfoundpage_path):
+                                    # Open the custom 404 page and read its content
+                                    with open(notfoundpage_path, 'rb') as notfoundpage_file:
+                                        content = notfoundpage_file.read()
+                                        self.send_response(404)
+                                        # Set the Content-Type header to text/html
+                                        self.send_header("Content-type", "text/html")
+                                        self.end_headers()
+                                        
+                                        # Write the content to the response body
+                                        self.wfile.write(content)
+                                else:
+                                    # If the custom 404 page doesn't exist, serve the default HTML
+                                    self.serve_default_html()
+                            else:
+                                # If the requested file doesn't exist and a custom 404 page is not enabled, serve the default HTML
+                                self.serve_default_html()
+
+                    if serve_default:
+                        def serve_default_html(self):
+                            # Get the path to the default HTML file
+                            default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
+                            with open(default_html_path, 'rb') as default_html_file:
+                                content = default_html_file.read()
+                                # Replace placeholders in the HTML with actual values
+                                content = content.replace(b"{{app_name}}", bytes(app_name, "utf-8"))
+
+                                censored_content_dir = str(self.content_directory)
+                                if censored_content_dir.startswith("C:\\Users\\"):
+                                    # Finds the next \ after "C:\Users\", then replaces the username with asterisks
+                                    user_end_index = censored_content_dir.find("\\", len("C:\\Users\\"))
+                                    if user_end_index != -1:
+                                        censored_content_dir = "C:\\Users\\****" + censored_content_dir[user_end_index:]
+                                content = content.replace(b"{{content_dir}}", bytes(censored_content_dir, "utf-8"))
+
+                            # Send the HTML content as a response
                             self.send_response(200)
                             self.send_header("Content-type", "text/html")
                             self.end_headers()
                             self.wfile.write(content)
-                    else:
-                        self.serve_default_html()
-                else:
-                    requested_file_path = os.path.abspath(os.path.join(self.content_directory, self.path.strip('/')))
-                    if os.path.exists(requested_file_path):
-                        super().do_GET()
-                    elif notfoundpage_enabled:
-                        notfoundpage_path = os.path.abspath(os.path.join(self.content_directory, notfoundpage))
-                        if os.path.exists(notfoundpage_path):
-                            with open(notfoundpage_path, 'rb') as notfoundpage_file:
-                                content = notfoundpage_file.read()
-                                self.send_response(404)
-                                self.send_header("Content-type", "text/html")
-                                self.end_headers()
-                                self.wfile.write(content)
-                        else:
-                            self.serve_default_html()
-                    else:
-                        self.serve_default_html()
 
-            if send_404 == True: # Doesn't define this function if not send 404
-                def serve_default_html(self):
-                    default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
-                    with open(default_html_path, 'rb') as default_html_file:
-                        content = default_html_file.read()
-                        # Replace the placeholder text with the app name
-                        content = content.replace(b"{{app_name}}", bytes(app_name, "utf-8"))
-                        content = content.replace(b"{{content_dir}}", bytes(self.content_directory, "utf-8"))
+                    def log_request_action(self):
+                        # Get client address and requested file
+                        client_address = self.client_address[0]
+                        requested_file = self.path
+                        current_date = datetime.date.today().strftime("%Y-%m-%d")
+                        log_file_path = f"{base_directory}/{app_name}/logs/{current_date}.log"
 
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/html")
-                    self.end_headers()
-                    self.wfile.write(content)
+                        # Open the log file and write the request information
+                        with open(log_file_path, "a") as log_file:
+                            if requested_file == "/":
+                                log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested the landing page\n")
+                            else:
+                                log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested file {requested_file}\n")
 
-            def log_request_action(self):
-                client_address = self.client_address[0]
-                requested_file = self.path
-                current_date = datetime.date.today().strftime("%Y-%m-%d")
-                log_file_path = f"{base_directory}/{app_name}/logs/{current_date}.log"
+                # Define a custom log message function
+                def log_message(message):
+                    current_date = datetime.date.today().strftime("%Y-%m-%d")
+                    log_file_path = os.path.abspath(f"instances/{app_name}/logs/{current_date}.log")
 
-                with open(log_file_path, "a") as log_file:
-                    if requested_file == "/":
-                        log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested the landing page\n")
-                    else:
-                        log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested file {requested_file}\n")
+                    with open(log_file_path, "a") as log_file:
+                        log_file.write(f"{datetime.datetime.now()} - {app_name} - {message}\n")
 
-        # Define a custom log message function
-        def log_message(message):
-            current_date = datetime.date.today().strftime("%Y-%m-%d")
-            log_file_path = os.path.abspath(f"instances/{app_name}/logs/{current_date}.log")
+                # Create the log directory if it doesn't exist
+                log_directory = f"{base_directory}/{app_name}/logs/"
+                os.makedirs(log_directory, exist_ok=True)
 
-            with open(log_file_path, "a") as log_file:
-                log_file.write(f"{datetime.datetime.now()} - {app_name} - {message}\n")
+                # Redirect stdout and stderr to /dev/null if silent is True
+                if silent:
+                    sys.stdout = open(os.devnull, "w")
+                    sys.stderr = open(os.devnull, "w")
 
-        # Create the log directory if it doesn't exist
-        log_directory = f"{base_directory}/{app_name}/logs/"
-        os.makedirs(log_directory, exist_ok=True)
+                try:
+                    # Create a socket server with the custom handler
+                    with socketserver.TCPServer(("", port), CustomHandler) as httpd:
+                        # Print a message to indicate the server has started unless silent is True
+                        if not silent:
+                            print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
+                                f"You can visit it on http://localhost:{port}")
 
-        # Redirect stdout and stderr to /dev/null if silent is True
-        if silent:
-            sys.stdout = open(os.devnull, "w")
-            sys.stderr = open(os.devnull, "w")
+                        log_message(f"Server \"{app_name}\" is running.")
+                        # Get the PID of the current thread (web server)
 
-        try:
-            # Create a socket server with the custom handler
-            with socketserver.TCPServer(("", port), CustomHandler) as httpd:
-                # Print a message to indicate the server has started unless silent is True
-                if not silent:
-                    print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
-                        f"You can visit it on http://localhost:{port}")
+                        # Sets server to running in JSON file and save the PID
+                        jmod.setvalue(
+                            key="running",
+                            json_dir=f"instances/{app_name}/config.json",
+                            value=True,
+                            dt=web_config_dt
+                        )
 
-                log_message(f"Server \"{app_name}\" is running.")
-                # Get the PID of the current thread (web server)
+                        # Start the server and keep it running until interrupted
+                        logging.info(f"Server \"{app_name}\" is now running on port {port}")
+                        httpd.serve_forever()
 
-                # Sets server to running in JSON file and save the PID
-                jmod.setvalue(
-                    key="running",
-                    json_dir=f"instances/{app_name}/config.json",
-                    value=True,
-                    dt=config_dt
+                except OSError as e:
+                    logging.error(f"Server \"{app_name}\" failed to start: {e}\n\n"+str(e.with_traceback(e.__traceback__)))
+                    if not silent:
+                        print(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
+                    log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
+            webserver()
+        elif app_type == app.types.WSGI():
+            def WSGI():
+                '''
+                A WSGI server
+                For this function to work, it takes a python file and it puts the entire thing in a function called "wsgi_app"\n
+                by indenting the entire file by 4 spaces and adding "def wsgi_app(environ, start_response):" to the top of the file.\n 
+                '''
+                base_dir = os.path.abspath("instances/")
+                app_dir = os.path.join(base_dir, app_name)
+                # Get the port from the config.json file
+                config_path = os.path.abspath(f"instances/{app_name}/config.json")
+                port = jmod.getvalue(key="port", json_dir=config_path, dt=web_config_dt)
+
+                # Define the WSGI application
+                def wsgi_app(environ, start_response):
+                    # Get the path of the file to serve
+                    file_path = str(jmod.getvalue(key="boundpath", json_dir=config_path, dt=web_config_dt))
+                    
+                    # Open the file and write all the lines with a 4 space indent to a new file
+                    with open(file_path, "r") as file:
+                        lines = file.readlines()
+                        new_lines = []
+                        for line in lines:
+                            new_lines.append(" "*4+line)
+
+                    # Add the function definition to the top of the file
+                    new_lines.insert(0, "def wsgi_app(environ, start_response):\n")
+
+                    # Prevents exceptions where the new file is already existant
+                    new_file_name = "wsgi_app"
+                    if os.path.exists(f"instances/{app_name}/{new_file_name}.py"):
+                        new_file_name = "app_wsgi"
+                        if os.path.exists(f"instances/{app_name}/{new_file_name}.py"):
+                            # Raises an exception if the file already exists
+                            raise FileExistsError(f"Can't start app:'{app_name}' File {new_file_name}.py already exists!")
+
+                    # Write the new file to be able to import it
+                    with open(f"instances/{app_name}/{new_file_name}.py", "w") as file:
+                        file.writelines(new_lines)
+
+                # Create a WSGI server
+                server = wsgi.make_server(
+                    host="localhost",
+                    port=port,
+                    app=wsgi_app
                 )
 
-                # Start the server and keep it running until interrupted
-                logging.info(f"Server \"{app_name}\" is now running on port {port}")
-                httpd.serve_forever()
-
-        except OSError as e:
-            logging.error(f"Server \"{app_name}\" failed to start: {e}\n\n"+str(e.with_traceback(e.__traceback__)))
-            if not silent:
-                print(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
-            log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
+                # Start the server
+                print(f"WSGI Server \"{app_name}\" is running on port {port}.")
+                server.serve_forever()
+            WSGI()
 
     def restart(app_name=None, is_interface=True):
         print("\n")
@@ -489,7 +674,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     break
     
         instance.stop(app_name)
-        threading.Process(
+        multiprocessing.Process(
             target=instance.start,
             args=(app_name, True),
         ).start()
@@ -556,7 +741,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     key="running",
                     json_dir=f"instances/{app_name}/config.json",
                     value=False,
-                    dt=config_dt
+                    dt=web_config_dt
                 )
 
                 print(f"Server \"{app_name}\" has been stopped.")
@@ -644,7 +829,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             key="last_updated",
             json_dir=f"instances/{app_name}/config.json",
             value=time.time(),
-            dt=config_dt
+            dt=web_config_dt
         )
 
     def is_outdated(app_name: str, boundpath_only: bool = False):
@@ -811,7 +996,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         print("Phase 2 completed.")
 
         # Starts the app again
-        threading.Process(
+        multiprocessing.Process(
             target=instance.start,
             args=(app_name, True),
             name=f"{app_name}_webserver",
@@ -920,7 +1105,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     print("5. Autostart")
                     print("6. Index Page")
                     print("7. 404 Page Settings")
-                    print("8. Cancel\n")
+                    print("8. Serve Default Page")
+                    print("9. Security configuration")
+                    print("10. Cancel\n")
                     option = input(">>> ").lower()
                     if option.isnumeric() == True:
                         # Handles for when the user uses a number to convert from number to text
@@ -932,7 +1119,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             5: "autostart",
                             6: "index",
                             7: "404",
-                            8: "cancel",
+                            8: "doServeDefault",
+                            9: "security",
+                            10: "cancel",
                         }
                         option = choice_dict[int(option)]
                     
@@ -963,6 +1152,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         continue
                     elif "404" in option:
                         self.page404_interface()
+                        continue
+                    elif "default" in option:
+                        self.serve_default()
+                        continue
+                    elif "security" in option:
+                        self.security_edit()
                     else:
                         raise KeyError
 
@@ -978,8 +1173,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stoping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
-                print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=config_dt)})\nEdit completed and saved")
-                threading.Process(
+                print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=web_config_dt)})\nEdit completed and saved")
+                multiprocessing.Process(
                     target=instance.start,
                     args=(self.app_name, True,),
                     name=f"{self.app_name}_webserver"
@@ -1024,7 +1219,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     key="name",
                     json_dir=self.config_dir,
                     value=new_name,
-                    dt=config_dt
+                    dt=web_config_dt
                 )
                 print(f"Changed name to {new_name} successfully!")
 
@@ -1051,7 +1246,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="port",
                 json_dir=self.config_dir,
                 value=new_port,
-                dt=config_dt
+                dt=web_config_dt
             )
             print(f"Changed port to {new_port} successfully!")
 
@@ -1075,7 +1270,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="description",
                 json_dir=self.config_dir,
                 value=new_desc,
-                dt=config_dt
+                dt=web_config_dt
             )
             print(f"Changed description to\n\"{new_desc}\"\nsuccessfully!")
 
@@ -1111,7 +1306,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="boundpath",
                 json_dir=self.config_dir,
                 value=new_boundpath,
-                dt=config_dt
+                dt=web_config_dt
             )
             print(f"Changed externally boundpath to {new_boundpath} successfully!")
 
@@ -1156,7 +1351,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="index",
                 json_dir=self.config_dir,
                 value=filename,
-                dt=config_dt
+                dt=web_config_dt
             )
             print("Changed index file successfully!")
 
@@ -1239,7 +1434,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="404page_enabled",
                 json_dir=self.config_dir,
                 value=enabled,
-                dt=config_dt
+                dt=web_config_dt
             )
             print(f"404 page {'enabled' if enabled == True else 'disabled'} successfully! ")
 
@@ -1258,6 +1453,280 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 key="404page",
                 json_dir=self.config_dir,
                 value=filename,
-                dt=config_dt
+                dt=web_config_dt
             )
             print("Changed 404 file successfully!")
+
+        def serve_default(self, do_serve=None):
+            if do_serve == None:
+                print("Set if the default page is served.")
+                print('What is the default page? The default page is what shows up if the directory is empty.\n')
+                print("This page is per-app, and enabled by default.")
+                print("Do you want the default page? Y/N : ")
+                while True: # Loop for retries.
+                    do_serve = input('>>> ').lower()
+                    if do_serve == "cancel":
+                        print("Cancelled!")
+                        return True
+                    if "y" in do_serve:
+                        do_serve = True
+                        break
+                    elif "n" in do_serve:
+                        do_serve = False
+                        break
+                    else: # Retry logic
+                        print("Invalid answer!")
+                        continue
+
+            assert type(do_serve) == bool
+            jmod.setvalue(
+                key="serve_default",
+                json_dir=self.config_dir,
+                value=do_serve,
+                dt=web_config_dt
+            )
+            print(f"{colours['green']}Default page {'enabled' if do_serve == True else 'disabled'} successfully!{colours['reset']}")
+
+        def security_edit(self):
+
+            print("Welcome to security configuration. This menu is for advanced users only.")
+            print("<!> Pyhost and its developers are not responsible for bad configurations or mis-management <!>\n")
+
+            # Gets the current security settings then prints them out accordingly
+            
+            dir_listing = jmod.getvalue(key="dir_listing", json_dir=self.config_dir, dt=web_config_dt) # AKA autoindex I think
+            securityheaders = jmod.getvalue(key="do_securityheaders", json_dir=self.config_dir, dt=web_config_dt)
+            csp_directives = jmod.getvalue(key="csp_directives", json_dir=self.config_dir, dt=web_config_dt)
+            
+            print("Current settings:")
+            # Dir listing
+            if dir_listing == False:
+                print(f"{colours['green']}1. Directory listing is disabled.")
+            else:
+                print(f"{colours['red']}1. Directory listing is enabled.")
+
+            # Security headers
+            if securityheaders == True:
+                print(f"{colours['green']}2. Security headers are enabled.")
+            else:
+                print(f"{colours['red']}2. Security headers are disabled.")
+            
+            # CSP directives
+            if csp_directives != None:
+                if len(csp_directives) != 0:
+                    print(f"{colours['green']}3. CSP directives are set.{colours['reset']}")
+                else:
+                    csp_directives = False
+            else:
+                csp_directives = False
+            
+            if not csp_directives: # Always reset colour at last print
+                print(f"{colours['red']}3. CSP directives are not set.{colours['reset']}")
+
+            choices_dict = {
+                "1": "dir_listing",
+                "2": "securityheaders",
+                "3": "csp_directives",
+            }
+            while True:
+                try:
+                    print("\nWhat would you like to edit about the security configuration? (Use numbers or text)")
+                    print("1. Directory listing")
+                    print("2. Security headers")
+                    print("3. CSP directives")
+                    print("4. Cancel\n")
+                    option = input(">>> ").lower()
+                    # Seperates choices from args
+                    try:
+                        option, arg = option.split(" ", 1)
+                        if arg != None or "":
+                            has_arg = True
+                    except:
+                        has_arg = False
+                        arg = None
+
+                    if option.isnumeric() == True:
+                        # Handles for when the user uses a number to convert from number to text
+                        option = choices_dict[option]
+                    
+                    for word in option.split(" "):
+                        if word in ["cancel", "stop", "exit", "quit"]:
+                            print("Ending security edit...")
+                            return True
+
+
+                    options = self.security_options(
+                        config_dir=self.config_dir,
+                        app_name=self.app_name,
+                    )
+                    # Handles the options for when the user does not use a number
+                    if option == "dir_listing":
+                        if has_arg:
+                            options.dir_listing(arg)
+                        else:
+                            options.dir_listing(None)
+                        continue
+                    elif option == "securityheaders":
+                        if has_arg:
+                            options.securityheaders(arg)
+                        else:
+                            options.securityheaders(None)
+                        continue
+                    elif option == "csp_directives":
+                        if has_arg:
+                            options.csp_directives(arg)
+                        else:
+                            options.csp_directives(None)
+                        continue
+                    else:
+                        raise KeyError("Invalid option!")
+
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+                except KeyError:
+                    print("Invalid option!")
+                    continue
+
+        class security_options():
+            def __init__(self, app_name, config_dir=None) -> None:
+                self.app_name = app_name
+
+                if config_dir == None:
+                    self.config_dir = os.path.abspath(f"instances/{app_name}/config.json")
+                else:
+                    self.config_dir = config_dir
+
+            def dir_listing(self, enabled=None):
+                if enabled == None:
+                    print("Set if the directory listing is enabled.")
+                    print('What is the directory listing? The directory listing is what shows up if the directory is empty.\n')
+                    print("This page is per-app, and enabled by default.")
+                    print("Do you want the directory listing? Y/N : ")
+                    while True: # Loop for retries.
+                        enabled = input('>>> ').lower()
+                        if enabled == "cancel":
+                            print("Cancelled!")
+                            return True
+                        if "y" in enabled:
+                            enabled = True
+                            break
+                        elif "n" in enabled:
+                            enabled = False
+                            break
+                        else: # Retry logic
+                            print("Invalid answer!")
+                            continue
+
+                assert type(enabled) == bool
+                jmod.setvalue(
+                    key="dir_listing",
+                    json_dir=self.config_dir,
+                    value=enabled,
+                    dt=web_config_dt
+                )
+
+                print(f"{colours['green']}Directory listing {'enabled' if enabled == True else 'disabled'} successfully!{colours['reset']}")
+
+            def securityheaders(self, enabled=None):
+                if enabled == None:
+                    print("Set if the security headers are enabled.")
+                    print('What are the security headers? The security headers are what show up in the response headers.\n')
+                    print("This page is per-app, and disabled by default.")
+                    print("Do you want the security headers? Y/N : ")
+                    while True: # Loop for retries.
+                        enabled = input('>>> ').lower()
+                        if enabled == "cancel":
+                            print("Cancelled!")
+                            return True
+                        if "y" in enabled:
+                            enabled = True
+                            break
+                        elif "n" in enabled:
+                            enabled = False
+                            break
+                        else: # Retry logic
+                            print("Invalid answer!")
+                            continue
+
+                assert type(enabled) == bool
+                jmod.setvalue(
+                    key="do_securityheaders",
+                    json_dir=self.config_dir,
+                    value=enabled,
+                    dt=web_config_dt
+                )
+
+                print(f"{colours['green']}Security headers {'enabled' if enabled == True else 'disabled'} successfully!{colours['reset']}")
+
+            #TODO: Figure out wtf this function does. I am too tired to figure it out or program rn
+            def csp_directives(self, directives=None):
+                '''
+                Prints out (from the list in the json file) all the csp directives.
+                If the user provides an argument, it will add it to the list. Also lets the user remove directives.
+                Asks is the user wants to remove or add a directive before doing so
+                '''
+                if directives is None:
+                    directives = []
+
+                csp_directives_list = jmod.getvalue(
+                    key="csp_directives",
+                    json_dir=self.config_dir,
+                    dt=web_config_dt,
+                    default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",\
+                             "style-src 'self';","img-src 'self';","font-src 'self'"]
+                    )
+
+                no_csp = False
+                if csp_directives_list == None or csp_directives_list == []:
+                    print("\nNo CSP directives are set. Lets add some")
+                    csp_directives_list = []
+                    no_csp = True
+                else:
+                    csp_directives_list = list(csp_directives_list)
+
+                if directives and no_csp is False:
+                    csp_directives_list.extend(directives)
+
+                    print("Current CSP directives:")
+                    for directive in csp_directives_list:
+                        print(directive)
+
+                while True:
+                    if not no_csp:
+                        user_input = input("Do you want to add or remove a directive? (add/remove/quit): ").lower()
+                    else:
+                        user_input = "add" # Forces add if no csp directives are set
+                    
+                    print("\nType Cancel to cancel, type Done to finish editing.\n")
+                    if user_input == "add":
+                        new_directive = input("Enter the directive you want to add: ")
+                        csp_directives_list.append(new_directive)
+                        print(f"{colours['green']}CSP directive added.{colours['reset']}")
+                    
+                    elif user_input == "remove":
+                        for i, directive in enumerate(csp_directives_list):
+                            print(f"{i + 1}. {directive}")
+                        remove_directive = input("Enter the directive you want to remove: ")
+                        if remove_directive in csp_directives_list:
+                            csp_directives_list.remove(remove_directive)
+                            print(f"{colours['green']}CSP directive removed.{colours['reset']}")
+                        else:
+                            print("Directive not found.")
+                    
+                    elif user_input == "cancel":
+                        print("Cancelled!")
+                        return True
+                    
+                    else:
+                        print("Invalid input. Please enter 'add', 'remove', or 'quit'.")
+                        continue
+
+                jmod.setvalue(
+                    key="csp_directives",
+                    json_dir=self.config_dir,
+                    value=csp_directives_list,
+                    dt=web_config_dt
+                )
+
+                return csp_directives_list

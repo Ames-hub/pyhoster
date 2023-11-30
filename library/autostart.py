@@ -1,6 +1,6 @@
 import os,multiprocessing as threading
 from .jmod import jmod
-from .data_tables import config_dt
+from .data_tables import web_config_dt, wsgi_config_dt
 root_dir = os.getcwd()
 class autostart:
     def add(app_name, start_app=True):
@@ -19,7 +19,7 @@ class autostart:
             key="autostart",
             json_dir=f"instances/{app_name}/config.json",
             value=True if not port_taken else False, # If the port is taken, it will not add it to autostart
-            dt=config_dt
+            dt=web_config_dt
         )
 
         if start_app is True:
@@ -34,7 +34,7 @@ class autostart:
                 key="pid",
                 json_dir=f"instances/{app_name}/config.json",
                 value=pid,
-                dt=config_dt
+                dt=web_config_dt
             )
             del instance # Free up memory (Idk if it already does this)
         
@@ -45,5 +45,5 @@ class autostart:
             key="autostart",
             json_dir=f"instances/{app_name}/config.json",
             value=False,
-            dt=config_dt
+            dt=web_config_dt
         )
