@@ -21,7 +21,7 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Create and delete website's in a second (simple as `create websitename`)
 - Start and stop websites easily (simple as `stop websitename`)
 - Edit the settings and content of a website easily
-- File Transfer Protocal with SSL (FTPS) built in and easily configurable and usable!
+- File Transfer Protocal with SSL (FTPS) built in and easily configurable with a user system!
 - Our lock-out system 'Warden' allows you to lock out users from a specific webpage or website with a password!
 - Change the index file of a website easily
 - link a website's content to any folder in your system
@@ -75,6 +75,7 @@ Additional configuration entirely optional.
 `start` - Start a website app.<br>
 `stop` - Stop a website app<br>
 `restart` - Stop and then start a website app. Shorthand way of doing stop app_name && start app_name<br>
+`ftp` - Enter the FTP Command line interface. Change details, create users, etc
 `update` - Updates the content of a website app.<br>
 `rollback` - Reverts the content of a website app to the last update, or a specific version.<br>
 `cls` - Clear the screen of all text.<br>
