@@ -12,7 +12,7 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
 from datetime import datetime, timedelta
 from .jmod import jmod
-from .data_tables import app_settings, new_ftp_user
+from .data_tables import app_settings, new_user
 
 colours = {
     "reset": "\u001b[0m",
@@ -28,7 +28,7 @@ colours = {
 }
 
 class ftp:
-    def start(certfile, prvkeyfile, server_port=None, use_ssl=True):
+    def start(certfile=None, prvkeyfile=None, server_port=None, use_ssl=True, bypass_enabled=False):
         # Create a logger
         ftp_logger = logging.getLogger('ftp')
         ftp_logger.setLevel(logging.INFO)
@@ -50,9 +50,10 @@ class ftp:
             default=True,
             dt=app_settings
         )
-        if not FTP_Enabled:
-            print("--FTP ACTIVATION WAS ATTEMPTED, BUT WAS CANCELLED AS IT IS DISABLED--", flush=True)
-            return
+        if not bypass_enabled:
+            if not FTP_Enabled:
+                print("--FTP ACTIVATION WAS ATTEMPTED, BUT WAS CANCELLED AS IT IS DISABLED--", flush=True)
+                return
 
         if use_ssl:
             # Paths to the certificate and key files
@@ -149,19 +150,24 @@ class ftp:
 
         authorizer = DummyAuthorizer()
         authorizer.add_user("root", root_password, ".", perm="elradfmw")
-        # Expecting a list of dicts with the following keys: username, password, homedir, perm
+        # Expecting a list of dicts with the following keys: username, password, ftp_homedir, perm
         user_list = jmod.getvalue(
-            key='ftp_users',
+            key='pyhost_users',
             json_dir='settings.json',
             default=[],
             dt=app_settings
         )
         for user in user_list:
-            if user['permissions'] == None:
+            if user['ftp_permissions'] == None:
                 # Defaults rights to all
-                user['permissions'] = "elradfmw"
+                user['ftp_permissions'] = "elradfmw"
 
-            authorizer.add_user(user['username'], user['password'], user['homedir'], perm=user['permissions'])
+            authorizer.add_user(user['username'], user['password'], user['ftp_homedir'], perm=user['ftp_permissions'])
+
+        # I would make a function which updates the user_list on each new connection
+        # (so that the auth table is up-to-date with the json file)
+        # But unfortunately, I keep encountering stops when I try to do that.
+        # If anyone knows how to do this, please feel free to put in a pull request or issue or something.
 
         ftpAnonAllowed = jmod.getvalue(
             key='ftpAnonAllowed',
@@ -190,6 +196,11 @@ class ftp:
                 It logs the IP address, port, and whether the connection is secure.
                 """
                 is_secure = self.ssl_context is not None
+                # Gets which account is logging in and sets it in the json file
+                for user in user_list:
+                    if user['username'] == self.username:
+                        user['ftp_connected'] = True
+                        break
                 logging.info(f"IP \"{self.remote_ip}\" has connected on Port \"{self.remote_port}\". Secure: {is_secure}")
 
         handler = MyFTPHandler
@@ -213,8 +224,26 @@ class ftp:
             )
         server = ThreadedFTPServer(("localhost", server_port), handler)
         print(f"--FILE TRANSFER PROTOCAL {"SECURED" if use_ssl else ""} RUNNING ON \"localhost:{server_port}\" WITH {len(user_list)} USERS--", flush=True)
+        
         try:
-            server.serve_forever()
+            while True:
+                server.serve_forever(blocking=False)
+                # Updates user list
+                user_list = jmod.getvalue(
+                    key='pyhost_users',
+                    json_dir='settings.json',
+                    dt=app_settings
+                )
+
+                for user in list(authorizer.user_table.keys()):  # Create a list of keys
+                    if user != "root":
+                        if user not in user_list:
+                            authorizer.remove_user(user)
+
+                for user in user_list:
+                    if user not in list(authorizer.user_table.keys()):  # Create a list of keys
+                        authorizer.add_user(user['username'], user['password'], user['ftp_homedir'], perm=user['ftp_permissions'])
+                    
         except KeyboardInterrupt:
             server.close_all()
             print("--FILE TRANSFER PROTOCAL HAS BEEN STOPPED--")
@@ -226,7 +255,7 @@ class ftp:
             default=None,
             dt=app_settings
         )
-        
+
         try:
             # Tries built-in method first
             children = multiprocessing.active_children()
@@ -244,34 +273,44 @@ class ftp:
                 except:
                     print("--FTP SERVER COULD NOT BE STOPPED--")
 
-        print("--FILE TRANSFER PROTOCAL HAS BEEN STOPPED--")
+        jmod.setvalue(
+            key='ftppid',
+            value=None,
+            json_dir='settings.json',
+            dt=app_settings
+        )
+        print("--FILE TRANSFER PROTOCAL SERVICE HAS BEEN STOPPED--")
 
     def enter():
         '''
         This function is used to enter the FTP server's CLI.
         '''
         os.system('cls' if os.name == 'nt' else 'clear')
-        # Expects a list of dicts with the following keys: username, password, homedir, permissions, connected
+        # Expects a list of dicts with the following keys: username, password, ftp_homedir, ftp_permissions, ftp_connected
         ftp_userList = jmod.getvalue(
-            key='ftp_users',
+            key='pyhost_users',
             json_dir='settings.json',
             default=[],
             dt=app_settings
         )
-        # Gets how many have "connected" as True
+        # Gets how many have "ftp_connected" as True
         connected_users = 0
         for user in ftp_userList:
-            if user['connected']:
+            if user['ftp_connected']:
                 connected_users += 1
 
         # Prints running status
-        print(f"FTP server is currently {'running' if jmod.getvalue(key='ftppid', json_dir='settings.json', default=None, dt=app_settings) != None else 'not running'}.")
+        running = jmod.getvalue(key='ftppid', json_dir='settings.json', default=None, dt=app_settings)
+        running_msg = 'running' if running != None else 'not running'
+        print(f"FTP server is currently {running_msg}.")
 
-        # Prints how many users are connected
-        print(f"{connected_users}/{len(ftp_userList)} users are currently connected.")
+        # Prints how many users are ftp_connected
+        if running:
+            print(f"{connected_users}/{len(ftp_userList)} users are currently connected.")
 
         # Prints the FTP server's port
-        print(f"FTP server is running on port {jmod.getvalue(key='FtpPort', json_dir='settings.json', default=789, dt=app_settings)}.")
+        FtpPort = jmod.getvalue(key='FtpPort', json_dir='settings.json', default=789, dt=app_settings)
+        print(f"FTP server is {running_msg} {"on port " if running else ""}{FtpPort if running else f"but is assigned to port {FtpPort}"}.")
 
         print("Use command 'root' to view the root user's connection details.")
 
@@ -285,7 +324,7 @@ class ftp:
 
         print("\nWelcome to the FTP server CLI. Type \"help\" for a list of commands.")
         while True:
-            command = input("ftp> ").lower()
+            command = input(f"{colours['red'] if not running else colours['green']}ftp{colours['reset']}> ").lower()
             if command == "help":
                 print("help: Displays this help message.")
                 print("exit: Exits the FTP server CLI.")
@@ -306,7 +345,7 @@ class ftp:
             elif command == "cls":
                 os.system('cls' if os.name == "nt" else 'clear')
             elif command == "start":
-                multiprocessing.Process(target=ftp.start).start()
+                multiprocessing.Process(target=ftp.start, args=(None, None)).start()
             elif command == "stop":
                 ftp.stop()
             elif command == "autoboot":
@@ -458,7 +497,7 @@ class ftp:
         '''
         # Load settings from a JSON file
         ftp_userList = jmod.getvalue(
-            key='ftp_users',
+            key='pyhost_users',
             json_dir='settings.json',
             default=[],
             dt=app_settings
@@ -479,7 +518,7 @@ class ftp:
             else:
                 break
 
-        new_ftp_user['username'] = username
+        new_user['username'] = username
 
         # Get the password
         while True:
@@ -496,9 +535,9 @@ class ftp:
             else:
                 break
             
-        new_ftp_user['password'] = password
+        new_user['password'] = password
 
-        # Get the homedir
+        # Get the ftp_homedir
         while True:
             instances = os.listdir("instances/")
             print("\nPlease select an app for the user to have access to.")
@@ -516,15 +555,15 @@ class ftp:
             # Asks if the user should be locked to content
             lock_to_content = input("Lock to content folder only? (y/n): ")
             if lock_to_content == "y":
-                new_ftp_user['homedir'] = f"instances/{homedir_app}/content"
+                new_user['ftp_homedir'] = f"instances/{homedir_app}/content"
                 print(f"User will be locked to the content folder of the \"{homedir_app}\" app.")
                 break
             else:
-                new_ftp_user['homedir'] = f"instances/{homedir_app}"
+                new_user['ftp_homedir'] = f"instances/{homedir_app}"
                 print(f"User will be locked to the \"{homedir_app}\" app.")
                 break
 
-        # Get the permissions
+        # Get the ftp_permissions
         while True:
             # Asks the user if they want to use 1 of 3 presets or custom
             preset = input("Would you like to use a preset? (y/n): ")
@@ -532,26 +571,26 @@ class ftp:
                 # Asks the user which preset they want to use
                 preset = input("Which preset would you like to use?\n1. Read\n2. Read and Write\n>>> ")
                 if preset == "1":
-                    new_ftp_user['permissions'] = "elr"
+                    new_user['ftp_permissions'] = "elr"
                     break
                 elif preset == "2":
-                    new_ftp_user['permissions'] = "elradfmw"
+                    new_user['ftp_permissions'] = "elradfmw"
                     break
                 else:
                     print("Invalid preset.")
                     continue
             elif preset == "n":
-                # Asks the user for custom permissions
+                # Asks the user for custom ftp_permissions
                 while True:
-                    perm = input("Permissions (elradfmwM): ")
+                    perm = input("ftp_permissions (elradfmwM): ")
                     if perm == "":
-                        print("Permissions cannot be blank.")
+                        print("ftp_permissions cannot be blank.")
                         continue
                     elif perm.isalnum() == False:
-                        print("Permissions must be alphanumeric.")
+                        print("ftp_permissions must be alphanumeric.")
                         continue
                     else:
-                        new_ftp_user['permissions'] = perm
+                        new_user['ftp_permissions'] = perm
                         break
                 break
             else:
@@ -562,8 +601,8 @@ class ftp:
 
         # Save the list to a JSON file
         jmod.addvalue(
-            key='ftp_users',
-            value=new_ftp_user,
+            key='pyhost_users',
+            value=new_user,
             json_dir='settings.json',
             dt=app_settings
         )
@@ -576,7 +615,7 @@ class ftp:
         '''
         # Load settings from a JSON file
         ftp_userList = jmod.getvalue(
-            key='ftp_users',
+            key='pyhost_users',
             json_dir='settings.json',
             default=[],
             dt=app_settings
@@ -604,7 +643,7 @@ class ftp:
 
         # Save the list to a JSON file
         jmod.addvalue(
-            key='ftp_users',
+            key='pyhost_users',
             value=ftp_userList,
             json_dir='settings.json',
             dt=app_settings
@@ -614,7 +653,7 @@ class ftp:
 
     def list_users():
         ftp_userList = jmod.getvalue(
-            key='ftp_users',
+            key='pyhost_users',
             json_dir='settings.json',
             default=[],
             dt=app_settings
@@ -623,15 +662,15 @@ class ftp:
             colour = True
             print("====================")
             for user in ftp_userList:
-                if user['permissions'] == "r":
-                    user['permissions'] == "Read Only" # Only a visual effect as it doesn't save
-                elif user['permissions'] == "rw":
-                    user['permissions'] = "Read and Write"
+                if user['ftp_permissions'] == "r":
+                    user['ftp_permissions'] == "Read Only" # Only a visual effect as it doesn't save
+                elif user['ftp_permissions'] == "rw":
+                    user['ftp_permissions'] = "Read and Write"
 
                 if colour:
-                    print(f"Username: {user['username']}\nPassword: {user['password']}\nHomedir: {user['homedir']}\nPermissions: {user['permissions']}\n====================\n")
+                    print(f"Username: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_homedir']}\nPermissions: {user['ftp_permissions']}\n====================\n")
                 else:
-                    print(f"\033[1;37;40mUsername: {user['username']}\nPassword: {user['password']}\nHomedir: {user['homedir']}\nPermissions: {user['permissions']}\n====================\n")
+                    print(f"\033[1;37;40mUsername: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_homedir']}\nPermissions: {user['ftp_permissions']}\n====================\n")
                 colour = not colour # Switches the colour
         else:
             print("There are no users.")

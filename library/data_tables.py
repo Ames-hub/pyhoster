@@ -21,15 +21,16 @@ web_config_dt = {
     "warden": {
         "pages": [],
         "enabled": False,
+        "pin": "123456",
     },
 }
 
-new_ftp_user = {
+new_user = {
     "username": None,
     "password": None,
-    "homedir": None,
-    "permissions": "elradfmw",
-    "connected": False,
+    "ftp_homedir": None,
+    "ftp_permissions": "elradfmw",
+    "ftp_connected": False,
 }
 
 wsgi_config_dt = {
@@ -70,6 +71,6 @@ app_settings = {
     "FtpPort": 789,
     "ftpAnonAllowed": False,
     "ftpRootPassword": generate_root_password(), # Password only resets if settings.json is deleted
-    "ftp_users": [], # Should be a list of dicts
+    "pyhost_users": [], # Should be a list of dicts
     "ftppid": None,
 }

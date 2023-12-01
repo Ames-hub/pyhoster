@@ -109,6 +109,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # SSL is enabled by default for new apps. Its more secure, and is more true to the purpose of Pyhost this way
         # (Working immediately out-the-box)
+        config_path = f"instances/{app_name}/config.json"
+        # Sets the absolute path/boundpath in the json file
+        config = web_config_dt
         jmod.setvalue(
             key="ssl_enabled",
             json_dir=config_path,
@@ -128,9 +131,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
         if do_autostart == True:
             autostart.add(app_name)
 
-        config_path = f"instances/{app_name}/config.json"
-        # Sets the absolute path/boundpath in the json file
-        config = web_config_dt
         jmod.setvalue(
             "name",
             config_path,
@@ -399,7 +399,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     key="csp_directives",
                     json_dir=config_path,
                     default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",\
-                             "style-src 'self';","img-src 'self';","font-src 'self'"],
+                            "style-src 'self';","img-src 'self';","font-src 'self'"],
                     dt=config_data
                 )
                 add_sec_heads = jmod.getvalue(
@@ -432,21 +432,45 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     def do_GET(self):
                         self.log_request_action()
                         try:
-                            warden = jmod.getvalue(key="warden", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
-                            warden_enabled = warden.get("enabled")
-                            wardened_pages = warden.get("pages")
+                            warden = dict(jmod.getvalue(key="warden", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt))
+                            warden_enabled = warden.get("enabled", False)
+                            wardened_dirs = warden.get("pages", None)
                         except Exception as err:
                             logging.error(f"Failed to get warden settings for {app_name}: {err}")
 
                         if warden_enabled:
+                            def serve_warden(self):
+                                '''Serves the WARDEN login page the user is prompted for a password in'''
+                                # Check if PIN is required and if PIN has been set
+                                pin_set = warden.get("pin", None)
+
+                                if self.headers.get("Authorization") == f"Bearer {pin_set}":
+                                    # If the provided PIN matches, grant access
+                                    with open(self.path, "rb") as file:
+                                        content = file.read()
+                                        self.send_response(200)
+                                        self.send_header("Content-type", "text/html")
+                                        self.end_headers()
+                                        self.wfile.write(content)
+                                else:
+                                    # If PIN is not provided or incorrect, request PIN
+                                    with open("library/webpages/warden_login.html", "rb") as file:
+                                        content = file.read()
+                                        self.send_response(401)
+                                        self.send_header("Content-type", "text/html")
+                                        self.send_header("WWW-Authenticate", 'Bearer realm="pyhost", charset="UTF-8"')
+                                        self.end_headers()
+                                        self.wfile.write(content)
+
                             # Check if the requested path is wardened
-                            if self.path == wardened_pages:
-                                # If the path is wardened, check if the client is authenticated
-                                if not self.client_authenticated():
-                                    # If the client is not authenticated, send a 401 response
-                                    self.send_response(401)
-                                    self.send_header("WWW-Authenticate", "Basic realm=\"Wardened Page\"")
-                                    self.end_headers()
+                            for page_dir in wardened_dirs:
+                                if self.path == "/":
+                                    if default_index in page_dir:
+                                        serve_warden(self)
+                                        return
+                                if self.path == page_dir:
+                                    # If the requested path is wardened, serve the warden login page
+                                    serve_warden(self)
                                     return
 
                         # Handle directory listing.
@@ -523,7 +547,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     if serve_default:
                         def serve_default_html(self):
                             # Get the path to the default HTML file
-                            default_html_path = os.path.abspath(f"{root_dir}/library/default.html")
+                            default_html_path = os.path.abspath(f"{root_dir}/library/webpages/default.html")
                             with open(default_html_path, 'rb') as default_html_file:
                                 content = default_html_file.read()
                                 # Replace placeholders in the HTML with actual values

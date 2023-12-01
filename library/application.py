@@ -1,9 +1,11 @@
 import logging, os, multiprocessing as mp, json, time
 from .data_tables import app_settings, web_config_dt, wsgi_config_dt
 from .filetransfer import ftp
+from .warden import warden
 from .jmod import jmod
 
 root_dir = os.getcwd()
+FTP_Enabled = bool(jmod.getvalue("FTP_Enabled", "settings.json", dt=app_settings, default=False))
 
 colours = {
     "red": "\033[31m",
@@ -49,7 +51,8 @@ class application:
 
     def run(keybind_listen: bool = True):
         application.running = True
-        time.sleep(1) # Give the program time to start up
+        if FTP_Enabled == True:
+            time.sleep(1) # Give the FTP server time to start up
 
         def help_msg():
             print("Available Commands:")
@@ -82,11 +85,12 @@ class application:
                     cmd: str = str(input("Enter a command: "))
                     text = cmd
                     cmd = cmd.lower().split(" ")[0]
-                    has_args = False if len(text.split(" ")) > 0 else True
+                    arguments = text.split(" ")[1:] # Gets all arguments after the command
+                    has_args = False if len(text.split(" ")) == 1 else True
                     # Begins listening for create, delete, edit, etc commands
                     logging.info("New command entered! Debug Info:")
                     logging.info(f"Command: {cmd} | Text: {text} | Has Args: {has_args}")
-                    if has_args:
+                    if has_args == True:
                         app_name_arg = text.split(" ")[1]
                     if cmd == "create":
                         print("Please specify if you want to create a website or a WSGI app.")
@@ -143,6 +147,20 @@ class application:
                         ftp.enter()
                         # Read doc string for more info. as a summary though,
                         # ftp.enter simply enters a GUI where logs are visible, server details are visible, etc.
+                    # The command 'enter' is being processed
+                    elif cmd == "enter":
+                        if has_args:
+                            enter_item = app_name_arg
+                            # If it has args, the first arg is the item to enter.
+                            try:
+                                app_name = arguments[1]
+                            except IndexError: # May not have an app name provided. Must prompt for it
+                                app_name = None
+
+                        if enter_item == "ftp":
+                            ftp.enter()
+                        elif enter_item == "warden":
+                            warden.enter(app_name)
                     elif cmd == "restart":
                         if has_args == False:
                             instance.restart(is_interface=True)
@@ -187,6 +205,22 @@ class application:
                     elif cmd == "pyhost" or cmd == "settings":
                         application.settings(is_interface=True)
                         # Starts settings configuration
+                    elif cmd in ("exit", "quit", "stop", "end"):
+                        while True:
+                            print("Are you sure you want to exit? y/n")
+                            answer = input(">>> ").lower()
+                            if answer == "y":
+                                do_exit = True
+                                break
+                            elif answer == "n":
+                                do_exit = False
+                                break
+                            else:
+                                print("Invalid choice. y/n only.")
+
+                        if do_exit:
+                            raise KeyboardInterrupt # Raises a KeyboardInterrupt to exit the program
+
                     else:
                         print("Invalid command. Please try again or do `help`")
         except KeyboardInterrupt:
@@ -219,8 +253,8 @@ class application:
                     # Terminate the web server process gracefully.
                     os.kill(pid, 2)
                     # signal 2 == CTRL + C
-            except Exception as e:
-                logging.error(f"Error stopping thread: {e}")
+            except Exception as err:
+                logging.error(f"Error stopping thread: {err}")
             print("All web instances have been shut down.")
 
             try:
@@ -258,7 +292,7 @@ class application:
             print("All instance configs have been set to not running.")
 
             # Sets all PID's to None
-            print("Setting all PID's to None...")
+            print("Setting all instance PID's to None...")
             for app in os.listdir("instances/"):
                 jmod.setvalue(
                     key="pid",
@@ -266,7 +300,13 @@ class application:
                     value=None,
                     dt=web_config_dt
                 )
-            print("All PID's have been set to None.")
+            print("All instance PID's have been set to None.")
+
+            print("Shutting down FTP if its online...")
+            try:
+                ftp.stop()
+            except:
+                pass
 
             print("Exiting...")
             exit()

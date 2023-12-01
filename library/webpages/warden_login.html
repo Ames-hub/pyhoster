@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyhoster WARDEN Login</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #ff9a9e, #fecfef);
+            text-align: center;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #login-container {
+            max-width: 400px;
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            color: #555;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            margin: 15px 0 5px;
+            color: #666;
+        }
+
+        input {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 8px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #4caf50;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="login-container">
+        <h2>Pyhoster WARDEN Login</h2>
+        <a href="https://github.com/Ames-hub/pyhoster">Repository</a>
+        <!-- Add the action attribute to specify the form submission URL -->
+        <form action="/warden_login" method="post" id="warden-form">
+            <label for="pin">Enter PIN:</label>
+            <input type="password" id="pin" name="pin" placeholder="Your PIN" required>
+            <br>
+            <button type="submit">Login</button>
+        </form>
+
+        <!-- Add a script to handle form submission and send data to the server -->
+        <script>
+            document.getElementById("warden-form").addEventListener("submit", function(event) {
+                event.preventDefault(); // Prevent the default form submission behavior
+
+                // Get the entered PIN from the input field
+                var pin = document.getElementById("pin").value;
+
+                // Send an asynchronous request to the server with the PIN
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/warden_login", true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.send("pin=" + encodeURIComponent(pin));
+
+                // You can handle the server's response here if needed
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        // Handle success
+                        console.log("Login successful");
+                    } else {
+                        // Handle failure
+                        console.log("Login failed");
+                    }
+                };
+            });
+        </script>
+    </div>
+</body>
+</html>
