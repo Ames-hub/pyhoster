@@ -22,7 +22,6 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Start and stop websites easily (simple as `stop websitename`)
 - Edit the settings and content of a website easily
 - File Transfer Protocal with SSL (FTPS) built in and easily configurable with a user system!
-- Our lock-out system 'Warden' allows you to lock out users from a specific webpage or website with a password!
 - Change the index file of a website easily
 - link a website's content to any folder in your system
 - Make your changes, then update the website with a simple command
@@ -30,6 +29,8 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Update messed up your app? No problem! with PyHost you can revert any changes with our full snapshot system!
 - Run multiple websites at once
 - User friendly design
+# Roadmap/Planned features
+- a lock-out system 'Warden' to allow you to lock out users from a specific pages. (you may see parts of this around the code as its being built)
 
 # Compatibility
 This works on every OS as far as I know.<br>
