@@ -23,14 +23,13 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Edit the settings and content of a website easily
 - File Transfer Protocal with SSL (FTPS) built in and easily configurable with a user system!
 - Change the index file of a website easily
+- WARDEN, Our basic lockout system allows you to lock out users from a specific webpage (or all webpages) with a password!
 - link a website's content to any folder in your system
 - Make your changes, then update the website with a simple command
 - Built-in function to implement a custom "Page not found" page
 - Update messed up your app? No problem! with PyHost you can revert any changes with our full snapshot system!
 - Run multiple websites at once
 - User friendly design
-# Roadmap/Planned features
-- a lock-out system 'Warden' to allow you to lock out users from a specific pages. (you may see parts of this around the code as its being built)
 
 # Compatibility
 This works on every OS as far as I know.<br>

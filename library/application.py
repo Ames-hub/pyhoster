@@ -3,6 +3,7 @@ from .data_tables import app_settings, web_config_dt, wsgi_config_dt
 from .filetransfer import ftp
 from .warden import warden
 from .jmod import jmod
+from .userman import userman
 
 root_dir = os.getcwd()
 FTP_Enabled = bool(jmod.getvalue("FTP_Enabled", "settings.json", dt=app_settings, default=False))
@@ -148,6 +149,8 @@ class application:
                         # Read doc string for more info. as a summary though,
                         # ftp.enter simply enters a GUI where logs are visible, server details are visible, etc.
                     # The command 'enter' is being processed
+                    elif cmd in ["users", "userman", "usermanagement", "user"]:
+                        userman.enter()
                     elif cmd == "enter":
                         if has_args:
                             enter_item = app_name_arg
@@ -161,6 +164,8 @@ class application:
                             ftp.enter()
                         elif enter_item == "warden":
                             warden.enter(app_name)
+                        elif enter_item == "users":
+                            userman.enter()
                     elif cmd == "restart":
                         if has_args == False:
                             instance.restart(is_interface=True)

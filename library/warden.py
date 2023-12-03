@@ -41,8 +41,6 @@ if __name__ == "__main__":
 class warden:
     def enter(app_name = None):
         '''Enters the warden CLI.'''
-        print("WARDEN IS CURRENTLY IN PRE-USABILITY ALPHA.")
-        return
         # Prompt for app name if not provided
         # (app name is required, as warden is per-instance)
         if app_name == None:
@@ -132,40 +130,10 @@ class warden:
             elif cmd == "rempage":
                 warden.rem_page(app_name)
             elif cmd == "list":
-                # Uses os.walk to go through every file in the content directory and subdirs and list their directories
-                counter = 1
-                print("\nValid Paths for pages:")
-                for root, dirs, files in os.walk(f"instances/{app_name}/content"):
-                    root = root.replace("\\", "/").replace(f"instances/{app_name}/content", "")
-                    for file in files:
-                        file_dir = os.path.join(root, file)
-                        if file_dir[0] == "/" or file_dir[0] == "\\":
-                            file_dir = file_dir[1:].replace("\\", "/")
-                        print(f"{colours['gray' if counter % 2 == 0 else 'white']}File {counter}: {file_dir}")
-                        counter += 1
-                print(colours['white']+"\n")
-                input("Press enter to continue and erase this message...")
+                warden.list_all(app_name)
             else:
                 print("Invalid command.")
                 time.sleep(2)
-
-    def verify_loggedin(session):
-        '''Verifies that the session is valid.'''
-        if session in valid_sessions:
-            return True
-        else:
-            return False
-        
-    def login_user(username, password):
-        '''Logs in a user. Returns a session ID if successful, otherwise returns None.'''
-        users = jmod.getvalue("pyhost_users", "settings.json", dt=app_settings, default=[])
-        for user in users:
-            if user["username"] == username and user["password"] == password:
-                session = uuid.uuid4()
-                valid_sessions.append(session)
-                return session
-            
-        return True
     
     def set_status(app_name:str, status:bool=True):
         '''Set the warden's status of protecting for an app.'''
@@ -176,6 +144,21 @@ class warden:
             value=status
         )
         print("Warden enabled.")
+
+    def list_all(app_name:str):
+        # Uses os.walk to go through every file in the content directory and subdirs and list their directories
+        counter = 1
+        print("\nValid Paths for pages:")
+        for root, dirs, files in os.walk(f"instances/{app_name}/content"):
+            root = root.replace("\\", "/").replace(f"instances/{app_name}/content", "")
+            for file in files:
+                file_dir = os.path.join(root, file)
+                if file_dir[0] == "/" or file_dir[0] == "\\":
+                    file_dir = file_dir[1:].replace("\\", "/")
+                print(f"{colours['gray' if counter % 2 == 0 else 'white']}File {counter}: {file_dir}")
+                counter += 1
+        print(colours['white']+"\n")
+        input("Press enter to continue and erase this message...")
 
     def add_page(app_name:str):
         '''Adds a page to the warden.'''

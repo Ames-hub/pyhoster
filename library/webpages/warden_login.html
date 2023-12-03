@@ -77,33 +77,18 @@
             <br>
             <button type="submit">Login</button>
         </form>
-
-        <!-- Add a script to handle form submission and send data to the server -->
+        <!-- Redirects the user to a page with the pin in the search -->
         <script>
             document.getElementById("warden-form").addEventListener("submit", function(event) {
-                event.preventDefault(); // Prevent the default form submission behavior
-
-                // Get the entered PIN from the input field
-                var pin = document.getElementById("pin").value;
-
-                // Send an asynchronous request to the server with the PIN
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "/warden_login", true);
-                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-                xhr.send("pin=" + encodeURIComponent(pin));
-
-                // You can handle the server's response here if needed
-                xhr.onload = function() {
-                    if (xhr.status === 200) {
-                        // Handle success
-                        console.log("Login successful");
-                    } else {
-                        // Handle failure
-                        console.log("Login failed");
-                    }
-                };
+                event.preventDefault();
+                // Get the current path
+                var currentPath = window.location.pathname;
+                // Get the pin value
+                var pinValue = document.getElementById("pin").value;
+                // Redirect to the concatenated path on the same site
+                window.location.href = currentPath + "warden?pin=" + pinValue;
             });
-        </script>
+        </script>              
     </div>
 </body>
 </html>

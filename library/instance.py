@@ -57,8 +57,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 app_name = None
         
         # Gets input if not provided. Do not use Elif, so that if it failed assertion before it'll fix here
-        if app_name == None:
+        while app_name == None or " " in app_name:
             app_name = app.datareqs.get_name()
+            if " " in app_name:
+                print("The name cannot contain a space!")
+                app_name = None
+                continue
 
         # Gets the app description
         if app_desc == None:
@@ -388,7 +392,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     default=False,
                     dt=config_data
                 )
-
                 allow_dir_listing = jmod.getvalue(
                     key="dir_listing",
                     json_dir=config_path,
@@ -438,40 +441,43 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         except Exception as err:
                             logging.error(f"Failed to get warden settings for {app_name}: {err}")
 
+                        def ask_for_login():
+                            # If PIN is not provided or incorrect, request PIN
+                            with open("library/webpages/warden_login.html", "rb") as file:
+                                content = file.read()
+                                self.send_response(401)
+                                self.send_header("Content-type", "text/html")
+                                self.send_header("WWW-Authenticate", 'Bearer realm="pyhost", charset="UTF-8"')
+                                self.end_headers()
+                                self.wfile.write(content)
+
                         if warden_enabled:
-                            def serve_warden(self):
-                                '''Serves the WARDEN login page the user is prompted for a password in'''
-                                # Check if PIN is required and if PIN has been set
-                                pin_set = warden.get("pin", None)
-
-                                if self.headers.get("Authorization") == f"Bearer {pin_set}":
-                                    # If the provided PIN matches, grant access
-                                    with open(self.path, "rb") as file:
-                                        content = file.read()
-                                        self.send_response(200)
-                                        self.send_header("Content-type", "text/html")
-                                        self.end_headers()
-                                        self.wfile.write(content)
-                                else:
-                                    # If PIN is not provided or incorrect, request PIN
-                                    with open("library/webpages/warden_login.html", "rb") as file:
-                                        content = file.read()
-                                        self.send_response(401)
-                                        self.send_header("Content-type", "text/html")
-                                        self.send_header("WWW-Authenticate", 'Bearer realm="pyhost", charset="UTF-8"')
-                                        self.end_headers()
-                                        self.wfile.write(content)
-
+                            set_pin = warden.get("pin", None)
+                            # If its -1, then it couldn't find the pin and the user needs to set it
+                            pin_valid = self.path.find(f"/warden?pin={set_pin}") != -1
                             # Check if the requested path is wardened
-                            for page_dir in wardened_dirs:
-                                if self.path == "/":
-                                    if default_index in page_dir:
-                                        serve_warden(self)
+                            logging.info(pin_valid)
+                            if pin_valid is False:
+                                for page_dir in wardened_dirs:
+                                    if self.path == "/":
+                                        ask_for_login()
                                         return
-                                if self.path == page_dir:
-                                    # If the requested path is wardened, serve the warden login page
-                                    serve_warden(self)
-                                    return
+                                    elif self.path == page_dir:
+                                        # If the requested path is wardened, serve the warden login page
+                                        ask_for_login()
+                                        return
+                                    else:
+                                        # Does not effect unwardened pages
+                                        if "/warden?pin=" in self.path:
+                                            # return forbidden error
+                                            self.send_error(403, "Warden Forbidden", "The requested path is forbidden.")
+                                            return
+                            else:
+                                if self.path == f"/warden?pin={set_pin}": # This would mean its Root, set it to "/"
+                                    self.path = "/"
+                                else:
+                                    self.path.replace(f"/warden?pin={set_pin}", "")
+                                    # Removes the pin from the path and continue on with the normal get request
 
                         # Handle directory listing.
                         # Handles it by making sure the request leads to a file and not a directory
@@ -577,7 +583,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         # Open the log file and write the request information
                         with open(log_file_path, "a") as log_file:
                             if requested_file == "/":
-                                log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested the landing page\n")
+                                log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested {requested_file} (the landing page)\n")
                             else:
                                 log_file.write(f"{datetime.datetime.now()} - {app_name} - IP {client_address} requested file {requested_file}\n")
 
@@ -1194,7 +1200,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         def end_edit(self):
             '''Ends the edit process'''
-            print("Stoping edit...")
+            print("Stopping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
                 print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=web_config_dt)})\nEdit completed and saved")

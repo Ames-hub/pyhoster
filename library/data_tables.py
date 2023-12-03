@@ -28,7 +28,8 @@ web_config_dt = {
 new_user = {
     "username": None,
     "password": None,
-    "ftp_homedir": None,
+    # Will be a dict with the app name as the key and the path as the value
+    "ftp_dirs": {},
     "ftp_permissions": "elradfmw",
     "ftp_connected": False,
 }
