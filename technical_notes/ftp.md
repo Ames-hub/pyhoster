@@ -36,7 +36,7 @@ To fix this, we use the command "autoboot" and this will TOGGLE the autoboot set
 From here, it's pretty self explanatory.<br>
 You can use the command "root" to view the root user's connection details.<br>
 That's what you'll use in a client like WinSCP to connect to the server.<br>
-##TLDR;
+## TLDR;
 Steps to get started:
 1. Enter FTP CLI with "ftp"
 2. Start the server with "start"
