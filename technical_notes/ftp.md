@@ -37,7 +37,7 @@ From here, it's pretty self explanatory.<br>
 You can use the command "root" to view the root user's connection details.<br>
 That's what you'll use in a client like WinSCP to connect to the server.<br>
 ## TLDR;
-Steps to get started:
+Steps to get started:<br>
 1. Enter FTP CLI with "ftp"
 2. Start the server with "start"
 3. Toggle autoboot on with "autoboot"
@@ -55,7 +55,7 @@ Password: 1234<br>
 ### Important note
 The user name is in the format of "username:(app name)"<br>
 This is because the FTP server is designed to allow access to each app specified and this is the only practical way of doing it<br>
-The password is global. username must be `username:(app name)`, so eg `amelia:personal web`<br>
+The password is global. username must be `username:(app name)`, so eg `amelia:personalweb`<br>
 
 # Anonymous Login
 Anonymous login is a feature that allows users to login to the server without a username or password.<br>
