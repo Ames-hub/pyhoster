@@ -73,6 +73,7 @@ Additional configuration entirely optional.
 `delete` - Delete a website app.<br>
 `edit` - Edit a website app.<br>
 `start` - Start a website app.<br>
+`enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.
 `stop` - Stop a website app<br>
 `restart` - Stop and then start a website app. Shorthand way of doing stop app_name && start app_name<br>
 `ftp` - Enter the FTP Command line interface. Change details, create users, etc
@@ -98,4 +99,4 @@ PyHoster has a few optional security features built in.<br>
 - File directory Listing toggle. - Toggle whether or not to allow directory listing. (Default: False)
 - Security Headers toggler - PyHoster can add security headers to your website. (Default: True)
 - CSP Directives - add CSP directives to your website! (Default: True)
-- Webpage locking - Lock out users from a webpage with a password.
+- Webpage locking - Lock out users from a webpage with a password. (See bottom of technical_notes/warden.md)
