@@ -1,3 +1,4 @@
+import random
 web_config_dt = {
     "name": "defaultname", # Name of the app. Identifier
     "description": None,
@@ -21,7 +22,7 @@ web_config_dt = {
     "warden": {
         "pages": [],
         "enabled": False,
-        "pin": "123456",
+        "pin": str(random.randint(100000,999999)), # random 6 digit pin
     },
 }
 

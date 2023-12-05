@@ -23,3 +23,9 @@ You can pick either 1 or 2. 2 Is full access<br>
 ## This is not optional because its essential that permissions are known regardless of if FTP is enabled or not.
 If you want to use custom permissions, Read the docs.<br>
 https://pyftpdlib.readthedocs.io/en/latest/api.html
+
+# Removing Users
+To remove a user, use the command "remove".<br>
+This will prompt you for a username.<br>
+Just type in the username of the user you want to remove (case sensitive).<br>
+If the user exists, it will be removed.<br>

@@ -45,7 +45,7 @@ class userman:
         ftp_userList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
-            default=[],
+            default={},
             dt=app_settings
         )
 
@@ -108,7 +108,7 @@ class userman:
                         print(f"{colours['gray']}{jmod.getvalue(key='description', json_dir=f'instances/{instance}/config.json', default='No description provided.')}{colours['reset']}")
 
                 app_choice = input("\nLock to app: ")
-                if app_choice not in app_choice:
+                if app_choice not in os.listdir("instances/"):
                     print("App does not exist.")
                     continue
                 elif app_choice in accepted_directories.keys():
@@ -185,17 +185,36 @@ class userman:
                 print("Invalid input.")
                 continue
 
-        
+        ftp_userList = dict(ftp_userList)
+        ftp_userList[username] = new_user
 
         # Save the list to a JSON file
-        jmod.addvalue(
+        jmod.setvalue(
             key='pyhost_users',
-            value=new_user,
+            value=ftp_userList,
             json_dir='settings.json',
             dt=app_settings
         )
 
         print(f"User \"{username}\" has been added.")
+
+    def check_exists(username):
+        '''
+        This function is used to check if a user exists.
+        '''
+        # Load settings from a JSON file
+        ftp_userList = jmod.getvalue(
+            key='pyhost_users',
+            json_dir='settings.json',
+            default={},
+            dt=app_settings
+        )
+
+        # Check if the user exists
+        for user in ftp_userList:
+            if user == username:
+                return True
+        return False
 
     def remove_user():
         '''
@@ -205,7 +224,7 @@ class userman:
         ftp_userList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
-            default=[],
+            default={},
             dt=app_settings
         )
 
@@ -218,19 +237,17 @@ class userman:
             elif username.isalnum() == False:
                 print("Username must be alphanumeric.")
                 continue
-            elif username not in ftp_userList:
+            elif userman.check_exists(username) == False:
                 print("Username does not exist.")
                 continue
             else:
                 break
-
-        # Remove the user from the list
-        for user in ftp_userList:
-            if user['username'] == username:
-                ftp_userList.remove(user)
+        
+        # Removes key "username" and its content
+        del ftp_userList[username]
 
         # Save the list to a JSON file
-        jmod.addvalue(
+        jmod.setvalue(
             key='pyhost_users',
             value=ftp_userList,
             json_dir='settings.json',

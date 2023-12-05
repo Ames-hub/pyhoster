@@ -1,27 +1,32 @@
-# PYHOST
 # Pyhost is a completely free and opensource project built by FriendlyFox.exe AKA https://github.com/Ames-Hub
 # It is a lightweight, simple replacement for Nginx. It is built in Python and is very easy to use.
-# It is mainly built for compatibility with pufferpanel, but it can be used bloody anywhere as its just a python script
+# It is mainly built for compatibility with pufferpanel, but it can be used bloody anywhere as it's just a python script
 # Have fun!
 
 # Importing modules
-import os, logging, datetime, multiprocessing, shutil, time
-from library.jmod import jmod
+import datetime
+import logging
+import multiprocessing
+import os
+import shutil
+import time
+
 from library.application import application
-from library.instance import instance
 from library.data_tables import web_config_dt, app_settings
 from library.filetransfer import ftp
+from library.instance import instance
+from library.jmod import jmod
 
 if __name__ == "__main__": # Checks if the user is running the app for the first time
     # Checks if settings.json exists
-    if os.path.exists("settings.json") == False:
+    if os.path.exists("settings.json") is False:
         import json # Import here so that it never imports unless needed, freeing up memory.
         # Creates settings.json
         with open("settings.json", "w") as f:
             json.dump(app_settings, f, indent=4, separators=(',', ': '))
 
     first_launch = jmod.getvalue("first_launch", "settings.json", True, dt=app_settings)
-    if first_launch == True:
+    if first_launch is True:
         # Checks if the user has backups from a previous pyhost install
         linux = os.name != "nt" # If the OS is linux, it will be true
         if linux:
@@ -31,7 +36,7 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
             appdata = os.getenv("APPDATA")
             backup_dir = f"{appdata}/pyhoster/backups/"
 
-        if os.path.exists(backup_dir) == True:
+        if os.path.exists(backup_dir) is True:
             found_apps = os.listdir(backup_dir)
             if len(found_apps) != 0:
                 print("Found backups from a previous install! Would you like to import them? (y/n)")
@@ -48,14 +53,17 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
                     print("Importing backups...")
                     for app in found_apps:
                         print(f"Importing {app}...")
-                        # All vers inside the "app" folder will be formatted as "ver<version number>". This will get the app with the highest version number
+                        # All vers inside the "app" folder will be formatted as "ver<version number>".
+                        # This will get the app with the highest version number
                         versions = os.listdir(f"{backup_dir}/{app}")
                         highest_version = 0
                         for ver in versions:
                             if int(ver.replace("ver", "")) > highest_version:
                                 highest_version = int(ver.replace("ver", ""))
 
-                        shutil.copytree(src=f"{backup_dir}/{app}/ver{highest_version}", dst=f"instances/{app}", dirs_exist_ok=True)
+                        shutil.copytree(
+                            src=f"{backup_dir}/{app}/ver{highest_version}", dst=f"instances/{app}", dirs_exist_ok=True
+                        )
                     print("Finished importing backups!")
                 else:
                     print("Skipping backup import...")
@@ -74,17 +82,17 @@ def auto_backup():
         while True:
             try:
                 time.sleep(600)
-            except:
+            except KeyboardInterrupt:
                 exit()
             apps = os.listdir("instances/")
-            for app in apps:
-                boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app}/config.json")
-                contentpath = jmod.getvalue(key="contentloc", json_dir=f"instances/{app}/config.json")
+            for app_instance in apps:
+                boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_instance}/config.json")
+                contentpath = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_instance}/config.json")
 
                 if boundpath == contentpath:
-                    if instance.is_outdated(app_name=app) == True:
+                    if instance.is_outdated(app_name=app_instance) is True:
                         instance.backup(
-                            app_name=app,
+                            app_name=app_instance,
                             is_interface=False,
                             do_alert=False
                         )
@@ -101,13 +109,14 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     print(reset_colour)
     # Clears the screen and prints the welcome message
     os.system('cls' if os.name == "nt" else "clear")
-    print(f"({main_pid}) Welcome to Pyhost! - A lightweight, simple replacement for Nginx.")
+    print(f"({main_pid}) Welcome to Pyhost! - A Customizable, simple to use Website Manager.")
     print("https://github.com/Ames-Hub/pyhoster\n")
     print("Message from developer:\nHello! If you have any issues, let me know and I will personally help out!\n")
 
     # Makes an init backup for every app which has its boundpath == content path.
     # This is because auto-backups often only happen if they intentionally update the app
-    # which does not always happen if the boundpath is equal to the content path (as the 'update' command is useless in that case)
+    # which does not always happen if the boundpath is equal to the content path
+    # (as the 'update' command is useless in that case)
 
     do_autobackup = jmod.getvalue(key="do_autobackup", json_dir="settings.json", default=True, dt=app_settings)
     if do_autobackup:
@@ -120,7 +129,7 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     ssl_enabled = jmod.getvalue(key="ssl_enabled", json_dir="settings.json", default=True, dt=app_settings)
     # Starts the FTP server if enabled
     ftp_enabled = jmod.getvalue(key="FTP_Enabled", json_dir="settings.json", default=False, dt=app_settings)
-    if ftp_enabled == True:
+    if ftp_enabled is True:
         FTP_Thread = multiprocessing.Process(
             target=ftp.start,
             args=(None, None, None, ssl_enabled),
@@ -166,10 +175,10 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
     for app in os.listdir("instances/"):
         config_file = f"instances/{app}/config.json" # Path to the config file for each application
         # If the application is set to autostart, add its port and name to the ports_taken dictionary
-        if jmod.getvalue(key=f"autostart", json_dir=config_file) == True:
+        if jmod.getvalue(key=f"autostart", json_dir=config_file) is True:
             name = jmod.getvalue(key='name', json_dir=config_file)
             port = jmod.getvalue(key='port', json_dir=config_file)
-            ports_taken[port] = name 
+            ports_taken[port] = name
 
     # Check if autostart is enabled in the main settings
     do_autostart = jmod.getvalue("do_autostart", app_settings_dir, False, dt=app_settings)
@@ -178,26 +187,26 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
         for app in os.listdir("instances/"):
             config_file = f"instances/{app}/config.json"  # Update the config_file for each app
             # If the application is set to autostart and its port is not taken by another application, start it
-            if jmod.getvalue(key=f"autostart", json_dir=config_file) == True:
+            if jmod.getvalue(key=f"autostart", json_dir=config_file) is True:
                 name = jmod.getvalue(key='name', json_dir=config_file)
                 port = jmod.getvalue(key='port', json_dir=config_file)
                 apptype = jmod.getvalue(key='apptype', json_dir=config_file)
-                if ports_taken[port] == name: 
+                if ports_taken[port] == name:
                     # Log the start of the application and start it in a new thread
                     print(f"Auto-Initializing project: \"{name}\" on port {port} (http://localhost:{port})")
                     logging.info(f"Auto-Initializing project: \"{name}\" on port {port}")
                     if apptype == application.types.webpage():
                         # If the application is a webpage, start it with the 'start' method of the 'instance' module
                         website = multiprocessing.Process(
-                            target=instance.start, args=(app, True),\
+                            target=instance.start, args=(app, True),
                             name=f"{app}_webserver"
                             )
                         website.start()
                         pid = website.pid
                     elif apptype == application.types.WSGI():
-                        # If the application is a WSGI application, start it with the 'start' method of the 'instance' module
+                        # If the application is a WSGI application start it with the 'start' method of the 'instance' module
                         wsgi = multiprocessing.Process(
-                            target=instance.start, args=(app, True),\
+                            target=instance.start, args=(app, True),
                             name=f"{app}_wsgi"
                             )
                         wsgi.start()
@@ -212,7 +221,8 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
                 else:
                     # If the port is already taken, log an error and skip this application
                     print(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". Skipping")
-                    logging.error(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". Skipping")
+                    logging.error(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". "
+                                  f"Skipping")
                     continue
 
                 launch_amount += 1

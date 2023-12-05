@@ -21,10 +21,8 @@ root_dir = os.getcwd()
 setting_dir = "settings.json"
 
 class instance: # Do not use apptype in calls until other apptypes are made
-    def create_web(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None,
-               do_autostart: bool = False):
+    def create_web(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None, do_autostart: bool = False):
         '''All needed args that are not provided will be grabbed from the user'''
-        
         try:
             if app_name != None:
                 app_name = str(app_name)
@@ -34,7 +32,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 port = int(port)
             if boundpath != None:
                 boundpath = str(boundpath)
-                if os.path.isabs(boundpath) == False:
+                if not os.path.isabs(boundpath):
                     raise TypeError("Boundpath must be absolute!")
             if do_autostart != None:
                 do_autostart = bool(do_autostart)
@@ -132,7 +130,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         from .autostart import autostart
         # Sets the autostart and creates config.json if applicable
-        if do_autostart == True:
+        if do_autostart:
             autostart.add(app_name)
 
         jmod.setvalue(
@@ -229,7 +227,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         )
 
     def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True, del_backups:bool=None):
-        if is_interface == True or app_name == None:
+        if is_interface is True or app_name is None:
             try: # Asks for the app name
                 os.system('cls' if os.name == "nt" else "clear")
                 print("\nWARNING: "+"\033[91m"+"YOU ARE ABOUT TO DELETE AN APP\n"+"\033[0m"+"All app names below...\n")
@@ -284,7 +282,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # Removes backups of the app if they exist
         # Gets the directory the backups are saved at
-        if del_backups == True:
+        if del_backups is True:
             backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
             if backup_dir == None: # None means nothing was set by the user as a preference
                 backup_dir = instance.get_backup_dir(app_name)
@@ -300,7 +298,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
     def start_interface(app_name=None, is_interface=True):
         '''a def for the user to start an app from the command line easily via getting the app name from the user'''
         
-        if is_interface == True and app_name == None:
+        if is_interface is True and app_name is None:
             # Prints all app names, then asks for the app name they want to start
             os.system('cls' if os.name == "nt" else "clear")
             print("\nAll app names below...\nDescriptions are in "+"\033[90m"+"gray"+"\033[0m \n")
@@ -401,7 +399,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 csp_directives = jmod.getvalue(
                     key="csp_directives",
                     json_dir=config_path,
-                    default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",\
+                    default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",
                             "style-src 'self';","img-src 'self';","font-src 'self'"],
                     dt=config_data
                 )
@@ -1092,7 +1090,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         app_name: str = str(input("What is the name of the app? TEXT : "))
                         if app_name.lower() == "cancel":
                             print("Cancelled!")
-                            return True
                         assert app_name in os.listdir("instances/"), "The app must exist!"
                         break
                     except:
@@ -1689,7 +1686,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
                 print(f"{colours['green']}Security headers {'enabled' if enabled == True else 'disabled'} successfully!{colours['reset']}")
 
-            #TODO: Figure out wtf this function does. I am too tired to figure it out or program rn
             def csp_directives(self, directives=None):
                 '''
                 Prints out (from the list in the json file) all the csp directives.
@@ -1703,7 +1699,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     key="csp_directives",
                     json_dir=self.config_dir,
                     dt=web_config_dt,
-                    default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",\
+                    default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",
                              "style-src 'self';","img-src 'self';","font-src 'self'"]
                     )
 

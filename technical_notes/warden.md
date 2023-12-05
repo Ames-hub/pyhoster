@@ -14,7 +14,7 @@ you'll see the following text
 ```
 Status for app: (APP_NAME)
 WARDEN IS CURRENTLY INACTIVE.
-I am currently protecting 1 pages.
+I am currently protecting 0 pages.
 Those pages have been accessed UNKNOWN times.
 
 warden>

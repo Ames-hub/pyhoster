@@ -1,3 +1,4 @@
+import time
 import os
 import ssl
 import logging
@@ -54,6 +55,14 @@ class ftp:
             if not FTP_Enabled:
                 print("--FTP ACTIVATION WAS ATTEMPTED, BUT WAS CANCELLED AS IT IS DISABLED--", flush=True)
                 return
+            
+        # mark self as online
+        jmod.setvalue(
+            key='ftppid',
+            value=os.getpid(),
+            json_dir='settings.json',
+            dt=app_settings
+        )
 
         if use_ssl:
             # Paths to the certificate and key files
@@ -158,6 +167,7 @@ class ftp:
             dt=app_settings
         )
         for user in user_list:
+            user = user_list[user]
             if user['ftp_permissions'] == None:
                 # Defaults rights to all
                 user['ftp_permissions'] = "elradfmw"
@@ -179,6 +189,7 @@ class ftp:
         if ftpAnonAllowed:
             authorizer.add_anonymous(".", perm="elr")
 
+        connected_users = []
         class MyFTPHandler(FTPHandler):
             """
             Custom FTP handler class that extends the FTPHandler class.
@@ -189,7 +200,6 @@ class ftp:
             Methods:
                 on_connect(): Method called when a client connects to the FTP server. It logs the IP address, port, and whether the connection is secure.
             """
-
             def on_connect(self):
                 """
                 Method called when a client connects to the FTP server.
@@ -198,11 +208,16 @@ class ftp:
                 """
                 is_secure = self.ssl_context is not None
                 # Gets which account is logging in and sets it in the json file
-                for user in user_list:
-                    if user['username'] == self.username:
-                        user['ftp_connected'] = True
-                        break
-                logging.info(f"IP \"{self.remote_ip}\" has connected on Port \"{self.remote_port}\". Secure: {is_secure}")
+                logging.info(f"IP \"{self.remote_ip}\" with username \"{self.username}\" has connected on Port \"{self.remote_port}\". Secure: {is_secure}")
+
+            def on_login(self, username):
+                connected_users.append(username)
+
+            def on_logout(self, username): # Does not count on disconnect. gotta time them out
+                connected_users.remove(username)
+
+            def get_connected_users(cls):
+                return list(connected_users)
 
         handler = MyFTPHandler
         handler.authorizer = authorizer
@@ -241,17 +256,41 @@ class ftp:
                     if counter & 50 + int((len(user_list) // 2)) == 0:
                         pass
 
+                # Marks users as not connected or connected
+                for user in user_list:
+                    user = user_list[user]
+                    for conn_user in connected_users:
+                        conn_user: str
+                        if conn_user.split(":")[0] == user['username']:
+                            jmod.setvalue(
+                                key=f"pyhost_users.{user['username']}.ftp_connected",
+                                value=True,
+                                json_dir='settings.json',
+                                dt=app_settings
+                            )
+                        else:
+                            jmod.setvalue(
+                                key=f"pyhost_users.{user['username']}.ftp_connected",
+                                value=False,
+                                json_dir='settings.json',
+                                dt=app_settings
+                            )
+
+                # Removes users that have been deleted
                 for user in list(authorizer.user_table.keys()):  # Create a list of keys
                     if user != "root":
                         if user not in user_list:
                             authorizer.remove_user(user)
+                            logging.info(f"Removed user \"{user}\" from the FTP server.")
 
                 for user in user_list:
-                    if user not in list(authorizer.user_table.keys()):  # Create a list of keys
+                    user = user_list[user]
+                    if user['username'] not in list(authorizer.user_table.keys()):  # Create a list of keys
                         for app_name in dict(user['ftp_dirs']).keys():
                             authorizer.add_user(
                                 f"{user['username']}:{app_name}", user['password'], user['ftp_dirs'][app_name], perm=user['ftp_permissions']
                                 )
+                            logging.info(f"Added user \"{user['username']}\" to the FTP server.")
                     
         except KeyboardInterrupt:
             server.close_all()
@@ -295,45 +334,46 @@ class ftp:
         This function is used to enter the FTP server's CLI.
         '''
         os.system('cls' if os.name == 'nt' else 'clear')
-        # Expects a list of dicts with the following keys: username, password, ftp_dirs, ftp_permissions, ftp_connected
-        ftp_userList = jmod.getvalue(
-            key='pyhost_users',
-            json_dir='settings.json',
-            default=[],
-            dt=app_settings
-        )
-        # Gets how many have "ftp_connected" as True
-        connected_users = 0
-        for user in ftp_userList:
-            if user['ftp_connected']:
-                connected_users += 1
-
-        # Prints running status
-        running = jmod.getvalue(key='ftppid', json_dir='settings.json', default=None, dt=app_settings)
-        running_msg = 'running' if running != None else 'not running'
-        print(f"FTP server is currently {running_msg}.")
-
-        # Prints how many users are ftp_connected
-        if running:
-            print(f"{connected_users}/{len(ftp_userList)} users are currently connected.")
-
-        # Prints the FTP server's port
-        FtpPort = jmod.getvalue(key='FtpPort', json_dir='settings.json', default=789, dt=app_settings)
-        print(f"FTP server is {running_msg} {"on port " if running else ""}{FtpPort if running else f"but is assigned to port {FtpPort}"}.")
-
-        print("Use command 'root' to view the root user's connection details.")
-
-        # Prints various settings's values
-        print(f"\nAnonymous login is currently {f'{colours['green']}enabled{colours['white']}' if jmod.getvalue(
-            key='ftpAnonAllowed', json_dir='settings.json', default=False, dt=app_settings
-            ) else f'{colours['red']}disabled{colours['white']}'}.") # Anonymous login
-        print(f"Auto startup is currently {f'{colours['green']}enabled{colours['white']}' if jmod.getvalue(
-            key='FTP_Enabled', json_dir='settings.json', default=True, dt=app_settings
-            ) else f'{colours['red']}disabled{colours['white']}'}.")
-
         print("\nWelcome to the FTP server CLI. Type \"help\" for a list of commands.")
         from .userman import userman
         while True:
+            # Expects a list of dicts with the following keys: username, password, ftp_dirs, ftp_permissions, ftp_connected
+            ftp_userList = jmod.getvalue(
+                key='pyhost_users',
+                json_dir='settings.json',
+                default=[],
+                dt=app_settings
+            )
+            # Gets how many have "ftp_connected" as True
+            connected_users = 0
+            for user in ftp_userList:
+                user = ftp_userList[user]
+                if user['ftp_connected']:
+                    connected_users += 1
+
+            # Prints running status
+            running = jmod.getvalue(key='ftppid', json_dir='settings.json', default=None, dt=app_settings)
+            running_msg = 'running' if running != None else 'not running'
+            print(f"FTP server is currently {running_msg}.")
+
+            # Prints how many users are ftp_connected
+            if running:
+                print(f"{connected_users}/{len(ftp_userList)} users are currently connected.")
+
+            # Prints the FTP server's port
+            FtpPort = jmod.getvalue(key='FtpPort', json_dir='settings.json', default=789, dt=app_settings)
+            print(f"FTP server is {running_msg} {"on port " if running else ""}{FtpPort if running else f"but is assigned to port {FtpPort}"}.")
+
+            print("Use command 'root' to view the root user's connection details.")
+
+            # Prints various settings's values
+            print(f"\nAnonymous login is currently {f'{colours['green']}enabled{colours['white']}' if jmod.getvalue(
+                key='ftpAnonAllowed', json_dir='settings.json', default=False, dt=app_settings
+                ) else f'{colours['red']}disabled{colours['white']}'}.") # Anonymous login
+            print(f"Auto startup is currently {f'{colours['green']}enabled{colours['white']}' if jmod.getvalue(
+                key='FTP_Enabled', json_dir='settings.json', default=True, dt=app_settings
+                ) else f'{colours['red']}disabled{colours['white']}'}.")
+
             command = input(f"{colours['red'] if not running else colours['green']}ftp{colours['reset']}> ").lower()
             if command == "help":
                 print("help: Displays this help message.")
@@ -355,7 +395,8 @@ class ftp:
             elif command == "cls":
                 os.system('cls' if os.name == "nt" else 'clear')
             elif command == "start":
-                multiprocessing.Process(target=ftp.start, args=(None, None)).start()
+                multiprocessing.Process(target=ftp.start, args=(), kwargs={"bypass_enabled": True}).start()
+                time.sleep(0.5)
             elif command == "stop":
                 ftp.stop()
             elif command == "autoboot":
