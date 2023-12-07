@@ -108,19 +108,19 @@ class userman:
                         print(f"{colours['gray']}{jmod.getvalue(key='description', json_dir=f'instances/{instance}/config.json', default='No description provided.')}{colours['reset']}")
 
                 app_choice = input("\nLock to app: ")
-                if app_choice not in os.listdir("instances/"):
-                    print("App does not exist.")
-                    continue
-                elif app_choice in accepted_directories.keys():
-                    print("App already selected.")
-                    continue
-                elif app_choice in ["done", "cancel"]:
+                if app_choice in ["done", "cancel"]:
                     print(f"Done selecting {len(accepted_directories.keys())} apps.")
                     print("===============================")
                     for app in accepted_directories.keys():
                         print(f"{app}: {accepted_directories[app]}")
                     print("===============================")
                     break
+                elif app_choice not in os.listdir("instances/"):
+                    print("App does not exist.")
+                    continue
+                elif app_choice in accepted_directories.keys():
+                    print("App already selected.")
+                    continue
 
                 while True:
                     # Asks if the user should be locked to content

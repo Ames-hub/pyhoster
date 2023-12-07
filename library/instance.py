@@ -31,7 +31,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 app_desc = str(app_desc)
             if port != None:
                 port = int(port)
-            if boundpath != None:
+            if boundpath != None and boundpath != "internal":
                 boundpath = str(boundpath)
                 if not os.path.isabs(boundpath):
                     raise TypeError("Boundpath must be absolute!")
@@ -89,7 +89,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 except AssertionError as err: # Forces the path to be valid and absolute
                     print(str(err))
                     continue
-        
+        elif boundpath == "internal":
+            boundpath = str(os.path.abspath(f"instances/{app_name}/content/"))
+
         # asks if the app should autostart
         if do_autostart == None:
             while True:
@@ -168,7 +170,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
             dt=config
         )
 
-        os.system('cls' if os.name == "nt" else "clear")
         # Prints with green
         print("\033[92m" + f"Created app \"{app_name}\" successfully!" + "\033[0m")
         logging.info(f"Created app \"{app_name}\" successfully!")
@@ -670,6 +671,58 @@ class instance: # Do not use apptype in calls until other apptypes are made
         ).start()
         print(f"Server \"{app_name}\" has started.")
         print("\033[92m" + f"Restarted app \"{app_name}\" successfully!" + "\033[0m")
+
+    def get_status(app_name=None, is_interface=True):
+        if is_interface == True or app_name == None:
+            print("\n")
+            for app in os.listdir("instances/"):
+                if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
+                    print(app)
+                    # Prints description in gray then resets to white
+                    print("\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m")
+
+            while True:
+                print("\nEnter app name to get status.")
+                app_name = input(">>> ")
+                if app_name not in os.listdir("instances/"):
+                    print("That app doesn't exist!")
+                    continue
+                else:
+                    break
+
+        # Gets the status
+        running = jmod.getvalue(key="running", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+        if is_interface:
+            if running == True:
+                print(f"Server \"{app_name}\" is running.")
+            else:
+                print(f"Server \"{app_name}\" is not running.")
+
+        port = jmod.getvalue(key="port", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+
+        if is_interface:
+            if port != None:
+                print(f"Server \"{app_name}\" is running on port {port}.")
+            else:
+                print(f"Server \"{app_name}\" is not running on a port.")
+        
+        warden_enabled = jmod.getvalue(key="warden.enabled", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+
+        if is_interface:
+            if warden_enabled == True:
+                print(f"Server \"{app_name}\" has warden enabled.")
+            else:
+                print(f"Server \"{app_name}\" has warden disabled.")
+
+        autostart = jmod.getvalue(key="autostart", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+
+        if is_interface:
+            if autostart == True:
+                print(f"Server \"{app_name}\" will autostart.")
+            else:
+                print(f"Server \"{app_name}\" will not autostart.")
+
+        return {"running": running, "port": port, "warden": warden_enabled,  "autostart": autostart}
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''

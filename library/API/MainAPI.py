@@ -115,6 +115,23 @@ def webdelete():
     return {"status": 200}
 
 # TODO: Add a route for getting the status of an app
+@app.route('/getappstat', methods=['POST'])
+@prechecks
+def get_status():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        app_name = data['app_name']
+    except KeyError:
+        return 'Please provide an app_name in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to get status of app \"{app_name}\". Complying...")
+    status = instance.get_status(app_name)
+    logging.info(
+        f"API/Remote user {data['username']} requested to get status of app \"{app_name}\". Complying..."
+    )
+    return status, 200
+
 # TODO: Add a route(s) to control Warden
 # TODO: Add a route(s) to control the FTP server
 # TODO: Add a route(s) to control the User Manager
