@@ -64,3 +64,57 @@ def stop_app():
         f"API/Remote user {data['username']} requested to stop app \"{app_name}\". Complying..."
     )
     return {"status": 200}
+
+@app.route('/webcreate', methods=['POST'])
+@prechecks
+def webcreate():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        app_name = str(data['app_name'])
+        app_desc = str(data['app_desc'])
+        port = int(data['port'])
+        boundpath = str(data['boundpath'])
+        do_autostart = bool(data['do_autostart'])
+    except KeyError:
+        return 'Please provide an app_name, app_desc, port, boundpath, do_autostart in the POST data', 400
+    except TypeError:
+        return 'Please provide an app_name (str), app_desc (str), port (int), boundpath (str), do_autostart (bool) in the POST data', 400
+    except ValueError:
+        return 'Please provide an app_name, app_desc, port, boundpath, do_autostart in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to create app \"{app_name}\". Complying...")
+    instance.create_web(
+        app_name=app_name,
+        app_desc=app_desc,
+        port=port,
+        boundpath=boundpath,
+        do_autostart=do_autostart,
+        )
+    logging.info(
+        f"API/Remote user {data['username']} requested to create app \"{app_name}\". Complying..."
+    )
+    return {"status": 200}
+
+@app.route('/delete_app', methods=['POST'])
+@prechecks
+def webdelete():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        app_name = data['app_name']
+        del_backups = data.get('del_backups', False)
+    except KeyError:
+        return 'Please provide an app_name in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to delete app \"{app_name}\". Complying...")
+    instance.delete(app_name, is_interface=False, ask_confirmation=False, del_backups=del_backups)
+    logging.info(
+        f"API/Remote user {data['username']} requested to delete app \"{app_name}\". Complying..."
+    )
+    return {"status": 200}
+
+# TODO: Add a route for getting the status of an app
+# TODO: Add a route(s) to control Warden
+# TODO: Add a route(s) to control the FTP server
+# TODO: Add a route(s) to control the User Manager
