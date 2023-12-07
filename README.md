@@ -32,6 +32,11 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Run multiple websites at once
 - User friendly design
 
+# The PyHost API
+PyHost has an API that you can use to control what happens in pyhost externally.<br>
+Using the API, you can do things such as start and stop websites, create and delete websites, etc.<br>
+For full details, see the technical_notes/API.md file.
+
 # Compatibility
 This works on every OS as far as I know.<br>
 As long as the OS can run python3.11 or 3.12, it should be able to run this.<br>
