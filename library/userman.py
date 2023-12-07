@@ -256,26 +256,61 @@ class userman:
 
         print(f"User \"{username}\" has been removed.")
 
-    def list_users():
+    def list_users(for_CLI=True):
         ftp_userList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
-            default=[],
+            default={},
             dt=app_settings
         )
-        if len(ftp_userList) >= 1:
-            colour = True
-            print("====================")
-            for user in ftp_userList:
-                if user['ftp_permissions'] == "r":
-                    user['ftp_permissions'] == "Read Only" # Only a visual effect as it doesn't save
-                elif user['ftp_permissions'] == "rw":
-                    user['ftp_permissions'] = "Read and Write"
+        if for_CLI:
+            if len(ftp_userList) >= 1:
+                colour = True
+                print("====================")
+                for user in ftp_userList:
+                    if user['ftp_permissions'] == "r":
+                        user['ftp_permissions'] == "Read Only" # Only a visual effect as it doesn't save
+                    elif user['ftp_permissions'] == "rw":
+                        user['ftp_permissions'] = "Read and Write"
 
-                if colour:
-                    print(f"Username: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_dirs']}\nPermissions: {user['ftp_permissions']}\n====================\n")
-                else:
-                    print(f"\033[1;37;40mUsername: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_dirs']}\nPermissions: {user['ftp_permissions']}\n====================\n")
-                colour = not colour # Switches the colour
+                    if colour:
+                        print(f"Username: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_dirs']}\nPermissions: {user['ftp_permissions']}\n====================\n")
+                    else:
+                        print(f"\033[1;37;40mUsername: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_dirs']}\nPermissions: {user['ftp_permissions']}\n====================\n")
+                    colour = not colour # Switches the colour
+            else:
+                print("There are no users.")
         else:
-            print("There are no users.")
+            return ftp_userList
+
+    class api:
+        def login(username:str, password:str) -> bool:
+            '''
+            This function is used to login to the API.
+            '''
+            try:
+                username = str(username)
+                password = str(password)
+            except:
+                return False
+            # Load user's list from a JSON file
+            users = userman.list_users(for_CLI=False)
+            if username in users.keys():
+                if users[username]['password'] == password:
+                    jmod.setvalue(
+                        key=f'pyhost_users.{username}.api.logged_in',
+                        value=True,
+                        json_dir='settings.json',
+                        dt=app_settings
+                    )
+                    return True
+                else:
+                    return False
+
+        def logout(username):
+            jmod.setvalue(
+                key=f'pyhost_users.{username}.api.logged_in',
+                value=False,
+                json_dir='settings.json',
+                dt=app_settings
+            )

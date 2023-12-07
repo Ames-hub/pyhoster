@@ -276,22 +276,6 @@ class ftp:
                                 dt=app_settings
                             )
 
-                # Removes users that have been deleted
-                for user in list(authorizer.user_table.keys()):  # Create a list of keys
-                    if user != "root":
-                        if user not in user_list:
-                            authorizer.remove_user(user)
-                            logging.info(f"Removed user \"{user}\" from the FTP server.")
-
-                for user in user_list:
-                    user = user_list[user]
-                    if user['username'] not in list(authorizer.user_table.keys()):  # Create a list of keys
-                        for app_name in dict(user['ftp_dirs']).keys():
-                            authorizer.add_user(
-                                f"{user['username']}:{app_name}", user['password'], user['ftp_dirs'][app_name], perm=user['ftp_permissions']
-                                )
-                            logging.info(f"Added user \"{user['username']}\" to the FTP server.")
-                    
         except KeyboardInterrupt:
             server.close_all()
             print("--FILE TRANSFER PROTOCAL HAS BEEN STOPPED--")
