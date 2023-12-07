@@ -23,19 +23,13 @@ Someone with the permission string "sS" can start and stop instances, but not cr
 | S | Stop instances
 | c | Create instances
 | d | Delete instances
-
--- WARDEN PERMISSIONS --
 | -WP- | Modify warden pin
 | -WA- | Toggle warden On/Off
 | -WPA- | Add a page to warden
 | -WPD- | Delete a page from warden
-
--- FTP PERMISSIONS --
 | -FAB- | Toggle FTP Autoboot On/Off
 | -FA- | Turn off/on FTP Server
 | -FL- | View FTP Logs
-
--- ADMIN PERMISSIONS --
 | -UL- | Lock/Unlock a user account
 | -UP- | Change a user's password
 | -UD- | Delete a user account
