@@ -162,6 +162,15 @@ class warden:
         )
         print("Warden enabled.")
 
+    def get_status(app_name:str):
+        '''Gets the status of the warden for an app.'''
+        return jmod.getvalue(
+            key="warden.enabled",
+            json_dir=f"instances/{app_name}/config.json",
+            dt=web_config_dt,
+            default=False
+        )
+
     def list_all(app_name:str):
         # Uses os.walk to go through every file in the content directory and subdirs and list their directories
         counter = 1
@@ -177,12 +186,12 @@ class warden:
         print(colours['white']+"\n")
         input("Press enter to continue and erase this message...")
 
-    def add_page(app_name:str):
+    def add_page(app_name:str, page_dir:str=None, is_interface=True):
         '''Adds a page to the warden.'''
         # Uses os.walk to go through every file in the content directory and subdirs and list their directories
         while True:
             valid_pages = {}
-            print("Valid Paths for pages:\n")
+            if is_interface: print("Valid Paths for pages:\n")
             counter = 1
             for root, dirs, files in os.walk(f"instances/{app_name}/content"):
                 root = root.replace("\\", "/").replace(f"instances/{app_name}/content", "")
@@ -190,22 +199,27 @@ class warden:
                     file_dir = os.path.join(root, file)
                     if file_dir[0] == "/" or file_dir[0] == "\\":
                         file_dir = file_dir[1:].replace("\\", "/")
-                    print(f"{colours['gray' if counter % 2 == 0 else 'white']}File {counter}: {file_dir}")
+                    if is_interface: print(f"{colours['gray' if counter % 2 == 0 else 'white']}File {counter}: {file_dir}")
                     valid_pages[counter] = file_dir
                     counter += 1
-            print("\nType 'exit' to exit.")
-            page_dir = input("Relative Page directory: ")
+            if is_interface:
+                print("\nType 'exit' to exit.")
+                page_dir = input("Relative Page directory: ")
             if page_dir == "exit":
                 return
 
             # Checks if the page is valid
-            if page_dir not in valid_pages.values():
-                print("Invalid page.\n")
-                continue
+            if page_dir not in valid_pages.values() and page_dir != "*":
+                if is_interface:
+                    print("Invalid page.\n")
+                    continue
+                return "Invalid page."
             # Makes sure the page isn't already added
             if page_dir in jmod.getvalue(key="warden.pages",json_dir=f"instances/{app_name}/config.json",dt=web_config_dt,default=[],):
-                print("Page already added.\n")
-                continue
+                if is_interface:
+                    print("Page already added.\n")
+                    continue
+                return "Page already added."
             break
 
         jmod.addvalue(
@@ -214,14 +228,16 @@ class warden:
             dt=web_config_dt,
             value=page_dir,
         )
-        print("Page added.")
+        if is_interface:
+            print("Page added.")
+        return "Page added."
 
-    def rem_page(app_name:str):
+    def rem_page(app_name:str, page_dir=None, is_interface=True):
         '''Removes a page from the warden.'''
         # Uses os.walk to go through every file in the content directory and subdirs and list their directories
         while True:
             valid_pages = {}
-            print("Valid Paths for pages:\n")
+            if is_interface: print("Valid Paths for pages:\n")
             counter = 1
             for root, dirs, files in os.walk(f"instances/{app_name}/content"):
                 root = root.replace("\\", "/").replace(f"instances/{app_name}/content", "")
@@ -229,23 +245,31 @@ class warden:
                     file_dir = os.path.join(root, file)
                     if file_dir[0] == "/" or file_dir[0] == "\\":
                         file_dir = file_dir[1:].replace("\\", "/")
-                    print(f"{colours['gray' if counter % 2 == 0 else 'white']}File {counter}: {file_dir}")
+                    if is_interface:
+                        print(f"{colours['gray' if counter % 2 == 0 else 'white']}File {counter}: {file_dir}")
                     valid_pages[counter] = file_dir
                     counter += 1
-            print("\nType 'exit' to exit.")
-            page_dir = input("Relative Page directory: ")
+            if is_interface:
+                print("\nType 'exit' to exit.")
+                page_dir = input("Relative Page directory: ")
             if page_dir == "exit":
                 return
 
             # Checks if the page is valid
-            if page_dir not in valid_pages.values():
-                print("Invalid page.\n")
-                continue
+            if page_dir not in valid_pages.values() and page_dir != "*":
+                if is_interface:
+                    print("Invalid page.\n")
+                    continue
+                return "Invalid page."
             # Makes sure the page is already added
             if page_dir not in jmod.getvalue(key="warden.pages",json_dir=f"instances/{app_name}/config.json",dt=web_config_dt,default=[],):
-                print("Page not found.\n")
-                continue
+                if is_interface:
+                    print("Page not found.\n")
+                    continue
+                return "Page not found."
             break
+
+            # Checks if the page is valid
 
         jmod.remvalue(
             key="warden.pages",
@@ -253,7 +277,9 @@ class warden:
             dt=web_config_dt,
             value=page_dir,
         )
-        print("Page removed.")
+        if is_interface:
+            print("Page removed.")
+        return "Page removed."
 
     def change_password(app_name:str):
         '''Changes the password for the warden.'''

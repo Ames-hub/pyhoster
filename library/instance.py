@@ -459,6 +459,11 @@ class instance: # Do not use apptype in calls until other apptypes are made
                             logging.info(pin_valid)
                             if pin_valid is False:
                                 for page_dir in wardened_dirs:
+                                    if page_dir == "*": # If its *, then all pages are wardened
+                                        # Ensures it is targetting a HTML file to prevent locking styling/js files
+                                        if self.path.endswith(".html") or self.path.endswith(".htm"):
+                                            ask_for_login()
+                                            return
                                     if self.path == "/":
                                         ask_for_login()
                                         return

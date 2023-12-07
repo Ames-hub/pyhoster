@@ -30,6 +30,14 @@ class userman:
                     continue
                 elif cmd == "exit":
                     return True
+                elif cmd == "help":
+                    userman.help()
+                elif cmd == "lock":
+                    userman.lock()
+                    continue
+                elif cmd == "unlock":
+                    userman.unlock()
+                    continue
                 else:
                     print("Invalid command.")
                     continue
@@ -37,12 +45,75 @@ class userman:
                 print(str(err))
                 continue
 
+    def help():
+        print(f"{colours['green']}UserMan{colours['reset']} is a tool for managing users for the FTP server.")
+        print("Commands:")
+        cmds = {
+            "add": "Add a user.",
+            "remove": "Remove a user.",
+            "help": "Show this help message.",
+            "list": "List all users.",
+            "lock": "Lock a user.",
+            "unlock": "Unlock a user.",
+            "exit": "Exit UserMan.",
+        }
+        for cmd in cmds:
+            print(f"{colours['green']}{cmd}{colours['reset']}: {cmds[cmd]}")
+
+    def lock(username=None):
+        if username is None:
+            while True:
+                username = input("Username: ")
+                if username == "":
+                    print("Username cannot be blank.")
+                    continue
+                elif username.isalnum() == False:
+                    print("Username must be alphanumeric.")
+                    continue
+                elif userman.check_exists(username) == False:
+                    print("Username does not exist.")
+                    continue
+                else:
+                    break
+
+        jmod.setvalue(
+            key=f'pyhost_users.{username}.locked',
+            value=True,
+            json_dir='settings.json',
+            dt=app_settings
+        )
+        print(f"User \"{username}\" has been locked.")
+
+    def unlock(username=None):
+        if username is None:
+            while True:
+                username = input("Username: ")
+                if username == "":
+                    print("Username cannot be blank.")
+                    continue
+                elif username.isalnum() == False:
+                    print("Username must be alphanumeric.")
+                    continue
+                elif userman.check_exists(username) == False:
+                    print("Username does not exist.")
+                    continue
+                else:
+                    break
+
+        jmod.setvalue(
+            key=f'pyhost_users.{username}.locked',
+            value=False,
+            json_dir='settings.json',
+            dt=app_settings
+        )
+        print(f"User \"{username}\" has been unlocked.")
+
     def add_user():
         '''
         This function is used to add a user to the FTP server.
         '''
         # Load settings from a JSON file
-        ftp_userList = jmod.getvalue(
+        UserList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
             default={},
@@ -58,7 +129,7 @@ class userman:
             elif username.isalnum() == False:
                 print("Username must be alphanumeric.")
                 continue
-            elif username in ftp_userList:
+            elif username in UserList:
                 print("Username already exists.")
                 continue
             else:
@@ -83,8 +154,8 @@ class userman:
             
         new_user['password'] = password
 
+        # asks the user if they want to handle ftp
         while True:
-            # asks the user if they want to handle ftp
             handle_ftp = input("Do you want to setup this user for FTP? (y/n): ")
             if handle_ftp == "y":
                 handle_ftp = True
@@ -185,13 +256,60 @@ class userman:
                 print("Invalid input.")
                 continue
 
-        ftp_userList = dict(ftp_userList)
-        ftp_userList[username] = new_user
+        # Asks if the user wants to handle setting up their access to the API
+        while True:
+            handle_api = input("Do you want to setup this user for the API? (y/n): ")
+            if handle_api == "y":
+                handle_api = True
+                break
+            elif handle_api == "n":
+                handle_api = False
+                break
+            else:
+                print("Invalid input.")
+                continue
+
+        if handle_api:
+            while True:
+                # Gets the API permissions
+                print("Please select the API permissions for this user.")
+                print("Do you want to use a template/preset or custom?")
+                print("1. Template/preset\n2. Custom")
+                choice = input(">>> ")
+                if choice == "1":
+                    # Asks the user which preset they want to use
+                    preset = input("Which preset would you like to use?\n1. Read\n2. Read and Write\n>>> ")
+                    if preset == "1":
+                        new_user['api_permissions'] = "r"
+                        break
+                    elif preset == "2":
+                        new_user['api_permissions'] = "rw"
+                        break
+                    else:
+                        print("Invalid preset.")
+                        continue
+
+
+        # Asks if the user should be locked
+        while True:
+            lock = input("Should we start their account as locked? (y/n): ")
+            if lock == "y":
+                new_user['locked'] = True
+                break
+            elif lock == "n":
+                new_user['locked'] = False
+                break
+            else:
+                print("Invalid input.")
+                continue
+
+        UserList = dict(UserList)
+        UserList[username] = new_user
 
         # Save the list to a JSON file
         jmod.setvalue(
             key='pyhost_users',
-            value=ftp_userList,
+            value=UserList,
             json_dir='settings.json',
             dt=app_settings
         )
@@ -203,7 +321,7 @@ class userman:
         This function is used to check if a user exists.
         '''
         # Load settings from a JSON file
-        ftp_userList = jmod.getvalue(
+        UserList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
             default={},
@@ -211,7 +329,7 @@ class userman:
         )
 
         # Check if the user exists
-        for user in ftp_userList:
+        for user in UserList:
             if user == username:
                 return True
         return False
@@ -221,7 +339,7 @@ class userman:
         This function is used to remove a user from the FTP server.
         '''
         # Load settings from a JSON file
-        ftp_userList = jmod.getvalue(
+        UserList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
             default={},
@@ -244,12 +362,12 @@ class userman:
                 break
         
         # Removes key "username" and its content
-        del ftp_userList[username]
+        del UserList[username]
 
         # Save the list to a JSON file
         jmod.setvalue(
             key='pyhost_users',
-            value=ftp_userList,
+            value=UserList,
             json_dir='settings.json',
             dt=app_settings
         )
@@ -257,17 +375,17 @@ class userman:
         print(f"User \"{username}\" has been removed.")
 
     def list_users(for_CLI=True):
-        ftp_userList = jmod.getvalue(
+        UserList = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
             default={},
             dt=app_settings
         )
         if for_CLI:
-            if len(ftp_userList) >= 1:
+            if len(UserList) >= 1:
                 colour = True
                 print("====================")
-                for user in ftp_userList:
+                for user in UserList:
                     if user['ftp_permissions'] == "r":
                         user['ftp_permissions'] == "Read Only" # Only a visual effect as it doesn't save
                     elif user['ftp_permissions'] == "rw":
@@ -281,7 +399,41 @@ class userman:
             else:
                 print("There are no users.")
         else:
-            return ftp_userList
+            return UserList
+
+    def is_locked(username):
+        '''
+        This function is used to check if a user account is locked.
+        '''
+        # Load settings from a JSON file
+        UserList = jmod.getvalue(
+            key='pyhost_users',
+            json_dir='settings.json',
+            default={},
+            dt=app_settings
+        )
+        # Check if the user is locked
+        user = UserList.get(username, None)
+        if user == None:
+            raise userman.errors.UserDoesNotExist
+        else:
+            return dict(user).get('locked', True)
+
+    class errors:
+        # Using this class so I can catch specific things without returning strings 
+        class UserDoesNotExist(Exception):
+            '''
+            This error is raised when a user does not exist.
+            '''
+            def __init__(self):
+                super().__init__("User does not exist.")
+
+        class UserLocked(Exception):
+            '''
+            This error is raised when a user is locked.
+            '''
+            def __init__(self):
+                super().__init__("User is locked out.")
 
     class api:
         def login(username:str, password:str) -> bool:

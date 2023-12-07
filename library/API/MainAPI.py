@@ -3,6 +3,7 @@ from flask import request
 import logging, multiprocessing, flask
 from library.userman import userman
 from library.instance import instance
+from library.warden import warden
 
 app = flask.Flask(__name__)
 
@@ -12,6 +13,7 @@ def prechecks(func):
         logging.info(f"IP Address: {ip_address}, Function: {func.__name__}, Arguments: {args, kwargs}")
         # Gets the data from the POST request
         data = dict(request.get_json())
+
         username = data.get('username')
         password = data.get('password')
         if username is None or password is None:
@@ -19,8 +21,14 @@ def prechecks(func):
         allowed = userman.api.login(username=username, password=password)
         if not allowed:
             return 'Unauthorized. In the POST data, please provide a valid "username" and "password"', 401
-        else:
-            return func(*args, **kwargs)
+
+        try:
+            if userman.is_locked(username):
+                return 'Unauthorized. Your account is locked.', 401
+        except userman.errors.UserDoesNotExist:
+            return f'User "{username}" does not exist.', 404
+
+        return func(*args, **kwargs)
     wrapper.__name__ = func.__name__
     return wrapper
 
@@ -29,7 +37,7 @@ def prechecks(func):
 def index():
     return 'Pong!', 200
 
-@app.route('/start_app', methods=['POST'])
+@app.route('/instances/start', methods=['POST'])
 @prechecks
 def start_app():
     # Gets the data from the POST request
@@ -48,7 +56,7 @@ def start_app():
     )
     return {"status": 200}
 
-@app.route('/stop_app', methods=['POST'])
+@app.route('/instances/stop', methods=['POST'])
 @prechecks
 def stop_app():
     # Gets the data from the POST request
@@ -65,7 +73,7 @@ def stop_app():
     )
     return {"status": 200}
 
-@app.route('/webcreate', methods=['POST'])
+@app.route('/instances/webcreate', methods=['POST'])
 @prechecks
 def webcreate():
     # Gets the data from the POST request
@@ -96,7 +104,7 @@ def webcreate():
     )
     return {"status": 200}
 
-@app.route('/delete_app', methods=['POST'])
+@app.route('/instances/delete', methods=['POST'])
 @prechecks
 def webdelete():
     # Gets the data from the POST request
@@ -114,8 +122,7 @@ def webdelete():
     )
     return {"status": 200}
 
-# TODO: Add a route for getting the status of an app
-@app.route('/getappstat', methods=['POST'])
+@app.route('/instances/getstatus', methods=['POST'])
 @prechecks
 def get_status():
     # Gets the data from the POST request
@@ -132,6 +139,97 @@ def get_status():
     )
     return status, 200
 
-# TODO: Add a route(s) to control Warden
+# TODO: Test if these work
+@app.route('/warden/setstatus', methods=['POST'])
+@prechecks
+def set_warden_status():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        status = bool(data['status'])
+        app_name = str(data['app_name'])
+    except KeyError:
+        return 'Please provide a status and app_name in the POST data', 400
+    except TypeError:
+        return 'Please provide a status (bool) and app_name (str) in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to set Warden status to \"{status}\" for app \"{app_name}\". Complying...")
+    warden.set_status(app_name, status)
+    logging.info(
+        f"API/Remote user {data['username']} requested to set Warden status to \"{status}\" for app \"{app_name}\". Complying..."
+    )
+    return {"status": 200}
+
+@app.route('/warden/getstatus', methods=['POST'])
+@prechecks
+def get_warden_status():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        app_name = str(data['app_name'])
+    except KeyError:
+        return 'Please provide an app_name in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to get Warden status. Complying...")
+    status = warden.get_status(app_name)
+    logging.info(
+        f"API/Remote user {data['username']} requested to get Warden status. Complying..."
+    )
+    return {"status": status}
+
+@app.route('/warden/addpage', methods=['POST'])
+@prechecks
+def add_warden_page():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        app_name = str(data['app_name'])
+        if app_name == "Brew Tea":
+            status = 418 # LOL
+            msg = "Am Tea bot :) ... Fr tho your command did nothing"
+            return {"status": msg}, status
+
+        page_name = str(data['page_dir'])
+    except KeyError:
+        return 'Please provide an app_name, page_dir (str. eg, "index.html" or contentdir/subdir/page.html) in the POST data', 400
+    except TypeError:
+        return 'Please provide an app_name (str), page_dir (str. eg, "index.html" or contentdir/subdir/page.html) in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to add Warden page \"{page_name}\". Complying...")
+    msg = warden.add_page(app_name=app_name, page_dir=page_name, is_interface=False)
+    logging.info(
+        f"API/Remote user {data['username']} requested to add Warden page \"{page_name}\". Complying..."
+    )
+    # Uses match to check if the message is a success or failure and determine a html code
+    answers = {
+        "Page added.": 200,
+        "Page already exists.": 400,
+        "App does not exist.": 400,
+    }
+    status = answers.get(msg, 400)
+
+    return {"status": msg}, status
+
+@app.route('/warden/rempage', methods=['POST'])
+@prechecks
+def delete_warden_page():
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    try:
+        app_name = str(data['app_name'])
+        page_dir = str(data['page_dir'])
+    except KeyError:
+        return 'Please provide an app_name and page_dir (str. eg, "index.html" or contentdir/subdir/page.html) in the POST data', 400
+    except TypeError:
+        return 'Please provide an app_name (str) and page_dir (str. eg, "index.html" or contentdir/subdir/page.html) in the POST data', 400
+
+    print(f"API/Remote user {data['username']} requested to delete Warden page \"{page_dir}\". Complying...")
+    msg = warden.rem_page(app_name=app_name, page_dir=page_dir, is_interface=False)
+    logging.info(
+        f"API/Remote user {data['username']} requested to delete Warden page \"{page_dir}\". Complying..."
+    )
+    status = 200 if msg == "Page removed." else 400
+    return {"status": msg}, status
+
 # TODO: Add a route(s) to control the FTP server
 # TODO: Add a route(s) to control the User Manager

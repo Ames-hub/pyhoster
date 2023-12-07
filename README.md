@@ -71,6 +71,8 @@ Additional configuration entirely optional.
 ## Possible Commands
 `webcreate` - Create a new website app.<br>
 `wsgicreate` - Create a new wsgi app.<br>
+`pyhost` - Access the settings of pyhoster.<br>
+`exit` - Exit the program.<br>
 `delete` - Delete a website app.<br>
 `edit` - Edit a website app.<br>
 `start` - Start a website app.<br>

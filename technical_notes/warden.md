@@ -48,3 +48,4 @@ It is not meant to be used as a full security system, and should not be used as 
 It will keep out the basic user, but if someone looks into it at all they will be able to bypass it<br>
 <hr>
 Long story short, DONT DEPEND ON IT TO KEEP EVERYTHING SAFE!<br>
+Also, if you're going to be recording using a wardened page, make sure to censor the pin, as it will be visible in the url.

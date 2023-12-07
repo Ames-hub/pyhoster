@@ -82,6 +82,11 @@ app_settings = {
         "pid": None,
         "timeout_pid": None,
     },
+    "webgui": {
+        "autoboot": False,
+        "port": 4040, # No need for a pin as it requires a pyhost_user's login
+        "pid": None,
+    },
     "ftpLogToFile": True,
     "FTP_Enabled": False,
     "FtpPort": 789,
