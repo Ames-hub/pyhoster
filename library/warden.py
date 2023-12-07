@@ -65,6 +65,7 @@ class warden:
             print("App does not exist.")
             return
 
+        # TODO Complete these commands. only enable, disable, add/rempage, and exit are done.
         commands = [
             "help - Displays this message.",
             "exit - Exits warden.",
@@ -131,6 +132,22 @@ class warden:
                 warden.rem_page(app_name)
             elif cmd == "list":
                 warden.list_all(app_name)
+            elif cmd == "clearpages":
+                jmod.setvalue(
+                    key="warden.pages",
+                    json_dir=f"instances/{app_name}/config.json",
+                    dt=web_config_dt,
+                    value=[]
+                )
+                print("Pages cleared.")
+            elif cmd == "password":
+                warden.change_password(app_name)
+            elif cmd == "status":
+                print(f"Status for app: {app_name}")
+                print(f"WARDEN IS CURRENTLY {"RUNNING." if enabled else "INACTIVE."}")
+                print(f"I am currently protecting {len(pages)} pages.")
+                print(f"Those pages have been accessed {timesAccessed} times.\n")
+                input("Press enter to continue and erase this message...")
             else:
                 print("Invalid command.")
                 time.sleep(2)
@@ -237,3 +254,19 @@ class warden:
             value=page_dir,
         )
         print("Page removed.")
+
+    def change_password(app_name:str):
+        '''Changes the password for the warden.'''
+        while True:
+            password = input("New password: ")
+            if password == "":
+                print("Password cannot be empty.")
+                continue
+            break
+        jmod.setvalue(
+            key="warden.pin",
+            json_dir=f"instances/{app_name}/config.json",
+            dt=web_config_dt,
+            value=password,
+        )
+        print("Password changed.")

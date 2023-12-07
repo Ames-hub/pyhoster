@@ -4,6 +4,7 @@ from .jmod import jmod
 from .data_tables import web_config_dt, wsgi_config_dt, app_settings
 import multiprocessing
 import wsgiref.simple_server as wsgi
+import waitress
 
 colours = {
     "red": "\033[31m",
@@ -632,60 +633,21 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
             webserver()
         elif app_type == app.types.WSGI():
-            def WSGI():
+            port = jmod.getvalue(key="port", json_dir=f"instances/{app_name}/config.json", dt=wsgi_config_dt)
+
+            def StartFlask(app_dir, app_name):
                 '''
-                A WSGI server
-                For this function to work, it takes a python file and it puts the entire thing in a function called "wsgi_app"\n
-                by indenting the entire file by 4 spaces and adding "def wsgi_app(environ, start_response):" to the top of the file.\n 
+                Create a WSGI Server set primarily for Flask.
                 '''
-                base_dir = os.path.abspath("instances/")
-                app_dir = os.path.join(base_dir, app_name)
-                # Get the port from the config.json file
-                config_path = os.path.abspath(f"instances/{app_name}/config.json")
-                port = jmod.getvalue(key="port", json_dir=config_path, dt=web_config_dt)
-
-                # Define the WSGI application
-                def wsgi_app(environ, start_response):
-                    # Get the path of the file to serve
-                    file_path = str(jmod.getvalue(key="boundpath", json_dir=config_path, dt=web_config_dt))
-                    
-                    # Open the file and write all the lines with a 4 space indent to a new file
-                    with open(file_path, "r") as file:
-                        lines = file.readlines()
-                        new_lines = []
-                        for line in lines:
-                            new_lines.append(" "*4+line)
-
-                    # Add the function definition to the top of the file
-                    new_lines.insert(0, "def wsgi_app(environ, start_response):\n")
-
-                    # Prevents exceptions where the new file is already existant
-                    new_file_name = "wsgi_app"
-                    if os.path.exists(f"instances/{app_name}/{new_file_name}.py"):
-                        new_file_name = "app_wsgi"
-                        if os.path.exists(f"instances/{app_name}/{new_file_name}.py"):
-                            # Raises an exception if the file already exists
-                            raise FileExistsError(f"Can't start app:'{app_name}' File {new_file_name}.py already exists!")
-
-                    # Write the new file to be able to import it
-                    with open(f"instances/{app_name}/{new_file_name}.py", "w") as file:
-                        file.writelines(new_lines)
-
-                # Create a WSGI server
-                server = wsgi.make_server(
-                    host="localhost",
-                    port=port,
-                    app=wsgi_app
-                )
-
-                # Start the server
-                print(f"WSGI Server \"{app_name}\" is running on port {port}.")
-                server.serve_forever()
-            WSGI()
+                app = __import__(app_dir, fromlist=['']).app
+                os.environ["FLASK_ENV"] = "production"  # Set Flask environment to production
+                os.environ["FLASK_APP"] = app_name  # Set the name of your Flask app
+                waitress.serve(app, host='0.0.0.0', port=port)
+            # TODO: Add a way to get the app directory from the user and ACTUALLY implement this stuff
 
     def restart(app_name=None, is_interface=True):
-        print("\n")
         if is_interface == True or app_name == None:
+            print("\n")
             for app in os.listdir("instances/"):
                 if jmod.getvalue(key="running", json_dir=f"instances/{app}/config.json") == True:
                     print(app)  # Only prints apps that are running

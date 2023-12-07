@@ -26,9 +26,15 @@ web_config_dt = {
     },
 }
 
+# TODO Implement the "locked out" thing everywhere
 new_user = {
     "username": None,
     "password": None,
+    "locked": False, # If the user is locked out of the account
+    "api": {
+        "logged_in": False,
+        "token": None,
+    },
     # Will be a dict with the app name as the key and the path as the value
     "ftp_dirs": {},
     "ftp_permissions": "elradfmw",
@@ -68,11 +74,19 @@ app_settings = {
     "do_autobackup": True,
     "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
     "ssl_enabled": True,
+    "api": {
+        "running": False,
+        "autoboot": False,
+        "app_dir": "library.API.MainAPI",
+        "port": 987,
+        "pid": None,
+        "timeout_pid": None,
+    },
     "ftpLogToFile": True,
     "FTP_Enabled": False,
     "FtpPort": 789,
     "ftpAnonAllowed": False,
     "ftpRootPassword": generate_root_password(), # Password only resets if settings.json is deleted
-    "pyhost_users": [], # Should be a list of dicts
+    "pyhost_users": {}, # Should be a dict of dicts. Internal dicts being usernames as keys and their data as values
     "ftppid": None,
 }

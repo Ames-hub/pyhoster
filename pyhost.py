@@ -11,11 +11,32 @@ import os
 import shutil
 import time
 
+from library.API.Controller import controller
 from library.application import application
 from library.data_tables import web_config_dt, app_settings
 from library.filetransfer import ftp
 from library.instance import instance
 from library.jmod import jmod
+
+# Ensures all neccesary directories exist
+os.makedirs("instances", exist_ok=True)
+os.makedirs("logs", exist_ok=True)
+
+log_filename = str(datetime.date.today().strftime("%Y-%m-%d"))
+# Sets up logging
+logging.basicConfig(
+    # Gets a readable datetime format for the log filename
+    filename=f"logs/{log_filename}.log",
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logging.basicConfig(
+    # Gets a readable datetime format for the log filename
+    filename=f"logs/{log_filename}.log",
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.ERROR
+)
+logging.info("Pyhost logging started successfully!")
 
 if __name__ == "__main__": # Checks if the user is running the app for the first time
     # Checks if settings.json exists
@@ -102,7 +123,6 @@ def auto_backup():
         print("2. option 'backups path'")
         print("3. enter the path you want to use. Pyhost must have access to it.")
 
-
 main_pid = os.getpid()
 if __name__ == "__main__": # Prevents errors with multiprocessing
     reset_colour = "\033[0m" # Clears any previous colour
@@ -144,25 +164,12 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     else:
         logging.info("FTP server is disabled.")
 
-# Ensures all neccesary directories exist
-os.makedirs("instances", exist_ok=True)
-os.makedirs("logs", exist_ok=True)
-
-log_filename = str(datetime.date.today().strftime("%Y-%m-%d"))
-# Sets up logging
-logging.basicConfig(
-    # Gets a readable datetime format for the log filename
-    filename=f"logs/{log_filename}.log",
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logging.basicConfig(
-    # Gets a readable datetime format for the log filename
-    filename=f"logs/{log_filename}.log",
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.ERROR
-)
-logging.info("Pyhost logging started successfully!")
+    API_Enabled = jmod.getvalue(key="api.autoboot", json_dir="settings.json", default=False, dt=app_settings)
+    if API_Enabled is True:
+        logging.info("API is Enabled. Starting.")
+        controller.initapi()
+    else:
+        logging.info("API is disabled.")
 
 if __name__ == '__main__': # This line ensures the script is being run directly and not imported
     app_settings_dir = os.path.abspath("settings.json")

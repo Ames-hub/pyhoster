@@ -24,6 +24,7 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - File Transfer Protocal with SSL (FTPS) built in and easily configurable with a user system!
 - Change the index file of a website easily
 - WARDEN, Our basic lockout system allows you to lock out users from a specific webpage (or all webpages) with a password!
+- Optionally running API to control what happens in pyhost externally
 - link a website's content to any folder in your system
 - Make your changes, then update the website with a simple command
 - Built-in function to implement a custom "Page not found" page

@@ -245,16 +245,6 @@ class application:
                         config_data = json.load(config_file)
                     pid = config_data.get("pid")
 
-                    if pid is None:
-                        print(f"PID is not defined in config.json for {app}!")
-                        choice = input("Would you like to forcefully terminate? (y/n): ")
-                        if choice.lower() == "y":
-                            os.kill(pid, 9)
-                            # signal 9 == SIGKILL
-                        else:
-                            print("Skipping...")
-                            continue
-
                     # Terminate the web server process gracefully.
                     os.kill(pid, 2)
                     # signal 2 == CTRL + C
@@ -284,6 +274,37 @@ class application:
 
             # Sets all the JSON file's running key to False
             from .jmod import jmod
+
+            # Sets the API to not running
+            if jmod.getvalue("api.running", "settings.json", dt=app_settings):
+                try:
+                    os.kill(jmod.getvalue("api.pid", "settings.json", dt=app_settings), 2)
+                    os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 2)
+                except:
+                    try:
+                        os.kill(jmod.getvalue("api.pid", "settings.json", dt=app_settings), 9)
+                        os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 9)
+                    except:
+                        pass
+
+            jmod.setvalue(
+                key="api.running",
+                json_dir="settings.json",
+                value=False,
+                dt=app_settings
+            )
+            jmod.setvalue(
+                key="api.pid",
+                json_dir="settings.json",
+                value=None,
+                dt=app_settings
+            )
+            jmod.setvalue(
+                key="api.timeout_pid",
+                json_dir="settings.json",
+                value=None,
+                dt=app_settings
+            )
 
             print("Setting all instance configs to not running...")
             os.makedirs("instances", exist_ok=True)
@@ -431,6 +452,7 @@ class application:
                     "send 404 page": "Toggle if we send the default.html aka '404' page\nfor when an app has no index or good place to route to. BOOL",
                     "backups path": "Set the path to where backups are stored. TEXT",
                     "autobackup": "Toggle if we autobackup a snapshot of the app. BOOL",
+                    "api autoboot": "Toggle if the API Autoboot is enabled. BOOL",
                 }
 
                 def help_msg():
@@ -462,6 +484,8 @@ class application:
                         self.backups_path(is_interface=True)
                     elif cmd == "autobackup":
                         self.autobackup(is_interface=True)
+                    elif cmd == "api autoboot":
+                        self.api_enabled(is_interface=True)
 
         def do_autostart(self, state:bool=True, is_interface:bool=False):
             if is_interface:
@@ -554,3 +578,24 @@ class application:
             if is_interface:
                 print(f"Set backups path to \"{path}\"")
             logging.info(f"Set backups path to \"{path}\"")
+
+        def api_enabled(self, enabled=None, is_interface=False):
+            if is_interface or enabled==None:
+                while True:
+                    try:
+                        answer = input("Should we enable the API Autoboot? y/n : ").lower()
+                        assert answer == "y" or answer == "n"
+                    except:
+                        print("Invalid choice. 'y' or 'n' only")
+
+                    enabled = True if answer == "y" else False
+                    break
+            
+            jmod.setvalue(
+                key="api.autoboot",
+                json_dir=self.settings_dir,
+                value=enabled,
+                dt=app_settings
+            )
+            print("Turned off the API Autoboot." if enabled == False else "Turned on the API Autoboot.")
+            logging.info("Turned off the API Autoboot." if enabled == False else "Turned on the API Autoboot.")
