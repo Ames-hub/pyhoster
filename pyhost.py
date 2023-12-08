@@ -11,12 +11,13 @@ import os
 import shutil
 import time
 
-from library.API.Controller import controller
+from library.API.Controller import controller as apicontroller
 from library.application import application
 from library.data_tables import web_config_dt, app_settings
 from library.filetransfer import ftp
 from library.instance import instance
 from library.jmod import jmod
+from library.WebGUI.webgui import webcontroller
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)
@@ -167,9 +168,16 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     API_Enabled = jmod.getvalue(key="api.autoboot", json_dir="settings.json", default=False, dt=app_settings)
     if API_Enabled is True:
         logging.info("API is Enabled. Starting.")
-        controller.initapi()
+        apicontroller.initapi()
     else:
         logging.info("API is disabled.")
+
+    # Starts WebGUI thread if webgui is enabled
+    webgui_enabled = jmod.getvalue("webgui.autoboot", "settings.json", True, dt=app_settings)
+    if webgui_enabled is True:
+        webcontroller.run(silent_gui=-1) # It'll check in the function with -1
+    else:
+        logging.info("WebGUI is disabled.")
 
 if __name__ == '__main__': # This line ensures the script is being run directly and not imported
     app_settings_dir = os.path.abspath("settings.json")

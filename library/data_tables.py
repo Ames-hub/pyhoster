@@ -86,6 +86,7 @@ app_settings = {
         "autoboot": False,
         "port": 4040, # No need for a pin as it requires a pyhost_user's login
         "pid": None,
+        "silent": False,
     },
     "ftpLogToFile": True,
     "FTP_Enabled": False,

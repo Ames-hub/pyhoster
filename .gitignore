@@ -7,3 +7,4 @@ instances
 settings.json
 backups
 library/ssl
+library/WebGUI/config.json

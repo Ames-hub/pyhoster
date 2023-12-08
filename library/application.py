@@ -81,7 +81,7 @@ class application:
 
         from .instance import instance
         try:
-            while True:
+            while application.running is True:
                 if keybind_listen == True:
                     cmd: str = str(input("Enter a command: "))
                     text = cmd
@@ -293,6 +293,16 @@ class application:
                 value=False,
                 dt=app_settings
             )
+            # Kill the API process
+            try:
+                os.kill(jmod.getvalue("api.pid", "settings.json", dt=app_settings), 2)
+                os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 2)
+            except:
+                try:
+                    os.kill(jmod.getvalue("api.pid", "settings.json", dt=app_settings), 9)
+                    os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 9)
+                except:
+                    logging.info("Failed to kill API process. It may have already been killed.")
             jmod.setvalue(
                 key="api.pid",
                 json_dir="settings.json",
