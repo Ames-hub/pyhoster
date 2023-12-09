@@ -51,8 +51,6 @@ Ubuntu<br>
 Windows 11
 
 Tested Python Versions:
-- 3.10
-- 3.11
 - 3.12
 
 # Why do we exist?

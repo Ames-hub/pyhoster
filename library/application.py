@@ -4,6 +4,8 @@ from .filetransfer import ftp
 from .warden import warden
 from .jmod import jmod
 from .userman import userman
+from .API.Controller import controller as apicontroller
+from .WebGUI.webgui import webcontroller
 
 root_dir = os.getcwd()
 FTP_Enabled = bool(jmod.getvalue("FTP_Enabled", "settings.json", dt=app_settings, default=False))
@@ -159,6 +161,9 @@ class application:
                                 app_name = arguments[1]
                             except IndexError: # May not have an app name provided. Must prompt for it
                                 app_name = None
+                        else:
+                            enter_item = input("Enter the item you want to enter\n1. FTP\n2. Warden\n3. users\n4. API\n>>> ").lower()
+                            app_name = None
 
                         if enter_item == "ftp":
                             ftp.enter()
@@ -166,6 +171,17 @@ class application:
                             warden.enter(app_name)
                         elif enter_item == "users":
                             userman.enter()
+                        elif enter_item == "api":
+                            apicontroller.enter()
+                    elif cmd == "api":
+                        apicontroller.enter()
+                    elif cmd == "gui":
+                        print("Opening the web GUI...")
+                        os.system("start http://localhost:4040")
+                    elif cmd == "webgui":
+                        webcontroller.enter()
+                    elif cmd == "warden":
+                        warden.enter(app_name)
                     elif cmd == "restart":
                         if has_args == False:
                             instance.restart(is_interface=True)
@@ -204,6 +220,9 @@ class application:
                         help_msg()
                     elif cmd == "cls":
                         print("Hello, if you see this message, that means clearing the console is not supported in your terminal (such as pufferpanel terminal).")
+                        print("So as a solution, we printed 100 lines of nothing to make it look like we cleared the console. :)")
+                        for i in range(100):
+                            print("\n")
                         os.system("cls" if os.name == "nt" else "clear")
                     elif cmd == "":
                         pass # Idk why, but it takes 1 press of enter to have the message appear. weird

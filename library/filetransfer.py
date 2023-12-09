@@ -53,7 +53,7 @@ class ftp:
         )
         if not bypass_enabled:
             if not FTP_Enabled:
-                print("--FTP ACTIVATION WAS ATTEMPTED, BUT WAS CANCELLED AS IT IS DISABLED--", flush=True)
+                print("<--FTP ACTIVATION WAS ATTEMPTED, BUT WAS CANCELLED AS IT IS DISABLED-->", flush=True)
                 return
             
         # mark self as online
@@ -239,7 +239,7 @@ class ftp:
                 dt=app_settings
             )
         server = ThreadedFTPServer(("localhost", server_port), handler)
-        print(f"--FILE TRANSFER PROTOCAL {"SECURED" if use_ssl else ""} RUNNING ON \"localhost:{server_port}\" WITH {len(user_list)} USERS--", flush=True)
+        print(f"<--FILE TRANSFER PROTOCAL {"SECURED" if use_ssl else ""} RUNNING ON \"localhost:{server_port}\" WITH {len(user_list)} USERS-->", flush=True)
 
         counter = 0
         try:
@@ -369,6 +369,7 @@ class ftp:
                 print("anonlogin: Toggle anonymous login on/off.")
                 print("RPassword: Changes the root password.")
                 print("root: Displays the root user's connection details.")
+                print("port: Changes the port the FTP server runs on.")
                 print("list: Lists all users.")
                 print("add: Adds a user.")
                 print("remove: Removes a user.")
@@ -392,6 +393,8 @@ class ftp:
                 userman.add_user()
             elif command == "remove":
                 userman.remove_user()
+            elif command == "port":
+                ftp.change_port()
             elif command == "edit":
                 print("This command is not yet implemented.")
                 # ftp.edit_user()

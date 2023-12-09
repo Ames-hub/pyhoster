@@ -1,7 +1,8 @@
 import os, json, logging, sys, datetime, socketserver, http.server
+import webbrowser
 from ..jmod import jmod
 from ..data_tables import app_settings, web_config_dt
-from ..application import root_dir
+root_dir = os.getcwd()
 setting_dir = "settings.json"
 import multiprocessing
 
@@ -319,3 +320,74 @@ class webcontroller:
             if not silent:
                 print(f"WebGUI failed to start: {e}\nIs there already something running on port {port}?")
             log_message(f"WebGUI failed to start: {e}\nIs there already something running on port {port}?")
+    
+    def stopgui():
+        # Get the PID of the WebGUI
+        webgui_pid = jmod.getvalue(
+            key="webgui.pid",
+            json_dir=setting_dir,
+            default=-1,
+            dt=app_settings
+        )
+
+        # If the WebGUI is not running, return False
+        if webgui_pid == -1:
+            return False
+
+        # Kill the WebGUI process
+        try:
+            os.kill(webgui_pid, 2)
+        except:
+            try:
+                os.kill(webgui_pid, 9)
+            except:
+                return False
+        logging.info(f"WebGUI has been stopped.")
+        return True
+    
+    def is_running():
+        # Get the running status of the WebGUI
+        return jmod.getvalue(
+            key="pid",
+            json_dir=setting_dir,
+            default=False,
+            dt=web_config_dt
+        ) != None
+    
+    def status(interface:bool):
+        # Get the running status of the WebGUI
+        running = webcontroller.is_running()
+        if not interface:
+            if running is False:
+                print("The WebGUI is not running.")
+                return
+            else:
+                print("The WebGUI is running.")
+
+        port = jmod.getvalue(
+            key="port",
+            json_dir=setting_dir,
+            default=4040,
+            dt=web_config_dt
+        )
+        if interface: print(f"The WebGUI Is bound to Port {port}")
+        return {"running": running, "port": port}
+    
+    def enter():
+        # Get the port of the WebGUI
+        port = jmod.getvalue(
+            key="port",
+            json_dir=setting_dir,
+            default=4040,
+            dt=web_config_dt
+        )
+
+    def open_gui():
+        # Get the port of the WebGUI
+        port = jmod.getvalue(
+            key="port",
+            json_dir=setting_dir,
+            default=4040,
+            dt=web_config_dt
+        )
+        webbrowser.open(f"http://localhost:{port}", 2)

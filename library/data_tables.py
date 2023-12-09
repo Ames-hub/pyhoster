@@ -1,4 +1,6 @@
 import random
+import random
+import string
 web_config_dt = {
     "name": "defaultname", # Name of the app. Identifier
     "description": None,
@@ -53,18 +55,10 @@ wsgi_config_dt = {
     "last_updated": None,
 }
 
-# Generates a random password for the Root FTP user using cryptography
 def generate_root_password():
-    from cryptography.fernet import Fernet
-    import base64
-    key = Fernet.generate_key()
-    f = Fernet(key)
-    password = f.encrypt(b"password")
-    password = base64.urlsafe_b64encode(password)
-    password = password.decode("utf-8")
-    del Fernet # Save memory.
-    del base64 # Idk if it actually does anything other than make the variable inaccessible
-    return password[0:16] # 16 is the max length of a password
+    characters = string.ascii_letters + string.digits + string.punctuation
+    password = ''.join(random.choice(characters) for _ in range(16))
+    return password
     
 
 app_settings = {

@@ -155,20 +155,36 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
             target=ftp.start,
             args=(None, None, None, ssl_enabled),
         ) # Certfile and private keyfile being none just gets it to generate a self-signed certificate
-        FTP_Thread.start()
-        jmod.setvalue(
-            key="ftppid",
-            json_dir="settings.json",
-            value=FTP_Thread.pid,
-            dt=app_settings
-        )
+        try:
+            FTP_Thread.start()
+            jmod.setvalue(
+                key="ftppid",
+                json_dir="settings.json",
+                value=FTP_Thread.pid,
+                dt=app_settings
+            )
+        except OSError as err:
+            if err.errno == 13:
+                port = jmod.getvalue("FtpPort", "settings.json", 789, dt=app_settings)
+                print(f"Port {port} is already taken! Can't start FTP server.")
+                logging.error("Port 789 is already taken! Can't start FTP server.")
     else:
         logging.info("FTP server is disabled.")
 
     API_Enabled = jmod.getvalue(key="api.autoboot", json_dir="settings.json", default=False, dt=app_settings)
     if API_Enabled is True:
         logging.info("API is Enabled. Starting.")
-        apicontroller.initapi()
+        try:
+            apicontroller.initapi()
+        except OSError as err:
+            if err.errno == 13:
+                port = jmod.getvalue("api.port", "settings.json", 987, dt=app_settings)
+                logging.error(f"Port {port} is already taken! Can't start API.")
+                print(f"Port {port} is already taken! Can't start API.")
+                exit()
+            else:
+                print("An unknown error occurred while starting the API. Please check the logs for more info.")
+                logging.error("An unknown error occurred while starting the API.")
     else:
         logging.info("API is disabled.")
 
