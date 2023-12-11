@@ -12,6 +12,7 @@ body {
     background-color: #272727;
     color: #e2e2e2;
     border-right: 1px solid #ffffff;
+    overflow: auto;
 }
 #business_logo {
     position: relative;
