@@ -1,5 +1,6 @@
 # The following code is an API built with Flask for PyHost.
 from flask import request
+import os
 import logging, multiprocessing, flask
 from library.userman import userman
 from library.instance import instance
@@ -138,6 +139,23 @@ def get_status():
         f"API/Remote user {data['username']} requested to get status of app \"{app_name}\". Complying..."
     )
     return status, 200
+
+@app.route("/instances/getall", methods=['POST'])
+@prechecks
+def get_all():
+    '''Returns all status's for all apps'''
+    # Gets the data from the POST request
+    data = dict(request.get_json())
+    print(f"API/Remote user {data['username']} requested to get status of all apps. Complying...")
+    status_dict = {}
+    for app in os.listdir('instances/'):
+        status = instance.get_status(app)
+        status_dict[app] = status
+
+    logging.info(
+        f"API/Remote user {data['username']} requested to get status of all apps. Complying..."
+    )
+    return status_dict, 200
 
 # TODO: Test if these work
 @app.route('/warden/setstatus', methods=['POST'])
