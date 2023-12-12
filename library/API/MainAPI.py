@@ -94,7 +94,7 @@ def stop_app():
         return 'Please provide an app_name in the POST data', 400
 
     apiprint(f"API/Remote user {data['username']} requested to stop app \"{app_name}\". Complying...")
-    instance.stop(app_name)
+    instance.stop(app_name, False)
     logging.info(
         f"API/Remote user {data['username']} requested to stop app \"{app_name}\". Complying..."
     )

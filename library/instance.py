@@ -763,7 +763,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         # Stops the app
         instance.stop(app_name)
 
-    def stop(app_name):
+    def stop(app_name, is_interface=True):
         try:
             # Get the process ID (PID) of the running web server for the specified app
             config_path = os.path.abspath(f"instances/{app_name}/config.json")
@@ -798,7 +798,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     dt=web_config_dt
                 )
 
-                print(f"Server \"{app_name}\" has been stopped.")
+                if is_interface: print(f"Server \"{app_name}\" has been stopped.")
                 logging.info(f"Server \"{app_name}\" has been stopped.")
         except FileNotFoundError as e:
             print(f"Server \"{app_name}\" is not an existant app!")
