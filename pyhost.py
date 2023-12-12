@@ -137,7 +137,7 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     # Makes an init backup for every app which has its boundpath == content path.
     # This is because auto-backups often only happen if they intentionally update the app
     # which does not always happen if the boundpath is equal to the content path
-    # (as the 'update' command is useless in that case)
+    # (as the 'update' command is half-useless in that case)
 
     do_autobackup = jmod.getvalue(key="do_autobackup", json_dir="settings.json", default=True, dt=app_settings)
     if do_autobackup:

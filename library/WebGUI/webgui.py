@@ -6,6 +6,17 @@ root_dir = os.getcwd()
 setting_dir = "settings.json"
 import multiprocessing
 
+colours = {
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "purple": "\033[35m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "reset": "\033[0m"
+}
+
 class webcontroller:
     def run(silent_gui=True):
         if silent_gui == -1:
@@ -348,7 +359,7 @@ class webcontroller:
     def is_running():
         # Get the running status of the WebGUI
         return jmod.getvalue(
-            key="pid",
+            key="webgui.pid",
             json_dir=setting_dir,
             default=False,
             dt=web_config_dt
@@ -376,18 +387,49 @@ class webcontroller:
     def enter():
         # Get the port of the WebGUI
         port = jmod.getvalue(
-            key="port",
+            key="webgui.port",
             json_dir=setting_dir,
             default=4040,
             dt=web_config_dt
         )
+        hostname = jmod.getvalue(
+            key="webgui.hostname",
+            json_dir=setting_dir,
+            default="localhost",
+            dt=web_config_dt
+        )
+        running = webcontroller.is_running()
+
+        while True: # Retry logic
+            try:
+                print("\n<--Pyhost WebGUI Interface. Type EXIT to exit. -->")
+                print(f"WebGUI is running at http://{hostname}:{port}" if running else f"WebGUI is not running but set for port {port}.")
+                print("Enter 'help' to see a list of commands.")
+                cmd = input(f"{colours['red' if not running else 'green']}webgui{colours['reset']}> ").lower()
+                if cmd == "exit":
+                    break
+                elif cmd == "help":
+                    webcontroller.help_msg()
+            except AssertionError as err:
+                print(str(err))
+            
+        return True
+
+    def help_msg():
+        print("<!----WebGUI Help---->")
+        print("help - Shows this message")
+        print("exit - Exits the WebGUI Command Line Interface")
+        print("start - Starts the WebGUI")
+        input("Press enter to continue or enter any text...")
+
 
     def open_gui():
         # Get the port of the WebGUI
         port = jmod.getvalue(
-            key="port",
+            key="webgui.port",
             json_dir=setting_dir,
             default=4040,
             dt=web_config_dt
         )
+        # Assume LocalHost as this function can't open a remote GUI on a different machine.
         webbrowser.open(f"http://localhost:{port}", 2)
