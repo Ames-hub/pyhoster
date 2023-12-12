@@ -75,6 +75,7 @@ app_settings = {
         "port": 987,
         "pid": None,
         "timeout_pid": None,
+        "actionprint": False, # This prints all API actions to the console while active. Useful for debugging
     },
     "webgui": {
         "autoboot": False,

@@ -1,18 +1,53 @@
 #apps_bar {
     position: relative;
     background-color: #272727;
-    top: 10px;
     color: white;
-
-    text-align: center;
-
     width: 90%;
-    height: 10%;
-    /* Centers div on the X Axis */
-    margin-left: auto;
-    margin-right: auto;
-
+    margin-left: 10px;
+    margin-top: 15px;
     padding: 20px;
     border-radius: 20px;
     border: 5px solid #444444;
+    overflow: auto;
+    max-height: 335px;
+}
+
+.app {
+    /* Adds 20px of space between each app */
+    position: relative;
+    margin-bottom: 20px;
+    background-color: #444444;
+    width: 90%;
+    height: 70px;
+    padding: 5px;
+    border-radius: 20px;
+}
+.app:hover {
+    background-color: #555555;
+}
+.appicon {
+    position: absolute;
+    top: 15%;
+    left: 2%;
+    height: 50px;
+    width: 100px;
+    /* Sets background image to PyhostLogo.png in the local directory */
+    background-image: url("PyhostLogo.png");
+}
+.appbuttons {
+    max-width: fit-content;
+    position: relative;
+    margin: 10px;
+    z-index: 5; /* Makes it so that it won't be overlayed*/
+    
+    left: 101%;
+    display: flex;
+    flex-direction: column;
+}
+.appname {
+    position: absolute;
+    right: 5%;
+    text-align: right;
+    z-index: 4;
+    top: 0px;
 }

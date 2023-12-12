@@ -111,7 +111,7 @@ class controller:
     def status(interface:bool):
         apirunning = controller.is_running()
         
-        if not interface:
+        if interface:
             if apirunning is False:
                 print("The API is not running.")
                 return
@@ -127,22 +127,158 @@ class controller:
         '''
         CLI to interact with the API.
         '''
-
-        status = controller.status(interface=True) # print the status of the API
-
+        os.system("cls" if os.name == "nt" else "clear")
         while True:
-            command = input(f"{colours['red' if status['running'] is True else 'green']}api{colours['white']}> ")
+            print("<--PYHOST API COMMAND LINE INTERFACE-->")
+            print("Type 'exit' to exit the CLI. Type 'help' for help")
+            status = controller.status(interface=False) # print the status of the API
+            print(f"The API Is Running and Bound to port {status['port']}" if status['running'] else f"\
+The API is not running but is set for port {status['port']}.")
+
+            command = input(f"{colours['red' if status['running'] is False else 'green']}api{colours['white']}> ")
             if command == "stop":
                 controller.stopapi()
                 continue
             elif command == "start":
+                print("Starting the API...")
                 multiprocessing.Process(target=controller.initapi, args=()).start()
+                time.sleep(1)
                 continue
             elif command == "exit":
                 return
+            elif command == "help":
+                controller.help_msg()
+                continue
+            elif command == "port":
+                controller.change_port()
+                continue
+            elif command == "autoboot":
+                controller.autoboot()
+                continue
+            elif command == "actions":
+                controller.actionprint()
+                continue
+            elif command == "viewlogs":
+                controller.viewlogs()
+                continue
             elif command == "cls":
                 os.system("cls" if os.name == "nt" else "clear")
                 continue
             else:
-                print("Invalid Command.")
+                print("Invalid Command.\n")
                 continue
+
+    def help_msg():
+        '''
+        Prints the help message for the API CLI.
+        '''
+        print("stop - Stops the API.")
+        print("start - Starts the API.")
+        print("port - Changes the port the API is bound to.")
+        print("autoboot - Sets the API to start on boot.")
+        print("actions - Choose if the API should log or print actions.")
+        print("viewlogs - View the API logs.")
+        print("cls - Clears the screen.")
+        print("exit - Exits the CLI.")
+        input("Press Enter to continue.\n")
+
+    def viewlogs():
+        print(f"{colours['yellow']}You are currently viewing logs for the API.\nPress CTRL+C or Enter to exit.{colours['white']}\n")
+        controller.actionprint(mode=True, is_interface=False) # Allows the API actions to be printed
+        try:
+            input("")
+        except KeyboardInterrupt:
+            pass
+        finally:
+            print(colours["white"])
+            controller.actionprint(mode=False, is_interface=False)
+            return True
+
+    def actionprint(mode=True, is_interface=True) -> bool:
+        '''
+        Choose if the API should log actions.
+        '''
+        if is_interface:
+            while True:
+                print("Would you like to print API actions?")
+                mode = input("Y/N: ").lower()
+                if mode == "y":
+                    print(f"{colours['green']}The API will now print actions.{colours['white']}")
+                    mode = True
+                    break
+                elif mode == "n":
+                    print(f"{colours['red']}The API will not print actions.{colours['white']}")
+                    mode = False
+                    break
+                else:
+                    print("Invalid Input.\n")
+                    continue
+
+        jmod.setvalue(
+            key="api.actionprint",
+            json_dir="settings.json",
+            value=mode,
+            dt=app_settings
+        )
+        return True
+
+    def autoboot(is_interface=True, autoboot=True):
+        '''
+        Sets the API to start on boot.
+        '''
+        if is_interface:
+            while True:
+                print("Would you like to set the API to start on boot?")
+                autoboot = input("Y/N: ").lower()
+                if autoboot == "y":
+                    print(f"{colours['green']}The API will now start on boot.{colours['white']}")
+                    autoboot = True
+                    break
+                elif autoboot == "n":
+                    print(f"{colours['red']}The API will not start on boot.{colours['white']}")
+                    autoboot = False
+                    break
+                else:
+                    print("Invalid Input.\n")
+                    continue
+
+        jmod.setvalue(
+            key="api.autoboot",
+            json_dir="settings.json",
+            value=autoboot,
+            dt=app_settings
+        )
+
+    def change_port(port=4040, is_interface=True, print_success=True):
+        '''
+        Changes the port the API is bound to.
+        '''
+        if is_interface:
+            while True:
+                port = input("Enter the new port for the API: ")
+                if port.isdigit() is False:
+                    print("Please enter a valid port number.")
+                    continue
+                break
+        jmod.setvalue(
+            key="api.port",
+            json_dir="settings.json",
+            value=int(port),
+            dt=app_settings
+        )
+        if print_success: print(f"The API is now set to port {port}.")
+        if is_interface:
+            while True:
+                print("Would you like to restart the API to apply the change?")
+                restart = input("Y/N: ").lower()
+                if restart == "y":
+                    controller.stopapi()
+                    controller.initapi()
+                    break
+                elif restart == "n":
+                    break
+                else:
+                    print("Invalid Input.")
+                    continue
+
+        return True
