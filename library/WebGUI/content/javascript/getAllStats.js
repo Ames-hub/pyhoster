@@ -38,11 +38,19 @@ function getAllStats() {
                 app_child.querySelectorAll('input')[0].classList.add('appbuttons');
                 app_child.querySelectorAll('input')[1].classList.add('appbuttons');
 
+                if (item['warden'] === true) {
+                    // Adds an element with class name "warden_shield". From ther, Style.css does the job by adding a shield image to it.
+                    app_child.appendChild(document.createElement('div')).classList.add('warden_on');
+                }
+                else {
+                    app_child.appendChild(document.createElement('div')).classList.add('warden_off');
+                }
+
                 if (item['running'] === true) {
                     app_child.style.boxShadow = "-10px -10px 0px 0px green";
                 }
-                else if (item['running'] === false) {
-                    app_child.style.boxShadow = "-10px -10px 0px 0px green";
+                else {
+                    app_child.style.boxShadow = "-10px -10px 0px 0px red";
                 }
                 apps_bar.appendChild(app_child);
             }

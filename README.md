@@ -39,10 +39,10 @@ For full details, see the technical_notes/API.md file.
 
 # Compatibility
 This works on every OS as far as I know.<br>
-As long as the OS can run python3.11 or 3.12, it should be able to run this.<br>
+As long as the OS can run Python3.12, it should be able to run this.<br>
 There's nothing stopping it from doing so at least<br>
 
-Only exception is MacOS/OSX. I don't have a mac to test it on, but quite frankly you shouldn't be using a mac to host a website anyway.<br>
+Only exception is MacOS/OSX. I don't have a mac to test it on and I'm assuming Mac uses different OS commands and directories.<br>
 (However, just because its not tested on mac doesn't mean it won't work. Try it and lmk, worst you'll get is an error message.)
 
 So far I've tested it on<br>

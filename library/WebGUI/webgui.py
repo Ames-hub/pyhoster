@@ -57,10 +57,7 @@ class webcontroller:
                 web_config_dt["contentloc"] = "library/WebGUI/content/"
                 json.dump(web_config_dt, config_file, indent=4, separators=(',', ': '))
 
-        with open(config_path, 'r') as config_file:
-            config_data: dict = json.load(config_file)
-        port = config_data.get("port", 4040)
-
+        port = jmod.getvalue(key="webgui.port", json_dir=setting_dir, default=4040, dt=app_settings)
         if port is None:
             print(f"Port is not defined in config.json for WebGUI!")
             return False
@@ -76,50 +73,50 @@ class webcontroller:
             key="index",
             json_dir=config_path,
             default="index.html",
-            dt=config_data
+            dt=app_settings
         )
         notfoundpage_enabled = jmod.getvalue(
             key="404page_enabled",
             json_dir=config_path,
             default=False,
-            dt=config_data
+            dt=app_settings
         )
         allow_dir_listing = jmod.getvalue(
             key="dir_listing",
             json_dir=config_path,
             default=False,
-            dt=config_data
+            dt=app_settings
         )
         csp_directives = jmod.getvalue(
             key="csp_directives",
             json_dir=config_path,
             default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",
                     "style-src 'self';","img-src 'self';","font-src 'self'"],
-            dt=config_data
+            dt=app_settings
         )
         add_sec_heads = jmod.getvalue(
             key="do_securityheaders",
             json_dir=config_path,
             default=True,
-            dt=config_data
+            dt=app_settings
         )
         serve_default = jmod.getvalue(
             key="serve_default",
             json_dir=config_path,
             default=True,
-            dt=config_data
+            dt=app_settings
         )  
         notfoundpage = jmod.getvalue(
             key="404page",
             json_dir=config_path,
             default="404.html",
-            dt=config_data
+            dt=app_settings
             )
 
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
-                self.content_directory = config_data.get("contentloc")
+                self.content_directory = jmod.getvalue("contentloc", config_path, "library/WebGUI/content/", app_settings)
                 super().__init__(*args, directory=self.content_directory, **kwargs)
 
             if add_sec_heads:
@@ -299,17 +296,12 @@ class webcontroller:
                 log_file.write(f"{datetime.datetime.now()} - WebGUI - {message}\n")
 
         # Redirect stdout and stderr to /dev/null if silent is True
-        if silent:
-            sys.stdout = open(os.devnull, "w")
-            sys.stderr = open(os.devnull, "w")
+        sys.stdout = open(os.devnull, "w")
+        sys.stderr = open(os.devnull, "w")
 
         try:
             # Create a socket server with the custom handler
             with socketserver.TCPServer(("", port), CustomHandler) as httpd:
-                # Print a message to indicate the server has started unless silent is True
-                if not silent:
-                    print(f"WebGUI is running on port {port}. Check the logs for actions.\n"
-                        f"You can visit it on http://localhost:{port}")
 
                 log_message(f"WebGUI is running.")
                 # Get the PID of the current thread (web server)
@@ -376,7 +368,7 @@ class webcontroller:
                 print("The WebGUI is running.")
 
         port = jmod.getvalue(
-            key="port",
+            key="webgui.port",
             json_dir=setting_dir,
             default=4040,
             dt=web_config_dt
@@ -410,6 +402,7 @@ class webcontroller:
                     break
                 elif cmd == "help":
                     webcontroller.help_msg()
+                # TODO: Needs work. Can't interact with webgui at all without config file atm
             except AssertionError as err:
                 print(str(err))
             

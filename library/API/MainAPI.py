@@ -1,13 +1,20 @@
 # The following code is an API built with Flask for PyHost.
 from flask import request
 from ..data_tables import app_settings
-import os
+import os, datetime
 import logging, multiprocessing, flask
 from flask_cors import CORS
 from library.userman import userman
 from library.instance import instance
 from library.warden import warden
 from ..jmod import jmod
+import datetime
+
+logger = logging.getLogger("API")
+logger.setLevel(logging.INFO)
+# Puts all logs in logs/API/TODAY.log
+os.makedirs("logs/API/", exist_ok=True)
+handler = logging.FileHandler(f"logs/API/{datetime.datetime.now().strftime('%d-%m-%Y')}.log")
 
 app = flask.Flask(__name__)
 CORS(app, origins='*') #TODO: I'll improve this when I can give a damn
@@ -16,9 +23,9 @@ def apiprint(msg):
     actionprint = jmod.getvalue("api.actionprint", "settings.json", False, app_settings)
     if actionprint:
         print(msg)
-        logging.info(msg)
+        logger.info(msg)
     else:
-        logging.info(msg)
+        logger.info(msg)
 
 def prechecks(func):
     def wrapper(*args, **kwargs):
