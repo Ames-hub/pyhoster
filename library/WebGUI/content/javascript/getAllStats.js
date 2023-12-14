@@ -24,7 +24,7 @@ function getAllStats() {
                 app_child.querySelector('img').classList.add('appicon');
                 app_child.classList.add('app');
 
-                app_child.appendChild(document.createElement('h1')).innerHTML = key;
+                app_child.appendChild(document.createElement('h1')).innerHTML = `${key} | Port ${item['port']}`;
                 // Adds H1 to the ".appname" class for css
                 app_child.querySelector('h1').classList.add('appname');
 
@@ -44,6 +44,14 @@ function getAllStats() {
                 }
                 else {
                     app_child.appendChild(document.createElement('div')).classList.add('warden_off');
+                }
+
+                // Adds the autoboot stat indicator
+                if (item['autostart'] === true) {
+                    app_child.appendChild(document.createElement('div')).classList.add('autoboot_on');
+                }
+                else {
+                    app_child.appendChild(document.createElement('div')).classList.add('autoboot_off');
                 }
 
                 if (item['running'] === true) {

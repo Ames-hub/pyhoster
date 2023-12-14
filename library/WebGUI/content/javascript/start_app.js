@@ -22,7 +22,8 @@ function startInstance(appName) {
 
 document.addEventListener('click', function(event) {
     if (event.target.classList.contains('appbuttons') && event.target.value === 'START') {
-        const appName = event.target.parentNode.querySelector('h1').innerHTML;
+        // App names can't have spaces. So we split the app name by spaces and get the first word.
+        const appName = String(event.target.parentNode.querySelector('h1').innerHTML).split(' ')[0]; 
         startInstance(appName);
     }
 });

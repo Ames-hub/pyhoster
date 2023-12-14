@@ -22,7 +22,8 @@ function stopInstance(appName) {
 
 document.addEventListener('click', function(event) {
     if (event.target.classList.contains('appbuttons') && event.target.value === 'CLOSE') {
-        const appName = event.target.parentNode.querySelector('h1').innerHTML;
+        // Gets the app's name and Removes the suffix " | Port (something)" from the app name
+        const appName = String(event.target.parentNode.querySelector('h1').innerHTML).split(' ')[0]; 
         stopInstance(appName);
     }
 });
