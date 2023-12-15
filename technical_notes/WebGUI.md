@@ -9,3 +9,5 @@ Controlled using webgui.py which is imported by application.py and used in appli
 It is controlled mostly Like a normal webinstance. Only exception is that its more restricted from easy modification (aside from the websites look, which is modifiable via content directory)
 
 to interact, start pyhost and use command "webgui"
+
+Minimum supported resolution: 800x611 (for the webgui to look good, no squashing, etc.)

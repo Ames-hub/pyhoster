@@ -18,7 +18,27 @@ colours = {
 }
 
 class webcontroller:
-    def run(silent_gui=True):
+    def run(silent_gui=True, show_interface=True):
+        '''
+        Starts the WebGUI on a thread. This is the proper way to start the WebGUI.
+        
+        silent_gui = True will redirect stdout and stderr to /dev/null
+        show_interface = True will print the "WebGUI is now running on port {port}" message
+
+        if silent_gui is -1, it will use the value from settings.json
+
+        Returns -1 if the WebGUI is already running
+        '''
+        if webcontroller.is_running():
+            if show_interface:
+                print("The WebGUI is already running.")
+            return -1
+        
+        # Checks if the API is running
+        if not jmod.getvalue(key="api.running", json_dir=setting_dir, default=False, dt=app_settings):
+            print("The API is not running. Without the API, the website can't interact with PyHost. Please start it.")
+            logging.warning("The API is not running. Please start the API before starting the WebGUI.")
+
         if silent_gui == -1:
             silent_gui = jmod.getvalue(
                 key="webgui.silent",
@@ -42,6 +62,7 @@ class webcontroller:
 
     def startgui(silent=True):
         '''
+        Runs the webserver.
         If app_name is tuple/list, then it will use the first item as the config path and the second as the app name
         if app_name is str, it'll use the app_name as the app name and the config path will be instances/{app_name}/config.json
 
@@ -346,6 +367,14 @@ class webcontroller:
             except:
                 return False
         logging.info(f"WebGUI has been stopped.")
+
+        jmod.setvalue(
+            key="webgui.pid",
+            json_dir=setting_dir,
+            value=None,
+            dt=web_config_dt
+        )
+
         return True
     
     def is_running():
@@ -402,21 +431,124 @@ class webcontroller:
                     break
                 elif cmd == "help":
                     webcontroller.help_msg()
-                # TODO: Needs work. Can't interact with webgui at all without config file atm
+                elif cmd == "start":
+                    webcontroller.run()
+                elif cmd == "stop":
+                    webcontroller.stopgui()
+                elif cmd == "status":
+                    webcontroller.status(interface=True)
+                elif "port" in cmd: # uses "in" instead of == to allow for "set port", "setport", etc.
+                    port = input("Enter the port to set the WebGUI to: ")
+                    webcontroller.setport(port)
+                elif cmd == "hostname":
+                    webcontroller.sethostname()
+                elif cmd == "open":
+                    webcontroller.open_gui()
+                elif cmd == "autoboot":
+                    webcontroller.autoboot()
+                elif cmd == "cls":
+                    from ..application import application # Import here to prevent circular imports
+                    application.clear_console()
+                    del application
+                else:
+                    print("Unknown command")
             except AssertionError as err:
                 print(str(err))
             
         return True
 
     def help_msg():
-        print("<!----WebGUI Help---->")
+        print("<----WebGUI Help---->")
         print("help - Shows this message")
         print("exit - Exits the WebGUI Command Line Interface")
         print("start - Starts the WebGUI")
+        print("stop - Stops the WebGUI")
+        print("status - Shows the status of the WebGUI")
+        print("port - Sets the port of the WebGUI")
+        print("hostname - Sets the hostname of the WebGUI")
+        print("open - Opens the WebGUI in your default browser")
+        print("autoboot - Sets if the WebGUI to start on boot")
+        print("cls - Clears the screen")
+        print("<----End of Help---->")
+
         input("Press enter to continue or enter any text...")
 
+    def autoboot(do_autoboot=None, interface=True):
+        '''
+        Sets the WebGUI to start on boot
+        '''
+        if interface or do_autoboot == None:
+            while True:
+                do_autoboot = input("Do you want the WebGUI to start on boot? (Y/N): ").lower()
+                if do_autoboot == "y":
+                    do_autoboot = True
+                    break
+                elif do_autoboot == "n":
+                    do_autoboot = False
+                    break
+                else:
+                    print("Invalid input")
+
+        jmod.setvalue(
+            key="webgui.autoboot",
+            json_dir=setting_dir,
+            value=do_autoboot,
+            dt=web_config_dt
+        )
+        if interface: print(f"WebGUI autoboot has been set to {do_autoboot}")
+        logging.info(f"WebGUI autoboot has been set to {do_autoboot}")
+        return True
+
+    def setport(port=None, interface=True):
+        '''
+        Sets the port of the WebGUI
+        '''
+        if port == None:
+            from ..application import application # Import here to prevent circular imports
+            port = application.datareqs.get_port()
+            del application
+
+        jmod.setvalue(
+            key="webgui.port",
+            json_dir=setting_dir,
+            value=port,
+            dt=web_config_dt
+        )
+    
+        if interface: print(f"WebGUI port has been set to {port}")
+        logging.info(f"WebGUI port has been set to {port}")
+        return True
+    
+    def sethostname(hostname=None, interface=True):
+        '''
+        Sets the hostname of the WebGUI
+        '''
+        if hostname == None:
+            from ..application import application
+            hostname = application.datareqs.get_hostname()
+            del application
+        
+        if isinstance(hostname, str):
+            jmod.setvalue(
+                key="webgui.hostname",
+                json_dir=setting_dir,
+                value=hostname,
+                dt=web_config_dt
+            )
+
+            if interface: print(f"WebGUI hostname has been set to {hostname}")
+            logging.info(f"WebGUI hostname has been set to {hostname}")
+            return True
+        else:
+            if interface: print("Hostname must be a string!")
+            logging.error("User tried to set hostname, but Hostname must be a string! Entered value: "+str(hostname))
+            return False
 
     def open_gui():
+        '''
+        Opens the WebGUI in the default browser
+        '''
+        print("Opening WebGUI in your default browser...")
         # Get the port of the WebGUI
         port = jmod.getvalue(
             key="webgui.port",

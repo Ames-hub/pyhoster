@@ -163,7 +163,7 @@ class ftp:
         user_list = jmod.getvalue(
             key='pyhost_users',
             json_dir='settings.json',
-            default=[],
+            default={},
             dt=app_settings
         )
         for user in user_list:
@@ -255,6 +255,8 @@ class ftp:
                     # Only updates every 50 loop-throughs to save on resources for people with lots of users
                     if counter & 50 + int((len(user_list) // 2)) == 0:
                         pass
+
+                # TODO: Find a way to remove users not in user_list from the authorizer and add new users
 
                 # Marks users as not connected or connected
                 for user in user_list:

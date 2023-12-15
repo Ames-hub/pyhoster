@@ -65,7 +65,7 @@ function getAllStats() {
         }
     })
     .catch(error => {
-        alert("Error: " + error);
+        console.log("Error in GetAllStats.js: " + error);
     });
 }
 

@@ -72,6 +72,15 @@ class application:
                 print("rollback: Rollback to latest backup of an app or an earlier snapshot!")
                 print("help: Displays this message")
                 print("cls: Clears the screen\n")
+                print("enter: Enters an app's GUI")
+                print("ftp: Enters the FTP GUI")
+                print("warden: Enters the Warden GUI")
+                print("userman: Enters the User Management GUI")
+                print("api: Enters the API GUI")
+                print("gui: Opens the web GUI")
+                print("webgui: Enters the web GUI")
+                print("pyhost: Opens the settings menu\n")
+                print("create: Creates a new app")
 
                 print("webcreate: Creates a new website app")
                 print("`webcreate *<app_name> port:'80' desc:'a cool app' autostart:'True|False' boundpath:'C:/users/ME/desktop/myCoolWebsitesContent/'`")
@@ -177,7 +186,7 @@ class application:
                         apicontroller.enter()
                     elif cmd == "gui":
                         print("Opening the web GUI...")
-                        os.system("start http://localhost:4040")
+                        webcontroller.open_gui()
                     elif cmd == "webgui":
                         webcontroller.enter()
                     elif cmd == "warden":
@@ -219,11 +228,7 @@ class application:
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls":
-                        print("Hello, if you see this message, that means clearing the console is not supported in your terminal (such as pufferpanel terminal).")
-                        print("So as a solution, we printed 100 lines of nothing to make it look like we cleared the console. :)")
-                        for i in range(100):
-                            print("\n")
-                        os.system("cls" if os.name == "nt" else "clear")
+                        application.clear_console()
                     elif cmd == "":
                         pass # Idk why, but it takes 1 press of enter to have the message appear. weird
                     elif cmd == "pyhost" or cmd == "settings":
@@ -306,6 +311,7 @@ class application:
                     except:
                         pass
 
+            print("Stopping the API if it was running...")
             jmod.setvalue(
                 key="api.running",
                 json_dir="settings.json",
@@ -330,6 +336,16 @@ class application:
             )
             jmod.setvalue(
                 key="api.timeout_pid",
+                json_dir="settings.json",
+                value=None,
+                dt=app_settings
+            )
+
+            print("Stopping WebGUI if it was running...")
+            # Kill the WebGUI process
+            webcontroller.stopgui()
+            jmod.setvalue(
+                key="webgui.pid",
                 json_dir="settings.json",
                 value=None,
                 dt=app_settings
@@ -366,6 +382,12 @@ class application:
             print("Exiting...")
             exit()
 
+    def clear_console():
+        print("Hello, if you see this message, that means clearing the console is not supported in your terminal (such as pufferpanel terminal).")
+        print("So as a solution, we printed 100 lines of nothing to make it look like we cleared the console. :)")
+        for i in range(100):
+            print("\n")
+        os.system("cls" if os.name == "nt" else "clear")
     class datareqs:
         def get_name():
             '''Get the name for an app. Returns the name of the app.'''
@@ -462,6 +484,26 @@ class application:
                     continue
             return boundpath
 
+        def get_hostname():
+            while True:
+                try:
+                    hostname: str = str(input("What is the hostname of the app? TEXT (blank for localhost) : "))
+                    if hostname.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    elif hostname == "":
+                        hostname = "localhost"
+
+                    assert "." in hostname, "The hostname must contain a period!"
+                    assert hostname != "", "The hostname cannot be blank!"
+                    assert all(c.isalnum() or c == "." for c in hostname), "The hostname must only contain letters, numbers, and periods!"
+                    assert not hostname.startswith("."), "The hostname cannot start with a period!"
+                    break
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+            
+            return hostname
     class types:
         def webpage():
             return "WEBPAGE"

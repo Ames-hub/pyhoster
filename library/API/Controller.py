@@ -26,6 +26,7 @@ class controller:
         logging.info(f"Starting PyHost API on port {port}")
         print(f"<--PyHost API is Online running on port {port} and awaiting requests-->")
         waitress.serve(app, host='0.0.0.0', port=port)
+        time.sleep(0.5) # Prevent the above print from being put on the "enter command" input line
 
     def timeout_login(interval_min=1):
         '''

@@ -10,14 +10,8 @@ import multiprocessing
 import os
 import shutil
 import time
-
-from library.API.Controller import controller as apicontroller
-from library.application import application
-from library.data_tables import web_config_dt, app_settings
-from library.filetransfer import ftp
-from library.instance import instance
 from library.jmod import jmod
-from library.WebGUI.webgui import webcontroller
+from library.data_tables import web_config_dt, app_settings
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)
@@ -40,6 +34,8 @@ logging.basicConfig(
 logging.info("Pyhost logging started successfully!")
 
 if __name__ == "__main__": # Checks if the user is running the app for the first time
+    from library.application import application
+    application.clear_console()
     # Checks if settings.json exists
     if os.path.exists("settings.json") is False:
         import json # Import here so that it never imports unless needed, freeing up memory.
@@ -97,6 +93,13 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
             value=False,
             dt=app_settings
         )
+
+# Only load these here to prevent a [WinError 3] error
+from library.API.Controller import controller as apicontroller
+from library.application import application
+from library.filetransfer import ftp
+from library.instance import instance
+from library.WebGUI.webgui import webcontroller
 
 def auto_backup():
     # Gets all apps

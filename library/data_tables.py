@@ -28,7 +28,6 @@ web_config_dt = {
     },
 }
 
-# TODO Implement the "locked out" thing everywhere
 new_user = {
     "username": None,
     "password": None,
