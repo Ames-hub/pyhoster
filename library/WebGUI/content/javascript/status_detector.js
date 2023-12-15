@@ -34,7 +34,7 @@ function updateStatus(status_bar, status_text) {
     });
 }
 
-let delay = 3000;
+let delay = 5000;
 updateStatus(status_bar, status_text);
 setInterval(function() {
     if (!updateStatus(status_bar, status_text)) {
