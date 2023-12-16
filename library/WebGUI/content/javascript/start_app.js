@@ -6,8 +6,7 @@ function startInstance(appName) {
         },
         body: JSON.stringify({
             app_name: appName,
-            username: 'Ame',
-            password: 'HellWillFearMyWrath'
+            token: document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1]
         })
     })
     .then(response => response.json())

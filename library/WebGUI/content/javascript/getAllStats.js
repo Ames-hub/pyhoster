@@ -5,13 +5,13 @@ function getAllStats() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            username: 'Ame', // It's a debug username until we get the login system working.
-            password: 'HellWillFearMyWrath'
+            token: document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1]
         })
     })
     .then(response => response.json())
     .then(data => {
-        
+        // Clear the apps_bar for each cycle through
+        apps_bar.innerHTML = '';
         // Iterate through the properties of the object
         for (let key in data) {
             if (data.hasOwnProperty(key)) {
@@ -70,4 +70,70 @@ function getAllStats() {
 }
 
 getAllStats(); // Run initially
-// setInterval(getAllStats, 10000);
+setInterval(getAllStats, 5000);
+
+let autoboot_on = document.querySelectorAll('.autoboot_on');
+
+for (let i = 0; i < autoboot_on.length; i++) {
+    autoboot_on[i].addEventListener('click', function() {
+        // Gets session token cookie
+        sessiontoken = document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1];
+        
+        fetch('http://localhost:987/instances/autoboot', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                token: sessiontoken,
+                app_name: this.parentNode.querySelector('h1').innerHTML.split(' | ')[0],
+                status: false
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data['status'] === 200) {
+                this.classList.remove('autoboot_on');
+                this.classList.add('autoboot_off');
+            }
+            else {
+                console.log(data);
+                alert("Something went wrong setting the autoboot. Check the console for more details.");
+            }
+        });
+    }
+    );
+}
+
+let autoboot_off = document.querySelectorAll('.autoboot_off');
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    for (let i = 0; i < autoboot_off.length; i++) {
+    autoboot_off[i].addEventListener('click', function() {
+        fetch('http://localhost:987/instances/autoboot', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: 'Ame', // It's a debug username until we get the login system working.
+                password: 'HellWillFearMyWrath',
+                app_name: this.parentNode.querySelector('h1').innerHTML.split(' | ')[0],
+                status: true
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data['status'] === 200) {
+                this.classList.remove('autoboot_off');
+                this.classList.add('autoboot_on');
+            }
+            else {
+                console.log(data);
+                alert("Something went wrong setting the autoboot. Check the console for more details.");
+            }
+        });
+    }
+    );
+}
+});

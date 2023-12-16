@@ -379,12 +379,16 @@ class webcontroller:
     
     def is_running():
         # Get the running status of the WebGUI
-        return jmod.getvalue(
+        pid = jmod.getvalue(
             key="webgui.pid",
             json_dir=setting_dir,
-            default=False,
+            default=None,
             dt=web_config_dt
-        ) != None
+        )
+        if pid is None:
+            return False
+        else:
+            return True
     
     def status(interface:bool):
         # Get the running status of the WebGUI
@@ -406,22 +410,22 @@ class webcontroller:
         return {"running": running, "port": port}
     
     def enter():
-        # Get the port of the WebGUI
-        port = jmod.getvalue(
-            key="webgui.port",
-            json_dir=setting_dir,
-            default=4040,
-            dt=web_config_dt
-        )
-        hostname = jmod.getvalue(
-            key="webgui.hostname",
-            json_dir=setting_dir,
-            default="localhost",
-            dt=web_config_dt
-        )
-        running = webcontroller.is_running()
-
         while True: # Retry logic
+            # Get the port of the WebGUI
+            port = jmod.getvalue(
+                key="webgui.port",
+                json_dir=setting_dir,
+                default=4040,
+                dt=web_config_dt
+            )
+            hostname = jmod.getvalue(
+                key="webgui.hostname",
+                json_dir=setting_dir,
+                default="localhost",
+                dt=web_config_dt
+            )
+            running = webcontroller.is_running()
+            
             try:
                 print("\n<--Pyhost WebGUI Interface. Type EXIT to exit. -->")
                 print(f"WebGUI is running at http://{hostname}:{port}" if running else f"WebGUI is not running but set for port {port}.")

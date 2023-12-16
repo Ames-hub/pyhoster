@@ -68,6 +68,7 @@ app_settings = {
     "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
     "ssl_enabled": True,
     "api": {
+        "tokenManPid": None,
         "running": False,
         "autoboot": False,
         "app_dir": "library.API.MainAPI",

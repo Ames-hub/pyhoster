@@ -311,6 +311,22 @@ class application:
                     except:
                         pass
 
+            print("Stopping Token manager...")
+            tokenManPid = jmod.getvalue(
+                key="api.tokenManPid",
+                json_dir="settings.json",
+                dt=app_settings,
+                default=None
+            ) 
+            if tokenManPid != None:
+                try:
+                    os.kill(tokenManPid, 2)
+                except:
+                    try:
+                        os.kill(tokenManPid, 9)
+                    except:
+                        pass
+
             print("Stopping the API if it was running...")
             jmod.setvalue(
                 key="api.running",

@@ -27,9 +27,13 @@
             <a id="nav_settings" href="x.html" class="nav-link">Settings</a>
         </nav>
     </sidebar>
-    <div id="form">
-
-    </div>
     <script src="javascript/login.js"></script>
+    <!-- Makes a form, which when submitted, runs the function "login" in login.js -->
+    <form id="login_form" onsubmit="event.preventDefault(); login()">
+        <h1 id="login_title">Login</h1>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <input type="submit" id="login_button" value="Login">
+    </form>
     <script src="javascript/status_detector.js"></script>
 </body>

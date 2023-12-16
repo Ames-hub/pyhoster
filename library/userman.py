@@ -1,6 +1,7 @@
 import os
 from .jmod import jmod
-import secrets, datetime
+import uuid, datetime, multiprocessing
+import logging
 from .data_tables import new_user, app_settings
 
 colours = {
@@ -16,6 +17,32 @@ colours = {
 }
 
 valid_sessions = {}
+
+# Manages the valid sessions
+def token_manager():
+    try:
+        while True:
+            for session in valid_sessions:
+                # Deletes the session if it is older than 12 hours
+                # TODO: Make timeout configurable
+                if datetime.datetime.now().date() - valid_sessions[session][0] >= datetime.timedelta(hours=12):
+                    del valid_sessions[session]
+    except KeyboardInterrupt:
+        return True
+
+if __name__ == "__main__":
+    token_man = multiprocessing.Process(
+        target=token_manager,
+        args=()
+    )
+    jmod.setvalue(
+        key='api.tokenManPid',
+        value=token_man.pid,
+        json_dir='settings.json',
+        dt=app_settings
+    )
+    token_man.start()
+    logging.info("Token manager has started.")
 
 class userman:
     def enter():
@@ -422,6 +449,70 @@ class userman:
         else:
             return dict(user).get('locked', True)
 
+    class user():
+        def __init__(self, username) -> None:
+            if userman.check_exists(username):
+                self.username = username
+            else:
+                raise userman.errors.UserDoesNotExist(f"User \"{username}\" does not exist.")
+
+        def get_password(self):
+            '''
+            This function is used to get a user's password.
+            '''
+            # Load settings from a JSON file
+            UserList = jmod.getvalue(
+                key='pyhost_users',
+                json_dir='settings.json',
+                default={},
+                dt=app_settings
+            )
+
+            # Get the password
+            for user in UserList:
+                if user == self.username:
+                    return UserList[user]['password']
+            return False
+
+        def set_password(self, password):
+            '''
+            This function is used to set a user's password.
+            '''
+            # Save the list to a JSON file
+            return jmod.setvalue(
+                key=f'pyhost_users.{self.username}.password',
+                value=password,
+                json_dir='settings.json',
+                dt=app_settings
+            )
+
+        def lock(self):
+            return userman.lock(self.username)
+
+        def unlock(self):
+            return userman.unlock(self.username)
+        
+        def is_locked(self):
+            return userman.is_locked(self.username)
+        
+        def get_ftp_dirs(self):
+            '''
+            This function is used to get a user's FTP directories.
+            '''
+            # Load settings from a JSON file
+            UserList = jmod.getvalue(
+                key='pyhost_users',
+                json_dir='settings.json',
+                default={},
+                dt=app_settings
+            )
+
+            # Get the ftp_dirs
+            for user in UserList:
+                if user == self.username:
+                    return UserList[user]['ftp_dirs']
+            return False
+        
     class errors:
         # Using this class so I can catch specific things without returning strings 
         class UserDoesNotExist(Exception):
@@ -439,24 +530,73 @@ class userman:
                 super().__init__("User is locked out.")
 
     class session():
-        def __init__(self, username, password) -> None:
+        '''
+        This class is used to manage sessions.
+        Returns -1 if the user does not exist.
+        Returns -2 if the user is locked.
+
+        Returns a session ID if successful.
+        '''
+        def __init__(self, username, password, IP_Address=None) -> None:
             self.username = username
             self.password = password
             
-            if userman.check_exists(username) is False:
-                return -1
-            elif userman.is_locked(username):
-                return -2
-                
-            self.session_id = self.make_token()
+            nulls = [None, "", " "]
 
-        def make_token(self):
+            if username in nulls or password in nulls:
+                self.htmlstatus = 401
+
+            # Checks if the user already has a session
+            for session in valid_sessions:
+                if valid_sessions[session]['username'] == username:
+                    self.htmlstatus = 200
+                    self.token = session
+                    return
+
+            try:
+                self.htmlstatus = 200
+                if userman.check_exists(username) is False:
+                    self.htmlstatus = 401
+                else:
+                    if not userman.user(username).get_password() == password:
+                        self.htmlstatus = 403
+
+                if userman.is_locked(username):
+                    self.htmlstatus = 423
+            except userman.errors.UserDoesNotExist:
+                self.htmlstatus = 401
+
+            if self.htmlstatus == 200:
+                self.token = self.make_token(IP=IP_Address)
+            else:
+                self.token = None
+
+        def get_user(token):
             '''
-            This function is used to generate a session token. Uses the secrets module. (32 characters long)
+            This function is used to get the user from a session token.
             '''
-            token = secrets.token_hex(32)
-            valid_sessions[token] = [datetime.datetime.now().date()]
+            if token in valid_sessions.keys():
+                return valid_sessions[token]['username']
+            else:
+                return None
+
+        def make_token(self, IP):
+            '''
+            This function is used to generate a session token.
+            '''
+            token = uuid.uuid4().hex
+            valid_sessions[token] = {
+                "start": datetime.datetime.now().date(),
+                "username": self.username,
+                "IP_Address": IP
+                }
             return token
+        
+        def validate_session(session):
+            '''
+            This function is used to validate a session.
+            '''
+            return session in valid_sessions.keys()
 
     class api:
         def login(username:str, password:str) -> bool:

@@ -8,14 +8,11 @@ function updateStatus(status_bar, status_text) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            "username": "Ame",
-            "password": "HellWillFearMyWrath"  
+            token: document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1]
         })
     })
     .then(response => response.text()) // convert response to text
     .then(data => {
-        console.log(data)
-        console.log(data == "Pong!")
         if (data == "Pong!") {
             status_bar.style.backgroundColor = "green";
             status_text.innerHTML = "Online";

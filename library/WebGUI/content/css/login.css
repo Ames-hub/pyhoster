@@ -1,0 +1,29 @@
+body {
+    background-color: #272727;
+}
+
+#login_form {
+    /* Centers div using flex */
+    background-color: gray;
+    border-radius: 20px;
+    width: 50%;
+    height: 500px;
+
+    position: relative;
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    min-width: fit-content;
+    padding: 10px;
+    text-align: center;
+
+    left: 2%;
+    top: 20px;
+
+    /* Sets a nice gradient from bottom to top */
+    background: rgb(2,0,36);
+    background: linear-gradient(180deg, rgb(107, 107, 107) 0%, rgb(134, 134, 134) 35%, rgb(196, 196, 196) 100%);
+}
