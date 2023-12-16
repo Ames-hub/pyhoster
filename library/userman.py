@@ -1,5 +1,6 @@
 import os
 from .jmod import jmod
+import secrets, datetime
 from .data_tables import new_user, app_settings
 
 colours = {
@@ -13,6 +14,8 @@ colours = {
     'cyan': "\033[1;36;40m",
     'white': "\033[1;37;40m"
 }
+
+valid_sessions = {}
 
 class userman:
     def enter():
@@ -434,6 +437,26 @@ class userman:
             '''
             def __init__(self):
                 super().__init__("User is locked out.")
+
+    class session():
+        def __init__(self, username, password) -> None:
+            self.username = username
+            self.password = password
+            
+            if userman.check_exists(username) is False:
+                return -1
+            elif userman.is_locked(username):
+                return -2
+                
+            self.session_id = self.make_token()
+
+        def make_token(self):
+            '''
+            This function is used to generate a session token. Uses the secrets module. (32 characters long)
+            '''
+            token = secrets.token_hex(32)
+            valid_sessions[token] = [datetime.datetime.now().date()]
+            return token
 
     class api:
         def login(username:str, password:str) -> bool:
