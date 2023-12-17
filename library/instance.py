@@ -4,6 +4,7 @@ from .jmod import jmod
 from .data_tables import web_config_dt, wsgi_config_dt, app_settings
 import multiprocessing
 import waitress
+import ssl
 
 colours = {
     "red": "\033[31m",
@@ -611,6 +612,14 @@ class instance: # Do not use apptype in calls until other apptypes are made
         try:
             # Create a socket server with the custom handler
             with socketserver.TCPServer(("", port), CustomHandler) as httpd:
+                if jmod.getvalue(key="ssl_enabled", json_dir=config_path, dt=web_config_dt) == True:
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    cert_dir = f"instances/{app_name}/cert.pem"
+                    private_dir = f"instances/{app_name}/private.key"
+
+                from .filetransfer import generate_ssl
+                generate_ssl(cert_dir, private_dir)
+                
                 # Print a message to indicate the server has started unless silent is True
                 if not silent:
                     print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
