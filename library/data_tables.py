@@ -68,7 +68,6 @@ app_settings = {
     "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
     "ssl_enabled": True,
     "api": {
-        "tokenManPid": None,
         "running": False,
         "autoboot": False,
         "app_dir": "library.API.MainAPI",
@@ -91,4 +90,10 @@ app_settings = {
     "ftpRootPassword": generate_root_password(), # Password only resets if settings.json is deleted
     "pyhost_users": {}, # Should be a dict of dicts. Internal dicts being usernames as keys and their data as values
     "ftppid": None,
+    "session_man": {
+        "enabled": True,
+        "expiration_hours": 24, # How long a session lasts in hours before expiring
+        "pid": None,
+    },
+    "active_tokens": {},
 }

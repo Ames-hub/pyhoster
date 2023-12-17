@@ -36,10 +36,11 @@ def prechecks(func):
 
         token = data.get('token', None)
         if token is None:
-            return 'Please provide a token in the POST data', 400
-        if not userman.session.validate_session(token): 
-            return 'Invalid token', 400
+            return 400
         
+        valid_session = userman.session.validate_session(token, ip_address)
+        if not valid_session == True:
+            return {'status': 'invalid token'}, 401
 
         return func(*args, **kwargs)
     wrapper.__name__ = func.__name__
@@ -48,7 +49,7 @@ def prechecks(func):
 @app.route('/', methods=['POST'])
 @prechecks
 def index():
-    return 'Pong!', 200
+    return {'status': 'ok'}, 200
 
 @app.route('/instances/start/', methods=['OPTIONS'])
 def startoptions():

@@ -8,12 +8,12 @@ function updateStatus(status_bar, status_text) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            token: document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1]
+            token: get_token()
         })
     })
-    .then(response => response.text()) // convert response to text
+    .then(response => response.json()) // convert response to text
     .then(data => {
-        if (data == "Pong!") {
+        if (data['status'] == "ok") {
             status_bar.style.backgroundColor = "green";
             status_text.innerHTML = "Online";
             return true;
@@ -21,6 +21,7 @@ function updateStatus(status_bar, status_text) {
         else {
             status_bar.style.backgroundColor = "red";
             status_text.innerHTML = "Offline";
+            console.log(data) // log what went wrong with the server 
             return false;
         }
     })

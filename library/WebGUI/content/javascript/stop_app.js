@@ -6,7 +6,7 @@ function stopInstance(appName) {
         },
         body: JSON.stringify({
             app_name: appName,
-            token: document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1]
+            token: get_token()
         })
     })
     .then(response => response.json())

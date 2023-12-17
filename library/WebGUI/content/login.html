@@ -6,34 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="PyhostLogo.png">
     <link rel="stylesheet" type="text/css" href="css/login.css">
-    <link rel="stylesheet" href="css/sidebar.css">
 </head>
 <body>
-    <sidebar class="sidebar">
-        <img src="PyhostLogo.gif" alt="logo" id="business_logo">
-        <h1 id="title">Interaction panel</h1>
-        <div id="status_detector">
-            <span id="status_text">Pending</span>
-        </div>
-        <nav id="nav">
-            <!-- Makes all the tabs -->
-            <a id="nav_login" href="login.html" class="nav-link">Login</a>
-            <a id="nav_index" href="index.html" class="nav-link">Home</a>
-            <a id="nav_instances" href="x.html" class="nav-link">Manage Apps</a>
-            <a id="nav_userman" href="x.html" class="nav-link">Manage Users</a>
-            <a id="nav_warden" href="x.html" class="nav-link">Access Warden</a>
-            <a id="nav_ftp" href="x.html" class="nav-link">Manage FTP</a>
-            <a id="nav_api" href="x.html" class="nav-link">API</a>
-            <a id="nav_settings" href="x.html" class="nav-link">Settings</a>
-        </nav>
-    </sidebar>
     <script src="javascript/login.js"></script>
-    <!-- Makes a form, which when submitted, runs the function "login" in login.js -->
-    <form id="login_form" onsubmit="event.preventDefault(); login()">
-        <h1 id="login_title">Login</h1>
-        <input type="text" id="username" placeholder="Username" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <input type="submit" id="login_button" value="Login">
-    </form>
-    <script src="javascript/status_detector.js"></script>
+    <!-- 
+        Complete credit for this login screen to this CodePen page! ^^
+        https://codepen.io/soufiane-khalfaoui-hassani/pen/LYpPWda
+    -->
+    <div class="login-box">
+        <h2>Login</h2>
+        <form>
+          <div class="user-box">
+            <input type="text" name="" required id="username">
+            <label>Username</label>
+          </div>
+          <div class="user-box">
+            <input type="password" name="" required id="password">
+            <label>Password</label>
+          </div>
+        <a onclick="login()">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <p id="login_text">Submit</p>
+        </a>
+        </form>
+      </div>
 </body>

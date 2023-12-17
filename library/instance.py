@@ -230,22 +230,26 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
     def delete(app_name:str=None, is_interface:bool=False, ask_confirmation:bool=True, del_backups:bool=None):
         if is_interface is True or app_name is None:
-            try: # Asks for the app name
-                os.system('cls' if os.name == "nt" else "clear")
-                print("\nWARNING: "+"\033[91m"+"YOU ARE ABOUT TO DELETE AN APP\n"+"\033[0m"+"All app names below...\n")
-                for app in os.listdir("instances/"):
-                    print(app)
-                    # Prints description in gray then resets to white
-                    print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
-                else:
-                    print("\nType Cancel to cancel deletion.")
-                app_name: str = str(input("What is the name of the app? TEXT : "))
-                if app_name.lower() == "cancel":
-                    print("Cancelled!")
-                    return True
-                assert app_name in os.listdir("instances/"), "The app must exist!"
-            except AssertionError as err:
-                print(str(err))
+            while True:
+                try: # Asks for the app name
+                    os.system('cls' if os.name == "nt" else "clear")
+                    print("\nWARNING: "+"\033[91m"+"YOU ARE ABOUT TO DELETE AN APP\n"+"\033[0m"+"All app names below...\n")
+                    for app in os.listdir("instances/"):
+                        print(app)
+                        # Prints description in gray then resets to white
+                        print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
+                    else:
+                        print("\nType Cancel to cancel deletion.")
+                    app_name: str = str(input("What is the name of the app? TEXT : "))
+                    if app_name.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    assert app_name in os.listdir("instances/"), "The app must exist!"
+                    break
+                except AssertionError as err:
+                    print(str(err))
+                    time.sleep(3)
+                    continue
 
             # Asks if we should delete backups too
             if del_backups == None:
@@ -265,6 +269,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         break
                     except AssertionError as err:
                         print(str(err))
+                        time.sleep(3)
                         continue
 
         if ask_confirmation:
@@ -329,6 +334,17 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 port = jmod.getvalue(key='port', json_dir=config_file)
                 if port == jmod.getvalue(key='port', json_dir=f"instances/{app_name}/config.json"):
                     if jmod.getvalue(key="running", json_dir=config_file) == True:
+                        if port == jmod.getvalue(key="api.port", json_dir="settings.json", default=987, dt=app_settings):
+                            if jmod.getvalue(key="api.running", json_dir="settings.json", dt=web_config_dt) == True:
+                                print(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")
+                                logging.error(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")
+                                continue
+                        elif port == jmod.getvalue(key="webgui.port", json_dir="settings.json", default=4040, dt=app_settings):
+                            if jmod.getvalue(key="webgui.pid", json_dir="settings.json", dt=web_config_dt) != None:
+                                print(f"Port {port} is already taken by the WebGUI! Can't start \"{app}\". Skipping.")
+                                logging.error(f"Port {port} is already taken by the WebGUI! Can't start \"{app}\". Skipping.")
+                                continue
+                        
                         if app != app_name:
                             print(f"Port {port} is already in use by project {app}! Please change the port of one of the other projects or stop a one.")
                             return True
@@ -619,6 +635,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
                 from .filetransfer import generate_ssl
                 generate_ssl(cert_dir, private_dir)
+
+                context.load_cert_chain(cert_dir, private_dir)
+                httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
                 
                 # Print a message to indicate the server has started unless silent is True
                 if not silent:

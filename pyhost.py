@@ -150,13 +150,13 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
         )
         auto_backup_thread.start()
 
-    ssl_enabled = jmod.getvalue(key="ssl_enabled", json_dir="settings.json", default=True, dt=app_settings)
+    ftp_ssl_enabled = jmod.getvalue(key="ssl_enabled", json_dir="settings.json", default=True, dt=app_settings)
     # Starts the FTP server if enabled
     ftp_enabled = jmod.getvalue(key="FTP_Enabled", json_dir="settings.json", default=False, dt=app_settings)
     if ftp_enabled is True:
         FTP_Thread = multiprocessing.Process(
             target=ftp.start,
-            args=(None, None, None, ssl_enabled),
+            args=(None, None, None, ftp_ssl_enabled),
         ) # Certfile and private keyfile being none just gets it to generate a self-signed certificate
         try:
             FTP_Thread.start()
@@ -198,6 +198,34 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     else:
         logging.info("WebGUI is disabled.")
 
+# Starts the session man
+def session_man():
+    from library.userman import session_json
+    try:
+        while True:
+            sessions = session_json.list()
+            exp_hours = jmod.getvalue(key="session_man.expiration_hours", json_dir="settings.json", default=24, dt=app_settings)
+            for session in sessions:
+                # Checks if the session has expired
+                if datetime.datetime.fromtimestamp(sessions[session]['start']).date() - datetime.datetime.now().date() >= datetime.timedelta(hours=exp_hours):
+                    session_json.remove(session) # Token is the key
+    except KeyboardInterrupt:
+        return True
+
+if __name__ == "__main__":
+    if sman_enabled := jmod.getvalue("session_man.enabled", "settings.json", True, dt=app_settings) is True:
+        sman_thread = multiprocessing.Process(
+            target=session_man,
+            args=()
+        )
+        jmod.setvalue(
+            key="session_man.pid",
+            json_dir="settings.json",
+            value=sman_thread.pid,
+            dt=app_settings
+        )
+        sman_thread.start()
+
 if __name__ == '__main__': # This line ensures the script is being run directly and not imported
     app_settings_dir = os.path.abspath("settings.json")
 
@@ -224,10 +252,25 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
             if jmod.getvalue(key=f"autostart", json_dir=config_file) is True:
                 name = jmod.getvalue(key='name', json_dir=config_file)
                 port = jmod.getvalue(key='port', json_dir=config_file)
+                if port == jmod.getvalue(key="api.port", json_dir=app_settings_dir, default=987, dt=app_settings):
+                    print(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
+                    logging.error(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
+                    continue
+                elif port == jmod.getvalue(key="webgui.port", json_dir=app_settings_dir, default=4040, dt=app_settings):
+                    print(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
+                    logging.error(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
+                    continue
                 apptype = jmod.getvalue(key='apptype', json_dir=config_file)
                 if ports_taken[port] == name:
                     # Log the start of the application and start it in a new thread
-                    print(f"Auto-Initializing project: \"{name}\" on port {port} (http://localhost:{port})")
+                    do_ssl = "s" if jmod.getvalue(
+                        key="ssl_enabled",
+                        json_dir=config_file,
+                        default=True,
+                        dt=web_config_dt
+                    ) is True else ""
+
+                    print(f"Auto-Initializing project: \"{name}\" on port {port} (http{do_ssl}://localhost:{port})")
                     logging.info(f"Auto-Initializing project: \"{name}\" on port {port}")
                     if apptype == application.types.webpage():
                         # If the application is a webpage, start it with the 'start' method of the 'instance' module
@@ -271,4 +314,4 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
     # The main loop to keep the program running
     application.run(
         keybind_listen=bool(os.environ.get("PYHOST_KEYBIND_LISTEN", True))
-        )
+    )

@@ -1,6 +1,7 @@
 import os, json, logging, sys, datetime, socketserver, http.server
 import webbrowser
 import ssl
+import time
 from ..jmod import jmod
 from ..data_tables import app_settings, web_config_dt
 root_dir = os.getcwd()
@@ -52,8 +53,9 @@ class webcontroller:
             target=webcontroller.startgui, args=(silent_gui,)
         )
         webgui_thread.start()
+        time.sleep(0.25) # Wait for the server to start
         port = jmod.getvalue(key="webgui.port", json_dir=setting_dir, default=4040, dt=app_settings)
-        print(f"<--WebGUI is now running on \"http://localhost:{port}\"-->")
+        print(f"<--WebGUI is now running on \"https://localhost:{port}\"-->")
         jmod.setvalue(
             key="webgui.pid",
             json_dir="settings.json",
@@ -386,6 +388,8 @@ class webcontroller:
             dt=web_config_dt
         )
 
+        print("<--WebGUI has been stopped-->")
+        time.sleep(0.5)
         return True
     
     def is_running():
@@ -572,4 +576,4 @@ class webcontroller:
             dt=web_config_dt
         )
         # Assume LocalHost as this function can't open a remote GUI on a different machine.
-        webbrowser.open(f"http://localhost:{port}", 2)
+        webbrowser.open(f"https://localhost:{port}/login.html", 2)

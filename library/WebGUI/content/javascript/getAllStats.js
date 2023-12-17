@@ -5,7 +5,7 @@ function getAllStats() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            token: document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1]
+            token: get_token()
         })
     })
     .then(response => response.json())

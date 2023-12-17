@@ -16,39 +16,79 @@ colours = {
     'white': "\033[1;37;40m"
 }
 
-valid_sessions = {}
+class session_json:
+    def add(token, username, IP_Address):
+        '''
+        This function is used to add a session to the sessions.json file.
+        '''
+        # Load settings from a JSON file
+        sessions = jmod.getvalue(
+            key='active_tokens',
+            json_dir='settings.json',
+            default={},
+            dt=app_settings
+        )
 
-# Manages the valid sessions
-def token_manager():
-    try:
-        while True:
-            for session in valid_sessions:
-                # Deletes the session if it is older than 12 hours
-                # TODO: Make timeout configurable
-                if datetime.datetime.now().date() - valid_sessions[session][0] >= datetime.timedelta(hours=12):
-                    del valid_sessions[session]
-    except KeyboardInterrupt:
-        return True
+        # Add the session
+        sessions[token] = {
+            "start": datetime.datetime.now().timestamp(), # Can't use datetime obj as it's not JSON serializable
+            "username": username,
+            "IP_Address": IP_Address,
+        }
 
-if __name__ == "__main__":
-    token_man = multiprocessing.Process(
-        target=token_manager,
-        args=()
-    )
-    jmod.setvalue(
-        key='api.tokenManPid',
-        value=token_man.pid,
-        json_dir='settings.json',
-        dt=app_settings
-    )
-    token_man.start()
-    logging.info("Token manager has started.")
+        # Save the list to a JSON file
+        jmod.setvalue(
+            key='active_tokens',
+            value=sessions,
+            json_dir='settings.json',
+            dt=app_settings
+        )
+
+    def remove(token):
+        '''
+        This function is used to remove a session from the sessions.json file.
+        '''
+        # Load settings from a JSON file
+        sessions = jmod.getvalue(
+            key='active_tokens',
+            json_dir='settings.json',
+            default={},
+            dt=app_settings
+        )
+
+        # Remove the session
+        del sessions[token]
+
+        # Save the list to a JSON file
+        jmod.setvalue(
+            key='active_tokens',
+            value=sessions,
+            json_dir='settings.json',
+            dt=app_settings
+        )
+
+    def list():
+        '''
+        This function is used to list all sessions from the sessions.json file.
+        '''
+        # Load settings from a JSON file
+        sessions = jmod.getvalue(
+            key='active_tokens',
+            json_dir='settings.json',
+            default={},
+            dt=app_settings
+        )
+
+        return sessions
+
 
 class userman:
     def enter():
         while True:
             try:
-                cmd = input(f"{colours['green']}UserMan{colours['reset']}> ")
+                user_count = len(userman.list_users(for_CLI=False))
+                print(f"User Management System currently managing {user_count} users. Type 'help' for help.")
+                cmd = input(f"{colours['green']}UserMan{colours['white']}> ")
                 if cmd == "add":
                     userman.add_user()
                     continue
@@ -62,12 +102,27 @@ class userman:
                     return True
                 elif cmd == "help":
                     userman.help()
+                elif cmd == "sessions":
+                    userman.session.enter()
+                    continue
+                elif cmd == "expiration":
+                    while True:
+                        hours = input("Enter the expiration in Hours\n>>> ")
+                        if not hours.isnumeric():
+                            print("Invalid input. Must be a number.")
+                            continue
+                        break
+                    userman.session.set_exp_hours(hours)
                 elif cmd == "lock":
                     userman.lock()
                     continue
                 elif cmd == "unlock":
                     userman.unlock()
                     continue
+                elif cmd == "cls":
+                    from .application import application # This is here to prevent circular imports
+                    application.clear_console()
+                    del application
                 else:
                     print("Invalid command.")
                     continue
@@ -85,6 +140,8 @@ class userman:
             "list": "List all users.",
             "lock": "Lock a user.",
             "unlock": "Unlock a user.",
+            "sessions": "Manage active sessions.",
+            "expiration": "Set session expiration in hours.",
             "exit": "Exit UserMan.",
         }
         for cmd in cmds:
@@ -547,8 +604,9 @@ class userman:
                 self.htmlstatus = 401
 
             # Checks if the user already has a session
-            for session in valid_sessions:
-                if valid_sessions[session]['username'] == username:
+            session_list = session_json.list()
+            for session in session_list:
+                if session_list[session]['username'] == username:
                     self.htmlstatus = 200
                     self.token = session
                     return
@@ -571,12 +629,96 @@ class userman:
             else:
                 self.token = None
 
+            self.login = userman.login(username=self.username)
+
+        def set_exp_hours(hours: int):
+            '''
+            This function is used to set the expiration time of a session.
+            '''
+            jmod.setvalue(
+                key='session_man.expiration_hours',
+                value=int(hours),
+                json_dir='settings.json',
+                dt=app_settings
+            )
+            print(f"Session expiration set to {hours} hours.")
+
+        def enter():
+            while True:
+                try:
+                    print(f"{colours["blue"]}========================={colours["white"]}")
+                    print(f"{colours["blue"]}Session Management System{colours["white"]}")
+                    print(f"{colours["blue"]}========================={colours["white"]}")
+                    # Prints out all sessions, their username, and their IP address
+                    session_id_token_map = {}
+                    counter = 0
+                    if len(session_json.list()) != 0:
+                        for session in session_json.list().keys():
+                            colour = colours["cyan"] if counter % 2 == 0 else colours['white']
+                            print(f"{colour}Session ID: {counter} | Belongs to: {session_json.list()[session]['username']}")
+                            print(f"{colour}Session Token: {session}")
+                            # start is a timestamp, so we need to convert it to a datetime object
+                            start_time = datetime.datetime.fromtimestamp(session_json.list()[session]['start'])
+                            print(f"{colour}Started on: {start_time.strftime('%A %d. %B %Y %H:%M:%S')}")
+
+                            session_id_token_map[str(counter)] = session
+                            counter += 1
+                    else:
+                        print("There are no active sessions.")
+
+                    cmd = input(f"{colours['white']}>>> ").lower()
+                    if cmd == "exit":
+                        return True
+                    elif cmd == "help":
+                        print("Commands:")
+                        cmds = {
+                            "exit": "Exit Session Manager.",
+                            "help": "Show this help message.",
+                            "kill": "Kill a session."
+                        }
+                        for cmd in cmds:
+                            print(f"{colours['green']}{cmd}{colours['white']}: {cmds[cmd]}")
+                    elif cmd.startswith("kill"):
+                        if len(cmd.split(" ")) == 2:
+                            target = cmd.split(" ")[1]
+                            if target in session_id_token_map.keys():
+                                userman.session.kill_token(session_id_token_map[target])
+                            elif target in ["*", "all"]:
+                                for session in session_json.list().keys():
+                                    userman.session.kill_token(session)
+                            else:
+                                print("Invalid session ID.")
+                                continue
+                        else:
+                            print("Invalid format.\nUsages: kill <session ID>\nkill * (kills all sessions)")
+                            continue
+                    elif cmd == "cls":
+                        from .application import application
+                        application.clear_console()
+                        del application
+                    else:
+                        print("Invalid command.")
+                        continue
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+
+        def kill_token(token):
+            '''
+            This function is used to kill a session.
+            '''
+            if token in session_json.list().keys():
+                session_json.remove(token)
+                return True
+            else:
+                return False
+
         def get_user(token, return_full=False):
             '''
             This function is used to get the user from a session token.
             '''
-            if token in valid_sessions.keys():
-                return valid_sessions[token]['username'] if not return_full else valid_sessions[token]
+            if token in session_json.list().keys():
+                return session_json.list()[token]['username'] if not return_full else session_json.list()[token]
             else:
                 return None
 
@@ -585,47 +727,58 @@ class userman:
             This function is used to generate a session token.
             '''
             token = uuid.uuid4().hex
-            valid_sessions[token] = {
-                "start": datetime.datetime.now().date(),
-                "username": self.username,
-                "IP_Address": IP
-                }
+            session_json.add(token, self.username, IP)
             return token
         
-        def validate_session(session):
+        def validate_session(session, IP_Address=None):
             '''
             This function is used to validate a session.
-            '''
-            return session in valid_sessions.keys()
+            Returns True if successful, returns List if not.
 
-    class api:
-        def login(username:str, password:str) -> bool:
+            List contains the following:
+            [0] = False
+            [1] = Reason
             '''
-            This function is used to login to the API.
-            '''
-            try:
-                username = str(username)
-                password = str(password)
-            except:
-                return False
-            # Load user's list from a JSON file
-            users = userman.list_users(for_CLI=False)
-            if username in users.keys():
-                if users[username]['password'] == password:
-                    jmod.setvalue(
-                        key=f'pyhost_users.{username}.api.logged_in',
-                        value=True,
-                        json_dir='settings.json',
-                        dt=app_settings
-                    )
-                    return True
+            if session in session_json.list().keys():
+                if IP_Address != None:
+                    if session_json.list()[session]['IP_Address'] == IP_Address:
+                        return True
+                    else:
+                        return [False, "Invalid IP Address"]
                 else:
-                    return False
+                    return True
+            else:
+                return [False, "Invalid session token"]
+        
+    class login():
+        def __init__(self, username) -> None:
+            self.username = username
+        def api(self):
+            if not userman.check_exists(self.username):
+                raise userman.errors.UserDoesNotExist(f"User \"{self.username}\" does not exist.")
+            
+            if userman.is_locked(self.username):
+                raise userman.errors.UserLocked(f"User \"{self.username}\" is locked.")
 
-        def logout(username):
             jmod.setvalue(
-                key=f'pyhost_users.{username}.api.logged_in',
-                value=False,
+                key=f'pyhost_users.{self.username}.api.loggedin',
+                value=True,
                 json_dir='settings.json',
                 dt=app_settings
             )
+            return True
+            
+        def ftp(self):
+            if not userman.check_exists(self.username):
+                raise userman.errors.UserDoesNotExist(f"User \"{self.username}\" does not exist.")
+            
+            if userman.is_locked(self.username):
+                raise userman.errors.UserLocked(f"User \"{self.username}\" is locked.")
+
+            jmod.setvalue(
+                key=f'pyhost_users.{self.username}.ftp_connected',
+                value=True,
+                json_dir='settings.json',
+                dt=app_settings
+            )
+            return True

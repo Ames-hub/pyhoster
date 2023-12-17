@@ -19,7 +19,6 @@ colours = {
     "cyan": "\033[36m",
     "white": "\033[37m",
     "orange": "\033[38;5;208m",
-    "reset": "\033[0m"
 }
 
 def getkwrd(keywords, text, default=None):
@@ -76,7 +75,7 @@ class application:
                 print("ftp: Enters the FTP GUI")
                 print("warden: Enters the Warden GUI")
                 print("userman: Enters the User Management GUI")
-                print("api: Enters the API GUI")
+                print("api: Enters the API Command Line Interface")
                 print("gui: Opens the web GUI")
                 print("webgui: Enters the web GUI")
                 print("pyhost: Opens the settings menu\n")
@@ -120,7 +119,7 @@ class application:
                                 app_desc=getkwrd(["desc", "description"], text, default="An app hosted by Pyhost."),
                             )
                     elif cmd == "wsgicreate" or cmd == "createwsgi":
-                        print(colours["orange"]+"Note: WSGI server's are currently in open alpha and may not work as expected."+colours["reset"])
+                        print(colours["orange"]+"Note: WSGI server's are currently in open alpha and may not work as expected."+colours["white"])
                         if not has_args:
                             instance.create_wsgi()
                         else:
@@ -312,18 +311,18 @@ class application:
                         pass
 
             print("Stopping Token manager...")
-            tokenManPid = jmod.getvalue(
-                key="api.tokenManPid",
+            sman_pid = jmod.getvalue(
+                key="session_man.pid",
                 json_dir="settings.json",
                 dt=app_settings,
                 default=None
             ) 
-            if tokenManPid != None:
+            if sman_pid != None:
                 try:
-                    os.kill(tokenManPid, 2)
+                    os.kill(sman_pid, 2)
                 except:
                     try:
-                        os.kill(tokenManPid, 9)
+                        os.kill(sman_pid, 9)
                     except:
                         pass
 

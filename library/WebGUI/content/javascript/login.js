@@ -15,13 +15,16 @@ function login() {
     .then(data => {
         if (data['status'] == 200) {
             document.cookie = "session=" + data['session'] + "; SameSite=lax";
+            // Changes the button's text to "Enter" and redirects to the home page
+            document.getElementById("login_text").innerHTML = "Enter";
+            window.location.replace("https://localhost:4040/");
         }
         else {
             if (data['status'] == 423) {
-                alert("Login failed. Your account has been locked by Administrators.");
+                alert("Login failed. Your account was locked by Administrators.");
             }
             else if (data['status'] == 403) {
-                alert("Login failed. Is your Username or password is incorrect?");
+                alert("Login failed. Is your Username or password incorrect?");
             }
             else if (data['status'] == 401) {
                 alert("Invalid login details sent.");

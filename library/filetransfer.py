@@ -13,9 +13,9 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
 from datetime import datetime, timedelta
 from .jmod import jmod
-from .data_tables import app_settings, new_user
+from .data_tables import app_settings
 
-def generate_ssl(certfile_dir, keyfile_dir):
+def generate_ssl(certfile_dir, keyfile_dir, hostname="localhost"):
     # Generate a self-signed certificate if it doesn't exist
     if not os.path.isfile(certfile_dir) or not os.path.isfile(keyfile_dir):
         key = rsa.generate_private_key(
@@ -24,7 +24,7 @@ def generate_ssl(certfile_dir, keyfile_dir):
         )
 
         name = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, u"localhost"),
+            x509.NameAttribute(NameOID.COMMON_NAME, u"{}".format(hostname)),
         ])
 
         cert = x509.CertificateBuilder().subject_name(
@@ -54,7 +54,6 @@ def generate_ssl(certfile_dir, keyfile_dir):
             ))
 
 colours = {
-    "reset": "\u001b[0m",
     "black": "\u001b[30m",
     "red": "\u001b[31m",
     "green": "\u001b[32m",
@@ -366,7 +365,7 @@ class ftp:
                 key='FTP_Enabled', json_dir='settings.json', default=True, dt=app_settings
                 ) else f'{colours['red']}disabled{colours['white']}'}.")
 
-            command = input(f"{colours['red'] if not running else colours['green']}ftp{colours['reset']}> ").lower()
+            command = input(f"{colours['red'] if not running else colours['green']}ftp{colours['white']}> ").lower()
             if command == "help":
                 print("help: Displays this help message.")
                 print("exit: Exits the FTP server CLI.")
