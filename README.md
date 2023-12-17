@@ -79,7 +79,7 @@ Additional configuration entirely optional.
 `delete` - Delete a website app.<br>
 `edit` - Edit a website app.<br>
 `start` - Start a website app.<br>
-`enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.
+`enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.<br>
 `stop` - Stop a website app<br>
 `restart` - Stop and then start a website app. Shorthand way of doing stop app_name && start app_name<br>
 `ftp` - Enter the FTP Command line interface. Change details, create users, etc
