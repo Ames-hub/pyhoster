@@ -25,6 +25,7 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Change the index file of a website easily
 - WARDEN, Our basic lockout system allows you to lock out users from a specific webpage (or all webpages) with a password!
 - Optionally running API to control what happens in pyhost externally
+- Auto-Generate self-signed SSL certificates and put them to use easily!
 - link a website's content to any folder in your system
 - Make your changes, then update the website with a simple command
 - Built-in function to implement a custom "Page not found" page
@@ -36,6 +37,8 @@ Then run `python3.12 pyhost.py -O` to start the program.
 PyHost has an API that you can use to control what happens in pyhost externally.<br>
 Using the API, you can do things such as start and stop websites, create and delete websites, etc.<br>
 For full details, see the technical_notes/API.md file.
+### We also have a session manager!
+It'll kill old sessions, start new ones and let you kill specific sessions!
 
 # Compatibility
 This works on every OS as far as I know.<br>
