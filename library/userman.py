@@ -571,12 +571,12 @@ class userman:
             else:
                 self.token = None
 
-        def get_user(token):
+        def get_user(token, return_full=False):
             '''
             This function is used to get the user from a session token.
             '''
             if token in valid_sessions.keys():
-                return valid_sessions[token]['username']
+                return valid_sessions[token]['username'] if not return_full else valid_sessions[token]
             else:
                 return None
 

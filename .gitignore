@@ -8,3 +8,5 @@ settings.json
 backups
 library/ssl
 library/WebGUI/config.json
+*private.key
+*cert.pem

@@ -15,6 +15,44 @@ from datetime import datetime, timedelta
 from .jmod import jmod
 from .data_tables import app_settings, new_user
 
+def generate_ssl(certfile_dir, keyfile_dir):
+    # Generate a self-signed certificate if it doesn't exist
+    if not os.path.isfile(certfile_dir) or not os.path.isfile(keyfile_dir):
+        key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        )
+
+        name = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, u"localhost"),
+        ])
+
+        cert = x509.CertificateBuilder().subject_name(
+            name
+        ).issuer_name(
+            name
+        ).public_key(
+            key.public_key()
+        ).serial_number(
+            x509.random_serial_number()
+        ).not_valid_before(
+            datetime.utcnow()
+        ).not_valid_after(
+            datetime.utcnow() + timedelta(days=365)
+        ).sign(key, hashes.SHA256())
+
+        # Write our certificate out to disk.
+        with open(certfile_dir, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+        # Write our key out to disk
+        with open(keyfile_dir, "wb") as f:
+            f.write(key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            ))
+
 colours = {
     "reset": "\u001b[0m",
     "black": "\u001b[30m",
@@ -68,7 +106,13 @@ class ftp:
             # Paths to the certificate and key files
             certfile = 'library/ssl/certificate.pem' if certfile is None else certfile
             keyfile = 'library/ssl/private.key' if prvkeyfile is None else prvkeyfile
+            ssl_exist = {
+                "prv": os.path.isfile(certfile),
+                "cert": os.path.isfile(certfile),
+                }
             os.makedirs("library/ssl/", exist_ok=True)
+            if not ssl_exist["prv"] or not ssl_exist["cert"]:
+                generate_ssl(certfile, keyfile)
 
         class CustomHandler(logging.Handler):
             """
@@ -111,44 +155,6 @@ class ftp:
         # Set up logging
         handler = CustomHandler()
         logging.basicConfig(level=logging.INFO, handlers=[handler])
-
-        if use_ssl:
-            # Generate a self-signed certificate if it doesn't exist
-            if not os.path.isfile(certfile) or not os.path.isfile(keyfile):
-                key = rsa.generate_private_key(
-                    public_exponent=65537,
-                    key_size=2048,
-                )
-
-                name = x509.Name([
-                    x509.NameAttribute(NameOID.COMMON_NAME, u"localhost"),
-                ])
-
-                cert = x509.CertificateBuilder().subject_name(
-                    name
-                ).issuer_name(
-                    name
-                ).public_key(
-                    key.public_key()
-                ).serial_number(
-                    x509.random_serial_number()
-                ).not_valid_before(
-                    datetime.utcnow()
-                ).not_valid_after(
-                    datetime.utcnow() + timedelta(days=365)
-                ).sign(key, hashes.SHA256())
-
-                # Write our certificate out to disk.
-                with open(certfile, "wb") as f:
-                    f.write(cert.public_bytes(serialization.Encoding.PEM))
-
-                # Write our key out to disk
-                with open(keyfile, "wb") as f:
-                    f.write(key.private_bytes(
-                        encoding=serialization.Encoding.PEM,
-                        format=serialization.PrivateFormat.TraditionalOpenSSL,
-                        encryption_algorithm=serialization.NoEncryption(),
-                    ))
 
         root_password = jmod.getvalue(
             key='ftpRootPassword',

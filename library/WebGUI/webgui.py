@@ -1,5 +1,6 @@
 import os, json, logging, sys, datetime, socketserver, http.server
 import webbrowser
+import ssl
 from ..jmod import jmod
 from ..data_tables import app_settings, web_config_dt
 root_dir = os.getcwd()
@@ -324,6 +325,16 @@ class webcontroller:
             # Create a socket server with the custom handler
             with socketserver.TCPServer(("", port), CustomHandler) as httpd:
 
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                cert_dir = "library/WebGUI/cert.pem"
+                private_dir = "library/WebGUI/private.key"
+
+                from ..filetransfer import generate_ssl
+                generate_ssl(cert_dir, private_dir)
+
+                context.load_cert_chain(cert_dir, private_dir)
+                httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+                
                 log_message(f"WebGUI is running.")
                 # Get the PID of the current thread (web server)
 
