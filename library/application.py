@@ -312,7 +312,7 @@ class application:
 
             print("Stopping Token manager...")
             sman_pid = jmod.getvalue(
-                key="session_man.pid",
+                key="tokenMan.pid",
                 json_dir="settings.json",
                 dt=app_settings,
                 default=None
@@ -326,7 +326,7 @@ class application:
                     except:
                         pass
                 jmod.setvalue(
-                    key="session_man.pid",
+                    key="tokenMan.pid",
                     json_dir="settings.json",
                     value=None,
                     dt=app_settings,

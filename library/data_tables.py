@@ -80,8 +80,9 @@ app_settings = {
         "port": 4040, # No need for a pin as it requires a pyhost_user's login
         "pid": None,
         "silent": False,
-        "hostname": "localhost", # Just the hostname, no port (eg, example.com or 192.168.0.190)
     },
+    # Hostname is used mainly in JS to connect to the API
+    "hostname": -1, # Just the hostname, no port. -1 here to indicate the system should use localhost and ask the user for a default hostname    
     "ftpLogToFile": True,
     "FTP_Enabled": False,
     "FtpPort": 789,
@@ -89,7 +90,7 @@ app_settings = {
     "ftpRootPassword": generate_root_password(), # Password only resets if settings.json is deleted
     "pyhost_users": {}, # Should be a dict of dicts. Internal dicts being usernames as keys and their data as values
     "ftppid": None,
-    "session_man": {
+    "tokenMan": {
         "enabled": True,
         "expiration_hours": 24, # How long a session lasts in hours before expiring
         "pid": None,

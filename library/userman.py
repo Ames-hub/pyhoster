@@ -668,7 +668,7 @@ class userman:
             This function is used to set the expiration time of a session.
             '''
             jmod.setvalue(
-                key='session_man.expiration_hours',
+                key='tokenMan.expiration_hours',
                 value=int(hours),
                 json_dir='settings.json',
                 dt=app_settings

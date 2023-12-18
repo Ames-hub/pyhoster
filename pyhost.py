@@ -199,13 +199,13 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
         logging.info("WebGUI is disabled.")
 
 # Starts the session man
-def session_man():
+def tokenMan():
     from library.userman import session_json
     logging.info("Session manager started.")
     try:
         while True:
             sessions = session_json.list()
-            exp_hours = jmod.getvalue(key="session_man.expiration_hours", json_dir="settings.json", default=24, dt=app_settings)
+            exp_hours = jmod.getvalue(key="tokenMan.expiration_hours", json_dir="settings.json", default=24, dt=app_settings)
             for session in sessions:
                 # Checks if the session has expired
                 if datetime.datetime.fromtimestamp(sessions[session]['start']).date() - datetime.datetime.now().date() >= datetime.timedelta(hours=exp_hours):
@@ -213,16 +213,16 @@ def session_man():
     except KeyboardInterrupt:
         return True
 
-sman_enabled = jmod.getvalue("session_man.enabled", "settings.json", True, dt=app_settings)
+sman_enabled = jmod.getvalue("tokenMan.enabled", "settings.json", True, dt=app_settings)
 if __name__ == "__main__":
     if sman_enabled is True:
         sman_thread = multiprocessing.Process(
-            target=session_man,
+            target=tokenMan,
             args=()
         )
         sman_thread.start()
         jmod.setvalue(
-            key="session_man.pid",
+            key="tokenMan.pid",
             json_dir="settings.json",
             value=sman_thread.pid,
             dt=app_settings

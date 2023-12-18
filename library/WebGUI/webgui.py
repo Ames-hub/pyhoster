@@ -440,7 +440,7 @@ class webcontroller:
                 dt=web_config_dt
             )
             hostname = jmod.getvalue(
-                key="webgui.hostname",
+                key="hostname",
                 json_dir=setting_dir,
                 default="localhost",
                 dt=web_config_dt
@@ -561,7 +561,7 @@ class webcontroller:
         
         if isinstance(hostname, str):
             jmod.setvalue(
-                key="webgui.hostname",
+                key="hostname",
                 json_dir=setting_dir,
                 value=hostname,
                 dt=web_config_dt
