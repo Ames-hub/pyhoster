@@ -1,7 +1,7 @@
 function login() {
     let username = document.getElementById("username").value;
     let password = document.getElementById("password").value;
-    fetch("http://localhost:4045/userman/login", {
+    fetch("http://localhost:4030/userman/login", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -15,8 +15,6 @@ function login() {
     .then(data => {
         if (data['status'] == 200) {
             document.cookie = "session=" + data['session'] + "; SameSite=lax";
-            // Changes the button's text to "Enter" and redirects to the home page
-            document.getElementById("login_text").innerHTML = "Enter";
             window.location.replace("https://localhost:4040/");
         }
         else {
