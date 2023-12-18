@@ -17,7 +17,7 @@ function login() {
             document.cookie = "session=" + data['session'] + "; SameSite=lax";
             // Changes the button's text to "Enter" and redirects to the home page
             document.getElementById("login_text").innerHTML = "Enter";
-            window.location.replace("https://localhost:4040/");
+            window.location.replace("https://{-{hostName}-}:4040/");
         }
         else {
             if (data['status'] == 423) {

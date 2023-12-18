@@ -11,3 +11,8 @@ It is controlled mostly Like a normal webinstance. Only exception is that its mo
 to interact, start pyhost and use command "webgui"
 
 Minimum supported resolution: 800x611 (for the webgui to look good, no squashing, etc.)
+
+The following are reserved placeholders:
+{-{hostName}-} : All instances of this are replaced with the hostname in settings.json
+{-{port}-} : Same, except port.
+
