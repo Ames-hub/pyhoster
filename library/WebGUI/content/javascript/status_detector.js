@@ -2,7 +2,7 @@ let status_bar = document.getElementById('status_detector');
 let status_text = document.getElementById('status_text');
 
 function updateStatus(status_bar, status_text) {
-    fetch("http://localhost:987", {
+    fetch("http://localhost:4045", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"

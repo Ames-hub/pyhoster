@@ -1,5 +1,5 @@
 function getAllStats() {
-    fetch('http://localhost:987/instances/getall', {
+    fetch('http://localhost:4045/instances/getall', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -79,7 +79,7 @@ for (let i = 0; i < autoboot_on.length; i++) {
         // Gets session token cookie
         sessiontoken = document.cookie.split('; ').find(row => row.startsWith('session')).split('=')[1];
         
-        fetch('http://localhost:987/instances/autoboot', {
+        fetch('http://localhost:4045/instances/autoboot', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -110,7 +110,7 @@ let autoboot_off = document.querySelectorAll('.autoboot_off');
 window.addEventListener('DOMContentLoaded', (event) => {
     for (let i = 0; i < autoboot_off.length; i++) {
     autoboot_off[i].addEventListener('click', function() {
-        fetch('http://localhost:987/instances/autoboot', {
+        fetch('http://localhost:4045/instances/autoboot', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

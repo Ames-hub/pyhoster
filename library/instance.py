@@ -334,7 +334,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 port = jmod.getvalue(key='port', json_dir=config_file)
                 if port == jmod.getvalue(key='port', json_dir=f"instances/{app_name}/config.json"):
                     if jmod.getvalue(key="running", json_dir=config_file) == True:
-                        if port == jmod.getvalue(key="api.port", json_dir="settings.json", default=987, dt=app_settings):
+                        if port == jmod.getvalue(key="api.port", json_dir="settings.json", default=4045, dt=app_settings):
                             if jmod.getvalue(key="api.running", json_dir="settings.json", dt=web_config_dt) == True:
                                 print(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")
                                 logging.error(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")

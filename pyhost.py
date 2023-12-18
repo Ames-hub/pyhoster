@@ -181,7 +181,7 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
             apicontroller.initapi()
         except OSError as err:
             if err.errno == 13:
-                port = jmod.getvalue("api.port", "settings.json", 987, dt=app_settings)
+                port = jmod.getvalue("api.port", "settings.json", 4045, dt=app_settings)
                 logging.error(f"Port {port} is already taken! Can't start API.")
                 print(f"Port {port} is already taken! Can't start API.")
                 exit()
@@ -254,7 +254,7 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
             if jmod.getvalue(key=f"autostart", json_dir=config_file) is True:
                 name = jmod.getvalue(key='name', json_dir=config_file)
                 port = jmod.getvalue(key='port', json_dir=config_file)
-                if port == jmod.getvalue(key="api.port", json_dir=app_settings_dir, default=987, dt=app_settings):
+                if port == jmod.getvalue(key="api.port", json_dir=app_settings_dir, default=4045, dt=app_settings):
                     print(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
                     logging.error(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
                     continue

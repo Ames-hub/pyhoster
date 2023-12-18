@@ -19,13 +19,19 @@ class controller:
         Create a WSGI Server set primarily for Flask.
         '''
         app_dir = jmod.getvalue("api.app_dir", "settings.json", "library.API.MainAPI", app_settings)
-        port = jmod.getvalue("api.port", "settings.json", 987, app_settings)
+        port = jmod.getvalue("api.port", "settings.json", app_settings, default=4045 if os.name == "nt" else 1200)
         app = __import__(app_dir, fromlist=['']).app
         os.environ["FLASK_ENV"] = "production"  # Set Flask environment to production
         os.environ["FLASK_APP"] = "PyHostAPI"  # Set the name of your Flask app
         logging.info(f"Starting PyHost API on port {port}")
         print(f"<--PyHost API is Online running on port {port} and awaiting requests-->")
-        waitress.serve(app, host='0.0.0.0', port=port)
+        try:
+            waitress.serve(app, host='0.0.0.0', port=port)
+        except PermissionError:
+            print(f"We don't have enough permissions to run the API! Is there already an app bound to port \"{port}\"?")
+            if port < 1024 and os.name != "nt":
+                print("If you are running on Linux, then the port must be greater than 1024.")
+            return
         time.sleep(0.5) # Prevent the above print from being put on the "enter command" input line
 
     def timeout_login(interval_min=1):
@@ -119,7 +125,7 @@ class controller:
             else:
                 print("The API is running.")
 
-        port = jmod.getvalue("api.port", "settings.json", 987, app_settings)
+        port = jmod.getvalue("api.port", "settings.json", 4045, app_settings)
         if interface: print(f"The API Is bound to Port {port}")
         
         return {"running": apirunning, "port": port}

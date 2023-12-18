@@ -1,5 +1,5 @@
 function stopInstance(appName) {
-    fetch('http://localhost:987/instances/stop', {
+    fetch('http://localhost:4045/instances/stop', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

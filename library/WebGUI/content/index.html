@@ -55,7 +55,7 @@
         // Sends the user to the login page if the token is not found or an error occurs while getting the token
         function sendToLogin() {
             let tkn = get_token()
-            fetch('http://localhost:987', {
+            fetch('http://localhost:4045', {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
