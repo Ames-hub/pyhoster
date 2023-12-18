@@ -263,7 +263,7 @@ class ftp:
             server_port = jmod.getvalue(
                 key='FtpPort',
                 json_dir='settings.json',
-                default=789,
+                default=4035,
                 dt=app_settings
             )
         server = ThreadedFTPServer(("localhost", server_port), handler)
@@ -375,7 +375,7 @@ class ftp:
                 print(f"{connected_users}/{len(ftp_userList)} users are currently connected.")
 
             # Prints the FTP server's port
-            FtpPort = jmod.getvalue(key='FtpPort', json_dir='settings.json', default=789, dt=app_settings)
+            FtpPort = jmod.getvalue(key='FtpPort', json_dir='settings.json', default=4035, dt=app_settings)
             print(f"FTP server is {running_msg} {"on port " if running else ""}{FtpPort if running else f"but is assigned to port {FtpPort}"}.")
 
             print("Use command 'root' to view the root user's connection details.")

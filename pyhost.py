@@ -168,9 +168,9 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
             )
         except OSError as err:
             if err.errno == 13:
-                port = jmod.getvalue("FtpPort", "settings.json", 789, dt=app_settings)
+                port = jmod.getvalue("FtpPort", "settings.json", 4035, dt=app_settings)
                 print(f"Port {port} is already taken! Can't start FTP server.")
-                logging.error("Port 789 is already taken! Can't start FTP server.")
+                logging.error(f"Port {port} is already taken! Can't start FTP server.")
     else:
         logging.info("FTP server is disabled.")
 

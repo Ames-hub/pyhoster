@@ -85,7 +85,7 @@ app_settings = {
     "hostname": -1, # Just the hostname, no port. -1 here to indicate the system should use localhost and ask the user for a default hostname    
     "ftpLogToFile": True,
     "FTP_Enabled": False,
-    "FtpPort": 789,
+    "FtpPort": 4035,
     "ftpAnonAllowed": False,
     "ftpRootPassword": generate_root_password(), # Password only resets if settings.json is deleted
     "pyhost_users": {}, # Should be a dict of dicts. Internal dicts being usernames as keys and their data as values
