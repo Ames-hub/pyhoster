@@ -36,7 +36,7 @@ def prechecks(func):
 
         token = data.get('token', None)
         if token is None:
-            return 400
+            return {'status': 'no token'}, 400
         
         valid_session = userman.session.validate_session(token, ip_address)
         if not valid_session == True:
@@ -68,12 +68,12 @@ def start_app():
     except KeyError:
         return 'Please provide an app_name in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to start app \"{app_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to start app \"{app_name}\". Working...")
     multiprocessing.Process(
         target=instance.start_interface, args=(app_name, False)
     ).start()
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to start app \"{app_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to start app \"{app_name}\". Working..."
     )
     return {"status": 200}
 
@@ -94,10 +94,10 @@ def stop_app():
     except KeyError:
         return 'Please provide an app_name in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Working...")
     instance.stop(app_name, False)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Working..."
     )
     return {"status": 200}
 
@@ -126,7 +126,7 @@ def webcreate():
     except ValueError:
         return 'Please provide an app_name, app_desc, port, boundpath, do_autostart in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Working...")
     instance.create_web(
         app_name=app_name,
         app_desc=app_desc,
@@ -135,7 +135,7 @@ def webcreate():
         do_autostart=do_autostart,
         )
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Working..."
     )
     return {"status": 200}
 
@@ -157,10 +157,10 @@ def webdelete():
     except KeyError:
         return 'Please provide an app_name in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Working...")
     instance.delete(app_name, is_interface=False, ask_confirmation=False, del_backups=del_backups)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Working..."
     )
     return {"status": 200}
 
@@ -181,10 +181,10 @@ def get_status():
     except KeyError:
         return 'Please provide an app_name in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Working...")
     status = instance.get_status(app_name)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Working..."
     )
     return status, 200
 
@@ -201,14 +201,14 @@ def get_all():
     '''Returns all status's for all apps'''
     # Gets the data from the POST request
     data = dict(request.get_json())
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of all apps. Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of all apps. Working...")
     status_dict = {}
     for app in os.listdir('instances/'):
         status = instance.get_status(app, is_interface=False)
         status_dict[app] = status
 
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of all apps. Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of all apps. Working..."
     )
     return status_dict, 200
 
@@ -232,10 +232,10 @@ def set_warden_status():
     except TypeError:
         return 'Please provide a status (bool) and app_name (str) in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Working...")
     warden.set_status(app_name, status)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Working..."
     )
     return {"status": 200}
 
@@ -256,10 +256,10 @@ def get_warden_status():
     except KeyError:
         return 'Please provide an app_name in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Working...")
     status = warden.get_status(app_name)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Working..."
     )
     return {"status": status}
 
@@ -288,10 +288,10 @@ def add_warden_page():
     except TypeError:
         return 'Please provide an app_name (str), page_dir (str. eg, "index.html" or contentdir/subdir/page.html) in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Working...")
     msg = warden.add_page(app_name=app_name, page_dir=page_name, is_interface=False)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Working..."
     )
     # Uses match to check if the message is a success or failure and determine a html code
     answers = {
@@ -323,10 +323,10 @@ def delete_warden_page():
     except TypeError:
         return 'Please provide an app_name (str) and page_dir (str. eg, "index.html" or contentdir/subdir/page.html) in the POST data', 400
 
-    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Complying...")
+    apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Working...")
     msg = warden.rem_page(app_name=app_name, page_dir=page_dir, is_interface=False)
     logging.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Complying..."
+        f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Working..."
     )
     status = 200 if msg == "Page removed." else 400
     return {"status": msg}, status
@@ -353,10 +353,10 @@ def login():
     except TypeError:
         return 'Please provide a username (str) and password (str) in the POST data', 400
 
-    apiprint(f"API/Remote user {data['username']} requested to login. Complying...")
+    apiprint(f"API/Remote user {data['username']} requested to login. Working...")
     session = userman.session(username, password, IP_Address=request.remote_addr)
     logging.info(
-        f"API/Remote user {data['username']} requested to login. Complying..."
+        f"API/Remote user {data['username']} requested to login. Working..."
     )
     status = session.htmlstatus
     return {"status": status, "session": session.token}

@@ -16,6 +16,7 @@ colours = {
     'white': "\033[1;37;40m"
 }
 
+incorrect_attempts = {}
 class session_json:
     def add(token, username, IP_Address):
         '''
@@ -81,7 +82,6 @@ class session_json:
 
         return sessions
 
-
 class userman:
     def enter():
         while True:
@@ -104,6 +104,28 @@ class userman:
                     userman.help()
                 elif cmd == "sessions":
                     userman.session.enter()
+                    continue
+                elif cmd == "password":
+                    while True:
+                        username = input("Username: ")
+                        if username == "": print("Username cannot be blank.")
+                        elif username.isalnum() == False: print("Username must be alphanumeric.")
+                        elif userman.check_exists(username) == False: print("Username does not exist.")
+                        else: break
+                    while True:
+                        password = input("New Password: ")
+                        if password == "": print("Password cannot be blank.")
+                        elif password.isalnum() == False: print("Password must be alphanumeric.")
+                        elif len(password) < 4: print("Password must be at least 4 characters long.")
+                        else: break
+                    user = userman.user(username)
+                    user.set_password(password)
+                    print(f"Password for user \"{username}\" has been changed.")
+                    continue
+                elif cmd == "ftpperms":
+                    from .filetransfer import ftp_perms
+                    ftp_perms.enter()
+                    del ftp_perms
                     continue
                 elif cmd == "expiration":
                     while True:
@@ -147,7 +169,7 @@ class userman:
         for cmd in cmds:
             print(f"{colours['green']}{cmd}{colours['reset']}: {cmds[cmd]}")
 
-    def lock(username=None):
+    def lock(username=None, interface=True):
         if username is None:
             while True:
                 username = input("Username: ")
@@ -169,7 +191,7 @@ class userman:
             json_dir='settings.json',
             dt=app_settings
         )
-        print(f"User \"{username}\" has been locked.")
+        if interface: print(f"User \"{username}\" has been locked.")
 
     def unlock(username=None):
         if username is None:
@@ -471,13 +493,10 @@ class userman:
         if for_CLI:
             if len(UserList) >= 1:
                 colour = True
+                print("READ THE PERMISSIONS DOCS: https://pyftpdlib.readthedocs.io/en/latest/api.html")
                 print("====================")
                 for user in UserList:
-                    if user['ftp_permissions'] == "r":
-                        user['ftp_permissions'] == "Read Only" # Only a visual effect as it doesn't save
-                    elif user['ftp_permissions'] == "rw":
-                        user['ftp_permissions'] = "Read and Write"
-
+                    user = UserList[user]
                     if colour:
                         print(f"Username: {user['username']}\nPassword: {user['password']}\nHomedir: {user['ftp_dirs']}\nPermissions: {user['ftp_permissions']}\n====================\n")
                     else:
@@ -512,6 +531,13 @@ class userman:
                 self.username = username
             else:
                 raise userman.errors.UserDoesNotExist(f"User \"{username}\" does not exist.")
+            
+            self.json = jmod.getvalue(
+                key=f'pyhost_users.{username}',
+                json_dir='settings.json',
+                default={},
+                dt=app_settings
+            )
 
         def get_password(self):
             '''
@@ -543,8 +569,8 @@ class userman:
                 dt=app_settings
             )
 
-        def lock(self):
-            return userman.lock(self.username)
+        def lock(self, interface=True):
+            return userman.lock(self.username, interface=interface)
 
         def unlock(self):
             return userman.unlock(self.username)
@@ -597,7 +623,7 @@ class userman:
         def __init__(self, username, password, IP_Address=None) -> None:
             self.username = username
             self.password = password
-            
+
             nulls = [None, "", " "]
 
             if username in nulls or password in nulls:
@@ -616,11 +642,17 @@ class userman:
                 if userman.check_exists(username) is False:
                     self.htmlstatus = 401
                 else:
-                    if not userman.user(username).get_password() == password:
+                    user = userman.user(username)
+                    if not user.get_password() == password:
                         self.htmlstatus = 403
+                        # If the user enters the wrong password 3 (customizable) times, lock the account
+                        incorrect_attempts[username] = incorrect_attempts.get(username, 0) + 1
+                        if incorrect_attempts[username] >= 3:
+                            user.lock(interface=False)
+                            logging.info(f"User \"{username}\" has been automatically locked due to too many incorrect password attempts.")
 
-                if userman.is_locked(username):
-                    self.htmlstatus = 423
+                    if user.is_locked():
+                        self.htmlstatus = 423
             except userman.errors.UserDoesNotExist:
                 self.htmlstatus = 401
 

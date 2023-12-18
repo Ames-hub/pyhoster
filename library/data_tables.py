@@ -34,7 +34,6 @@ new_user = {
     "locked": False, # If the user is locked out of the account
     "api": {
         "logged_in": False,
-        "token": None,
     },
     # Will be a dict with the app name as the key and the path as the value
     "ftp_dirs": {},

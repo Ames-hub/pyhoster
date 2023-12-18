@@ -21,7 +21,7 @@ function login() {
         }
         else {
             if (data['status'] == 423) {
-                alert("Login failed. Your account was locked by Administrators.");
+                alert("Login failed. Your account was locked by Administrators or Automoderation.");
             }
             else if (data['status'] == 403) {
                 alert("Login failed. Is your Username or password incorrect?");

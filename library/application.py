@@ -325,6 +325,12 @@ class application:
                         os.kill(sman_pid, 9)
                     except:
                         pass
+                jmod.setvalue(
+                    key="session_man.pid",
+                    json_dir="settings.json",
+                    value=None,
+                    dt=app_settings,
+                )
 
             print("Stopping the API if it was running...")
             jmod.setvalue(

@@ -14,6 +14,7 @@ from pyftpdlib.servers import ThreadedFTPServer
 from datetime import datetime, timedelta
 from .jmod import jmod
 from .data_tables import app_settings
+from .userman import userman
 
 def generate_ssl(certfile_dir, keyfile_dir, hostname="localhost"):
     # Generate a self-signed certificate if it doesn't exist
@@ -64,6 +65,28 @@ colours = {
     "white": "\u001b[37m",
     "gray": "\u001b[90m",
 }
+
+def get_username():
+    while True:
+        print("<--FTP PERMISSIONS MENU-->\n")
+        print("Type \"exit\" to exit.\n")
+        userman.list_users()
+        username = input("Please select a user: ")
+        if not userman.check_exists(username):
+            print("User does not exist.")
+            continue
+
+        print(f"Selected user: {username}")
+        correct = input("Is this right? (Y/N) | ")
+        if correct.lower() == "y":
+            break
+        elif correct.lower() == "n":
+            username = None
+            continue
+        else:
+            print("Invalid answer.")
+            continue
+    return username
 
 class ftp:
     def start(certfile=None, prvkeyfile=None, server_port=None, use_ssl=True, bypass_enabled=False):
@@ -376,6 +399,7 @@ class ftp:
                 print("anonlogin: Toggle anonymous login on/off.")
                 print("RPassword: Changes the root password.")
                 print("root: Displays the root user's connection details.")
+                print("perms: Enters the FTP Permissions Menu.")
                 print("port: Changes the port the FTP server runs on.")
                 print("list: Lists all users.")
                 print("add: Adds a user.")
@@ -409,6 +433,8 @@ class ftp:
                 ftp.change_port()
             elif command == "anonlogin":
                 ftp.toggle_anonymous()
+            elif command == "perms":
+                ftp_perms.modify_perms()
             elif command == "RPassword":
                 ftp.change_root_password()
             elif command == "root":
@@ -536,3 +562,100 @@ class ftp:
                 dt=app_settings
             )
             print("FTP Auto startup has been enabled.")
+
+class ftp_perms:
+    def enter():
+        while True:
+            print("<--FTP PERMISSIONS MENU-->\n")
+            print("Type \"help\" for a list of commands.")
+            cmd = input(f"{colours['cyan']}ftp permission man> ").lower()
+
+            if cmd == "help":
+                ftp_perms.help_msg()
+            elif cmd == "exit":
+                print("Exiting FTP Permissions Menu.")
+                break
+            elif cmd == "cls":
+                from .application import application # Importing here to prevent circular import should they happen
+                application.clear_console()
+                del application
+            elif cmd == "list":
+                print("Users:")
+                userman.list_users()
+            elif cmd == "userperm":
+                ftp_perms.modify_perms()
+            else:
+                print("Invalid command.")
+                time.sleep(3)
+
+    def help_msg():
+        print("help: Displays this help message.")
+        print("exit: Exits the FTP Permissions Menu.")
+        print("cls: Clears the console.")
+        print("list: Lists all users.")
+        print("userperm: Selects a user to modify permissions of.")
+
+    def modify_perms(username=None):
+        username = get_username()
+        user = userman.user(username)
+        while True:
+            perms = user.json['ftp_permissions']
+            pm = ""
+            if "e" in perms:
+                pm += "(e) Change Directories\n"
+            if "l" in perms:
+                pm += "(l) List Files\n"
+            if "r" in perms:
+                pm += "(r) Retrieve Files\n"
+            if "a" in perms:
+                pm += "(a) Append Files\n"
+            if "d" in perms:
+                pm += "(d) Delete Files\n"
+            if "f" in perms:
+                pm += "(f) Rename Files\n"
+            if "m" in perms:
+                pm += "(m) Make Directories\n"
+            if "w" in perms:
+                pm += "(w) Store Files\n"
+            if "M" in perms:
+                pm += "(M) Change file permission\n"
+            if "T" in perms:
+                pm += "(T) Change known file Modification time\n"
+
+            print(f"\n{colours['yellow']}READ THE DOCS: https://pyftpdlib.readthedocs.io/en/latest/api.html{colours['white']}")
+            print(f"Selected user: {username}")
+            print(pm)
+            print("The user can do the above.")
+            new_permissions = input("New Permissions: ")
+            if new_permissions == "help":
+                # Prints all possible permissions and what they do
+                print("Enter these by letter to choose which permissions the user has.")
+                print("e: Change Directories")
+                print("l: List Files")
+                print("r: Retrieve Files")
+                print("a: Append Files")
+                print("d: Delete Files")
+                print("f: Rename Files")
+                print("m: Make Directories")
+                print("w: Store Files")
+                print("M: Change file permission")
+                print("T: Change known file Modification time")
+                input("Press enter to continue.")
+            elif new_permissions == "exit":
+                return False
+            else:
+                # Checks if the user has entered valid permissions
+                valid_perms = "elradfmwMT"
+                for perm in new_permissions:
+                    if perm not in valid_perms:
+                        print(f"Invalid permission: {perm}")
+                        continue
+                break
+
+        jmod.setvalue(
+            key=f"pyhost_users.{username}.ftp_permissions",
+            value=new_permissions,
+            json_dir='settings.json',
+            dt=app_settings
+        )
+        print(f"{colours['green']}Permissions for {username} have been changed to {new_permissions}.{colours['white']}\n")

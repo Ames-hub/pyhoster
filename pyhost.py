@@ -201,6 +201,7 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
 # Starts the session man
 def session_man():
     from library.userman import session_json
+    logging.info("Session manager started.")
     try:
         while True:
             sessions = session_json.list()
@@ -212,19 +213,20 @@ def session_man():
     except KeyboardInterrupt:
         return True
 
+sman_enabled = jmod.getvalue("session_man.enabled", "settings.json", True, dt=app_settings)
 if __name__ == "__main__":
-    if sman_enabled := jmod.getvalue("session_man.enabled", "settings.json", True, dt=app_settings) is True:
+    if sman_enabled is True:
         sman_thread = multiprocessing.Process(
             target=session_man,
             args=()
         )
+        sman_thread.start()
         jmod.setvalue(
             key="session_man.pid",
             json_dir="settings.json",
             value=sman_thread.pid,
             dt=app_settings
         )
-        sman_thread.start()
 
 if __name__ == '__main__': # This line ensures the script is being run directly and not imported
     app_settings_dir = os.path.abspath("settings.json")

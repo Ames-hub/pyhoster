@@ -38,8 +38,14 @@ class webcontroller:
         
         # Checks if the API is running
         if not jmod.getvalue(key="api.running", json_dir=setting_dir, default=False, dt=app_settings):
-            print("The API is not running. Without the API, the website can't interact with PyHost. Please start it.")
+            print(f"{colours['red']}The API is not running. Without the API, the website can't interact with PyHost. Please start it.{colours['white']}")
+            print(f"{colours['green']}Instructions:")
+            print(f"{colours['green']}1. Go to the main menu (by typing exit)")
+            print(f"{colours['green']}2. enter command \"API\"")
+            print(f"{colours['green']}3. enter command \"start\"")
+            print(f"{colours['green']}If you want it to start on autoboot, enter command \"autoboot\" then select Y{colours['white']}")
             logging.warning("The API is not running. Please start the API before starting the WebGUI.")
+            input("Press enter to continue...")
 
         if silent_gui == -1:
             silent_gui = jmod.getvalue(
@@ -440,10 +446,16 @@ class webcontroller:
                 dt=web_config_dt
             )
             running = webcontroller.is_running()
-            
+            do_ssl = "s" if jmod.getvalue(
+                key="ssl_enabled",
+                json_dir="library/WebGUI/config.json",
+                default=True,
+                dt=web_config_dt
+            ) else ""
+
             try:
                 print("\n<--Pyhost WebGUI Interface. Type EXIT to exit. -->")
-                print(f"WebGUI is running at http://{hostname}:{port}" if running else f"WebGUI is not running but set for port {port}.")
+                print(f"WebGUI is running at http{do_ssl}://{hostname}:{port}" if running else f"WebGUI is not running but set for port {port}.")
                 print("Enter 'help' to see a list of commands.")
                 cmd = input(f"{colours['red' if not running else 'green']}webgui{colours['reset']}> ").lower()
                 if cmd == "exit":
