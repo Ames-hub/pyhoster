@@ -12,7 +12,6 @@ import shutil
 import time
 from library.jmod import jmod
 from library.data_tables import web_config_dt, app_settings
-from library.application import colours
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)
@@ -86,14 +85,6 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
                     print("Finished importing backups!")
                 else:
                     print("Skipping backup import...")
-
-        print("\n") # Newline for readability
-
-        hostname = jmod.getvalue("hostname", "settings.json", -1, dt=app_settings)
-        if hostname == -1: # If the user has not set a hostname, get one
-            from library.application import application
-            application.settings.setdomain()
-            del application
 
         # Sets the first_launch setting to false as the user has now launched the app
         jmod.setvalue(

@@ -433,7 +433,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             default=True,
             dt=config_data
         )
-        hostname = jmod.getvalue(key="hostname", json_dir=setting_dir, default="localhost", dt=app_settings)
+        
         notfoundpage = jmod.getvalue(key="404page", json_dir=config_path, default="404.html", dt=config_data)
 
         # Define a custom request handler with logging
@@ -642,7 +642,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 # Print a message to indicate the server has started unless silent is True
                 if not silent:
                     print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
-                        f"You can visit it on http://{hostname}:{port}")
+                        f"You can visit it on http://localhost:{port}")
 
                 log_message(f"Server \"{app_name}\" is running.")
                 # Get the PID of the current thread (web server)
@@ -1254,9 +1254,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stopping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
-                hostname = jmod.getvalue(key="hostname", json_dir=setting_dir, default="localhost", dt=app_settings)
-                port = jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=web_config_dt)
-                print(f"\"{self.app_name}\" started! (http://{hostname}:{port})\nEdit completed and saved")
+                print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=web_config_dt)})\nEdit completed and saved")
                 multiprocessing.Process(
                     target=instance.start,
                     args=(self.app_name, True,),

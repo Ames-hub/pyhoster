@@ -15,11 +15,8 @@ from datetime import datetime, timedelta
 from .jmod import jmod
 from .data_tables import app_settings
 from .userman import userman
-setting_dir = "settings.json"
 
-def generate_ssl(certfile_dir, keyfile_dir, hostname=None):
-    if hostname == None:
-        hostname = jmod.getvalue(key="hostname", json_dir=setting_dir, default="localhost", dt=app_settings)
+def generate_ssl(certfile_dir, keyfile_dir, hostname="localhost"):
     # Generate a self-signed certificate if it doesn't exist
     if not os.path.isfile(certfile_dir) or not os.path.isfile(keyfile_dir):
         key = rsa.generate_private_key(
@@ -269,9 +266,8 @@ class ftp:
                 default=4035,
                 dt=app_settings
             )
-        hostname = jmod.getvalue(key="hostname", json_dir=setting_dir, default="localhost", dt=app_settings)
-        server = ThreadedFTPServer((hostname, server_port), handler)
-        print(f"<--FILE TRANSFER PROTOCAL {"SECURED" if use_ssl else ""} RUNNING ON \"{hostname}:{server_port}\" WITH {len(user_list)} USERS-->", flush=True)
+        server = ThreadedFTPServer(("localhost", server_port), handler)
+        print(f"<--FILE TRANSFER PROTOCAL {"SECURED" if use_ssl else ""} RUNNING ON \"localhost:{server_port}\" WITH {len(user_list)} USERS-->", flush=True)
 
         counter = 0
         try:

@@ -61,8 +61,7 @@ class webcontroller:
         webgui_thread.start()
         time.sleep(0.25) # Wait for the server to start
         port = jmod.getvalue(key="webgui.port", json_dir=setting_dir, default=4040, dt=app_settings)
-        hostname = jmod.getvalue(key="hostname", json_dir=setting_dir, default="localhost", dt=app_settings)
-        print(f"<--WebGUI is now running on \"https://{hostname}:{port}\"-->")
+        print(f"<--WebGUI is now running on \"https://localhost:{port}\"-->")
         jmod.setvalue(
             key="webgui.pid",
             json_dir="settings.json",
@@ -248,8 +247,8 @@ class webcontroller:
                     
                     # Check if the requested file exists
                     if os.path.exists(requested_file_path):
-                        # If the requested file exists, serve it
-                        return super().do_GET()
+                        # If the requested file exists, call the parent class's do_GET method
+                        super().do_GET()
                     elif notfoundpage_enabled:
                         # If the requested file doesn't exist and a custom 404 page is enabled
                         if send_404:
@@ -551,14 +550,30 @@ class webcontroller:
         logging.info(f"WebGUI port has been set to {port}")
         return True
     
-    def sethostname(hostname=None):
+    def sethostname(hostname=None, interface=True):
         '''
         Sets the hostname of the WebGUI
         '''
         if hostname == None:
             from ..application import application
-            hostname = application.settings.setdomain()
+            hostname = application.datareqs.get_hostname()
             del application
+        
+        if isinstance(hostname, str):
+            jmod.setvalue(
+                key="hostname",
+                json_dir=setting_dir,
+                value=hostname,
+                dt=web_config_dt
+            )
+
+            if interface: print(f"WebGUI hostname has been set to {hostname}")
+            logging.info(f"WebGUI hostname has been set to {hostname}")
+            return True
+        else:
+            if interface: print("Hostname must be a string!")
+            logging.error("User tried to set hostname, but Hostname must be a string! Entered value: "+str(hostname))
+            return False
 
     def open_gui():
         '''

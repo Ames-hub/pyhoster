@@ -505,6 +505,26 @@ class application:
                     continue
             return boundpath
 
+        def get_hostname():
+            while True:
+                try:
+                    hostname: str = str(input("What is the hostname of the app? TEXT (blank for localhost) : "))
+                    if hostname.lower() == "cancel":
+                        print("Cancelled!")
+                        return True
+                    elif hostname == "":
+                        hostname = "localhost"
+
+                    assert "." in hostname, "The hostname must contain a period!"
+                    assert hostname != "", "The hostname cannot be blank!"
+                    assert all(c.isalnum() or c == "." for c in hostname), "The hostname must only contain letters, numbers, and periods!"
+                    assert not hostname.startswith("."), "The hostname cannot start with a period!"
+                    break
+                except AssertionError as err:
+                    print(str(err))
+                    continue
+            
+            return hostname
     class types:
         def webpage():
             return "WEBPAGE"
@@ -525,7 +545,6 @@ class application:
                     "backups path": "Set the path to where backups are stored. TEXT",
                     "autobackup": "Toggle if we autobackup a snapshot of the app. BOOL",
                     "api autoboot": "Toggle if the API Autoboot is enabled. BOOL",
-                    "domain": "Set the hostname/domain name of the app. TEXT",
                 }
 
                 def help_msg():
@@ -559,60 +578,6 @@ class application:
                         self.autobackup(is_interface=True)
                     elif cmd == "api autoboot":
                         self.api_enabled(is_interface=True)
-                    elif cmd in ["domain", "domainname", "hostname", "host"]:
-                        self.setdomain(is_interface=True)
-
-        def setdomain(hostname=None):
-            while True:
-                try:
-                    print("Do you have a domain name you'd like us to use? (eg, example.com or 192.168.0.192)")
-                    print("If so, enter it here. If not, leave it blank and we'll use the default. (localhost)")
-                    hostname = input(">>> ").lower()
-                    if hostname == "":
-                        hostname = "localhost"
-                        print("<-- Warning, if someone wants to use the website interface, they will not normally be able to use it unless on the server machine! -->")
-                        print("Are you sure you want to use the default hostname? (y/n)")
-                        time.sleep(3) # Gives the user time to read the warning
-                        answer = input(">>> ").lower()
-                        if answer == "y":
-                            break
-                        else:
-                            print("Retrying...\n")
-                            continue
-                    else:
-
-                        hostname = str(hostname)
-                        # Verifies it IS a possible domain name
-                        assert hostname.count(".") >= 1
-                        assert hostname != ""
-                        
-                        allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-."
-                        for char in hostname:
-                            assert str(char) in allowed_chars
-                        break
-
-                except AssertionError:
-                    print(f"{colours['yellow']}<!-- Warning! Your hostname does not match the format of a domain name. -->")
-                    print(f"<!-- This may cause issues with the API and WebGUI. -->{colours['white']}")
-                    retry = input(f"Is the hostname \"{hostname}\" Correct and the one you want to use? (y/n)\n>>> ").lower()
-                    if retry == "y":
-                        break
-                    else:
-                        print("Retrying...\n")
-                        continue
-                except KeyboardInterrupt:
-                    print("Cancelled")
-                    exit()
-                except:
-                    print("Invalid choice!")
-                    continue
-            jmod.setvalue(
-                key="hostname",
-                json_dir="settings.json",
-                value=hostname,
-                dt=app_settings
-            )
-            logging.info(f"Hostname set to {hostname}")
 
         def do_autostart(self, state:bool=True, is_interface:bool=False):
             if is_interface:
