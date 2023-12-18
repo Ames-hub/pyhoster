@@ -19,7 +19,7 @@ class controller:
         Create a WSGI Server set primarily for Flask.
         '''
         app_dir = jmod.getvalue("api.app_dir", "settings.json", "library.API.MainAPI", app_settings)
-        port = jmod.getvalue("api.port", "settings.json", app_settings, default=4045 if os.name == "nt" else 1200)
+        port = jmod.getvalue("api.port", "settings.json", 4045, app_settings)
         app = __import__(app_dir, fromlist=['']).app
         os.environ["FLASK_ENV"] = "production"  # Set Flask environment to production
         os.environ["FLASK_APP"] = "PyHostAPI"  # Set the name of your Flask app
