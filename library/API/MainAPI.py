@@ -2,7 +2,7 @@
 from flask import request
 from ..data_tables import app_settings
 import os, datetime
-import logging, multiprocessing, flask
+import multiprocessing, flask
 from flask_cors import CORS
 from library.userman import userman
 from library.instance import instance
@@ -10,11 +10,8 @@ from library.warden import warden
 from ..jmod import jmod
 import datetime
 
-logger = logging.getLogger("API")
-logger.setLevel(logging.INFO)
-# Puts all logs in logs/API/TODAY.log
-os.makedirs("logs/API/", exist_ok=True)
-handler = logging.FileHandler(f"logs/API/{datetime.datetime.now().strftime('%d-%m-%Y')}.log")
+from ..pylog import pylog
+logapi = pylog(filename='logs/api/%TIMENOW%.log')
 
 app = flask.Flask(__name__)
 CORS(app, origins='*') #TODO: I'll improve this when I can give a damn
@@ -23,14 +20,14 @@ def apiprint(msg):
     actionprint = jmod.getvalue("api.actionprint", "settings.json", False, app_settings)
     if actionprint:
         print(msg)
-        logger.info(msg)
+        logapi.info(msg)
     else:
-        logger.info(msg)
+        logapi.info(msg)
 
 def prechecks(func):
     def wrapper(*args, **kwargs):
         ip_address = request.remote_addr
-        logging.info(f"IP Address: {ip_address}, Function: {func.__name__}, Arguments: {args, kwargs}")
+        logapi.info(f"IP Address: {ip_address}, Function: {func.__name__}, Arguments: {args, kwargs}")
         # Gets the data from the POST request
         data = dict(request.get_json())
 
@@ -72,7 +69,7 @@ def start_app():
     multiprocessing.Process(
         target=instance.start_interface, args=(app_name, False)
     ).start()
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to start app \"{app_name}\". Working..."
     )
     return {"status": 200}
@@ -96,7 +93,7 @@ def stop_app():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Working...")
     instance.stop(app_name, False)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Working..."
     )
     return {"status": 200}
@@ -134,7 +131,7 @@ def webcreate():
         boundpath=boundpath,
         do_autostart=do_autostart,
         )
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Working..."
     )
     return {"status": 200}
@@ -159,7 +156,7 @@ def webdelete():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Working...")
     instance.delete(app_name, is_interface=False, ask_confirmation=False, del_backups=del_backups)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Working..."
     )
     return {"status": 200}
@@ -183,7 +180,7 @@ def get_status():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Working...")
     status = instance.get_status(app_name)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Working..."
     )
     return status, 200
@@ -207,7 +204,7 @@ def get_all():
         status = instance.get_status(app, is_interface=False)
         status_dict[app] = status
 
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of all apps. Working..."
     )
     return status_dict, 200
@@ -234,7 +231,7 @@ def set_warden_status():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Working...")
     warden.set_status(app_name, status)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Working..."
     )
     return {"status": 200}
@@ -258,7 +255,7 @@ def get_warden_status():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Working...")
     status = warden.get_status(app_name)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Working..."
     )
     return {"status": status}
@@ -290,7 +287,7 @@ def add_warden_page():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Working...")
     msg = warden.add_page(app_name=app_name, page_dir=page_name, is_interface=False)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Working..."
     )
     # Uses match to check if the message is a success or failure and determine a html code
@@ -325,7 +322,7 @@ def delete_warden_page():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Working...")
     msg = warden.rem_page(app_name=app_name, page_dir=page_dir, is_interface=False)
-    logging.info(
+    logapi.info(
         f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Working..."
     )
     status = 200 if msg == "Page removed." else 400
@@ -355,7 +352,7 @@ def login():
 
     apiprint(f"API/Remote user {data['username']} requested to login. Working...")
     session = userman.session(username, password, IP_Address=request.remote_addr)
-    logging.info(
+    logapi.info(
         f"API/Remote user {data['username']} requested to login. Working..."
     )
     status = session.htmlstatus

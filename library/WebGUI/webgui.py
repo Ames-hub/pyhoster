@@ -1,4 +1,4 @@
-import os, json, logging, sys, datetime, socketserver, http.server
+import os, json, sys, datetime, socketserver, http.server
 import webbrowser
 import ssl
 import time
@@ -7,6 +7,9 @@ from ..data_tables import app_settings, web_config_dt
 root_dir = os.getcwd()
 setting_dir = "settings.json"
 import multiprocessing
+
+from ..pylog import pylog
+pylogger = pylog()
 
 colours = {
     "red": "\033[31m",
@@ -44,7 +47,7 @@ class webcontroller:
             print(f"{colours['green']}2. enter command \"API\"")
             print(f"{colours['green']}3. enter command \"start\"")
             print(f"{colours['green']}If you want it to start on autoboot, enter command \"autoboot\" then select Y{colours['white']}")
-            logging.warning("The API is not running. Please start the API before starting the WebGUI.")
+            pylogger.warning("The API is not running. Please start the API before starting the WebGUI.")
             input("Press enter to continue...")
 
         if silent_gui == -1:
@@ -77,6 +80,8 @@ class webcontroller:
 
         silent = True will redirect stdout and stderr to /dev/null
         '''
+        webgui_logger = pylog(filename="logs/WebGUI/%TIMENOW%.log")
+
         # Get the port from the config.json file
         config_path = os.path.abspath(f"library/WebGUI/config.json")
         if not os.path.exists(config_path):
@@ -162,7 +167,7 @@ class webcontroller:
                     warden_enabled = warden.get("enabled", False)
                     wardened_dirs = warden.get("pages", None)
                 except Exception as err:
-                    logging.error(f"Failed to get warden settings for WebGUI: {err}")
+                    pylogger.error(f"Failed to get warden settings for WebGUI: {err}", err)
 
                 def ask_for_login():
                     # If PIN is not provided or incorrect, request PIN
@@ -179,7 +184,6 @@ class webcontroller:
                     # If its -1, then it couldn't find the pin and the user needs to set it
                     pin_valid = self.path.find(f"/warden?pin={set_pin}") != -1
                     # Check if the requested path is wardened
-                    logging.info(pin_valid)
                     if pin_valid is False:
                         for page_dir in wardened_dirs:
                             if page_dir == "*": # If its *, then all pages are wardened
@@ -355,14 +359,14 @@ class webcontroller:
                 )
 
                 # Start the server and keep it running until interrupted
-                logging.info(f"WebGUI is now running on port {port}")
+                webgui_logger.info(f"WebGUI is now running on port {port}")
                 httpd.serve_forever()
-
-        except OSError as e:
-            logging.error(f"WebGUI failed to start: {e}\n\n"+str(e.with_traceback(e.__traceback__)))
+                # Once it reaches here, it stops.
+                webgui_logger.info("WebGUI has been stopped.")
+        except OSError as err:
+            webgui_logger.error(f"WebGUI failed to start!", err)
             if not silent:
-                print(f"WebGUI failed to start: {e}\nIs there already something running on port {port}?")
-            log_message(f"WebGUI failed to start: {e}\nIs there already something running on port {port}?")
+                print(f"WebGUI failed to start: {err}\nIs there already something running on port {port}?")
     
     def stopgui():
         # Get the PID of the WebGUI
@@ -385,7 +389,7 @@ class webcontroller:
                 os.kill(webgui_pid, 9)
             except:
                 return False
-        logging.info(f"WebGUI has been stopped.")
+        pylogger.info(f"WebGUI has been stopped.")
 
         jmod.setvalue(
             key="webgui.pid",
@@ -527,7 +531,7 @@ class webcontroller:
             dt=web_config_dt
         )
         if interface: print(f"WebGUI autoboot has been set to {do_autoboot}")
-        logging.info(f"WebGUI autoboot has been set to {do_autoboot}")
+        pylogger.info(f"WebGUI autoboot has been set to {do_autoboot}")
         return True
 
     def setport(port=None, interface=True):
@@ -547,7 +551,7 @@ class webcontroller:
         )
     
         if interface: print(f"WebGUI port has been set to {port}")
-        logging.info(f"WebGUI port has been set to {port}")
+        pylogger.info(f"WebGUI port has been set to {port}")
         return True
     
     def sethostname(hostname=None, interface=True):
@@ -568,11 +572,11 @@ class webcontroller:
             )
 
             if interface: print(f"WebGUI hostname has been set to {hostname}")
-            logging.info(f"WebGUI hostname has been set to {hostname}")
+            pylogger.info(f"WebGUI hostname has been set to {hostname}")
             return True
         else:
             if interface: print("Hostname must be a string!")
-            logging.error("User tried to set hostname, but Hostname must be a string! Entered value: "+str(hostname))
+            pylogger.warning("User tried to set hostname, but Hostname must be a string! Entered value: "+str(hostname))
             return False
 
     def open_gui():

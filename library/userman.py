@@ -1,8 +1,10 @@
 import os
 from .jmod import jmod
-import uuid, datetime, multiprocessing
-import logging
+import uuid, datetime
 from .data_tables import new_user, app_settings
+
+from .pylog import pylog
+pylogger = pylog()
 
 colours = {
     'reset': "\033[0;37;40m",
@@ -596,6 +598,15 @@ class userman:
                     return UserList[user]['ftp_dirs']
             return False
         
+        def logout_api(self):
+            jmod.setvalue(
+                key=f'pyhost_users.{self.username}.api.loggedin',
+                value=False,
+                json_dir='settings.json',
+                dt=app_settings
+            )
+            return True
+
     class errors:
         # Using this class so I can catch specific things without returning strings 
         class UserDoesNotExist(Exception):
@@ -649,7 +660,7 @@ class userman:
                         incorrect_attempts[username] = incorrect_attempts.get(username, 0) + 1
                         if incorrect_attempts[username] >= 3:
                             user.lock(interface=False)
-                            logging.info(f"User \"{username}\" has been automatically locked due to too many incorrect password attempts.")
+                            pylogger.info(f"User \"{username}\" has been automatically locked due to too many incorrect password attempts.")
 
                     if user.is_locked():
                         self.htmlstatus = 423
@@ -678,9 +689,9 @@ class userman:
         def enter():
             while True:
                 try:
-                    print(f"{colours["blue"]}========================={colours["white"]}")
-                    print(f"{colours["blue"]}Session Management System{colours["white"]}")
-                    print(f"{colours["blue"]}========================={colours["white"]}")
+                    print(f'{colours["blue"]}Session Management System{colours["white"]}')
+                    print(f'{colours["blue"]}========================={colours["white"]}')
+                    print(f'{colours["blue"]}========================={colours["white"]}')
                     # Prints out all sessions, their username, and their IP address
                     session_id_token_map = {}
                     counter = 0

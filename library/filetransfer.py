@@ -1,7 +1,6 @@
 import time
 import os
 import ssl
-import logging
 import multiprocessing
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -15,6 +14,9 @@ from datetime import datetime, timedelta
 from .jmod import jmod
 from .data_tables import app_settings
 from .userman import userman
+
+from .pylog import pylog
+pylogger = pylog()
 
 def generate_ssl(certfile_dir, keyfile_dir, hostname="localhost"):
     # Generate a self-signed certificate if it doesn't exist
@@ -91,19 +93,7 @@ def get_username():
 class ftp:
     def start(certfile=None, prvkeyfile=None, server_port=None, use_ssl=True, bypass_enabled=False):
         # Create a logger
-        ftp_logger = logging.getLogger('ftp')
-        ftp_logger.setLevel(logging.INFO)
-
-        # Create a file handler
-        os.makedirs('logs/ftp/', exist_ok=True)
-        handler = logging.FileHandler('logs/ftp/'+datetime.now().strftime("%Y-%m-%d")+'.log')
-
-        # Create a formatter and add it to the handler
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-
-        # Add the handler to the logger
-        ftp_logger.addHandler(handler)
+        ftp_logger = pylog(filename='logs/ftp/%TIMENOW%.log')
 
         FTP_Enabled = jmod.getvalue(
             key='FTP_Enabled',
@@ -135,48 +125,6 @@ class ftp:
             os.makedirs("library/ssl/", exist_ok=True)
             if not ssl_exist["prv"] or not ssl_exist["cert"]:
                 generate_ssl(certfile, keyfile)
-
-        class CustomHandler(logging.Handler):
-            """
-            A custom logging handler that logs messages to a file or prints them to the console based on the 'ftpLogToFile' setting.
-
-            Attributes:
-                None
-
-            Methods:
-                emit(record): Overrides the emit method of the logging.Handler class to handle the logging of messages.
-            """
-
-            def emit(self, record):
-                """
-                Logs the formatted message to a file or prints it to the console based on the 'ftpLogToFile' setting.
-
-                Args:
-                    record (logging.LogRecord): The log record to be emitted.
-
-                Returns:
-                    None
-                """
-                # Load settings from a JSON file
-                log_to_file = jmod.getvalue(
-                    key='ftpLogToFile',
-                    json_dir='settings.json',
-                    default=True,
-                    dt=app_settings
-                )
-
-                msg = self.format(record)
-
-                if log_to_file:
-                    os.makedirs('logs/ftp/', exist_ok=True)
-                    with open('logs/ftp/'+datetime.now().strftime("%Y-%m-%d")+'.log', 'a') as f:
-                        f.write(msg + '\n')
-                else:
-                    print(msg)
-
-        # Set up logging
-        handler = CustomHandler()
-        logging.basicConfig(level=logging.INFO, handlers=[handler])
 
         root_password = jmod.getvalue(
             key='ftpRootPassword',
@@ -236,7 +184,7 @@ class ftp:
                 """
                 is_secure = self.ssl_context is not None
                 # Gets which account is logging in and sets it in the json file
-                logging.info(f"IP \"{self.remote_ip}\" with username \"{self.username}\" has connected on Port \"{self.remote_port}\". Secure: {is_secure}")
+                ftp_logger.info(f"IP \"{self.remote_ip}\" with username \"{self.username}\" has connected on Port \"{self.remote_port}\". Secure: {is_secure}")
 
             def on_login(self, username):
                 connected_users.append(username)
@@ -267,7 +215,7 @@ class ftp:
                 dt=app_settings
             )
         server = ThreadedFTPServer(("localhost", server_port), handler)
-        print(f"<--FILE TRANSFER PROTOCAL {"SECURED" if use_ssl else ""} RUNNING ON \"localhost:{server_port}\" WITH {len(user_list)} USERS-->", flush=True)
+        print(f"<--FILE TRANSFER PROTOCAL {'SECURED' if use_ssl else ''} RUNNING ON \"localhost:{server_port}\" WITH {len(user_list)} USERS-->", flush=True)
 
         counter = 0
         try:
@@ -376,17 +324,17 @@ class ftp:
 
             # Prints the FTP server's port
             FtpPort = jmod.getvalue(key='FtpPort', json_dir='settings.json', default=4035, dt=app_settings)
-            print(f"FTP server is {running_msg} {"on port " if running else ""}{FtpPort if running else f"but is assigned to port {FtpPort}"}.")
+            print(f"FTP server is {running_msg} {'on port ' if running else ''}{FtpPort if running else f'but is assigned to port {FtpPort}'}.")
 
             print("Use command 'root' to view the root user's connection details.")
-
             # Prints various settings's values
-            print(f"\nAnonymous login is currently {f'{colours['green']}enabled{colours['white']}' if jmod.getvalue(
-                key='ftpAnonAllowed', json_dir='settings.json', default=False, dt=app_settings
-                ) else f'{colours['red']}disabled{colours['white']}'}.") # Anonymous login
-            print(f"Auto startup is currently {f'{colours['green']}enabled{colours['white']}' if jmod.getvalue(
-                key='FTP_Enabled', json_dir='settings.json', default=True, dt=app_settings
-                ) else f'{colours['red']}disabled{colours['white']}'}.")
+            anon_allowed = jmod.getvalue(key='ftpAnonAllowed', json_dir='settings.json', default=False, dt=app_settings)
+            anon_login_msg = colours['green'] + "enabled" + colours['white'] if anon_allowed else colours['red'] + "disabled" + colours['white']
+            print(f"\nAnonymous login is currently {anon_login_msg}.") # Anonymous login
+
+            ftp_autostart = jmod.getvalue(key='FTP_Enabled', json_dir='settings.json', default=True, dt=app_settings)
+            auto_start_msg = colours['green'] + "enabled" + colours['white'] if ftp_autostart else colours['red'] + "disabled" + colours['white']
+            print(f"Auto startup is currently {auto_start_msg}")
 
             command = input(f"{colours['red'] if not running else colours['green']}ftp{colours['white']}> ").lower()
             if command == "help":
@@ -455,7 +403,7 @@ class ftp:
                     break
                 
                 print("USERNAME: root")
-                print(f"ROOT PASSWORD: {jmod.getvalue(key="ftpRootPassword", json_dir="settings.json")}")
+                print(f"ROOT PASSWORD: {jmod.getvalue(key='ftpRootPassword', json_dir='settings.json')}")
             elif command == "":
                 continue # Catches blank input as sometimes a 'input' line is printed over and the user pressed enter to dismiss it 
             else:

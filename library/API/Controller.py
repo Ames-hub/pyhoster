@@ -1,7 +1,10 @@
 from ..jmod import jmod
 from ..data_tables import app_settings
 from ..userman import userman
-import waitress, os, multiprocessing, time, logging
+import waitress, os, multiprocessing, time
+
+from ..pylog import pylog
+apipylog = pylog(filename="logs/api/%TIMENOW%.log")
 
 colours = {
     "red": "\033[91m",
@@ -23,7 +26,7 @@ class controller:
         app = __import__(app_dir, fromlist=['']).app
         os.environ["FLASK_ENV"] = "production"  # Set Flask environment to production
         os.environ["FLASK_APP"] = "PyHostAPI"  # Set the name of your Flask app
-        logging.info(f"Starting PyHost API on port {port}")
+        apipylog.info(f"Starting PyHost API on port {port}")
         print(f"<--PyHost API is Online running on port {port} and awaiting requests-->")
         try:
             waitress.serve(app, host='0.0.0.0', port=port)
@@ -46,8 +49,8 @@ class controller:
             user_list = userman.list_users(for_CLI=False)
             for user in user_list:
                 if user_list[user]["api"]["logged_in"] is True:
-                    userman.api.logout(user)
-                    logging.info(f"User {user} has been logged out due to inactivity.")
+                    userman.user(user).logout_api()
+                    apipylog.info(f"User {user} has been logged out due to inactivity.")
 
     def initapi():
         API_Process = multiprocessing.Process(
@@ -106,7 +109,7 @@ class controller:
             value=None,
             dt=app_settings
         )
-        logging.info("PyHost API has been stopped.")
+        apipylog.info("PyHost API has been stopped.")
         return True
 
     def is_running():

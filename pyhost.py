@@ -5,33 +5,69 @@
 
 # Importing modules
 import datetime
-import logging
 import multiprocessing
 import os
 import shutil
 import time
+import sys
 from library.jmod import jmod
 from library.data_tables import web_config_dt, app_settings
+from library.pylog import pylog
+
+colours = {
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "purple": "\033[35m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "reset": "\033[0m"
+}
+
+pylogger = pylog()
+# Start the logworker in a separate thread
+if __name__ == "__main__":
+    logman_enabled = jmod.getvalue(key="logman.enabled", json_dir="settings.json", default=True, dt=app_settings)
+    if logman_enabled is True:
+        from library.pylog import logman
+        logworker = multiprocessing.Process(
+            target=logman,
+            args=()
+        )
+        logworker.start()
+        jmod.setvalue(
+            key="logman.pid",
+            json_dir="settings.json",
+            value=logworker.pid,
+            dt=app_settings
+        )
+
+ran_root = os.geteuid() == 0
+is_linux = sys.platform == "linux" # If the OS is linux, it will be true
+is_mac = sys.platform == "darwin"
+pylogger.info(f"OS Is Linux: {is_linux}")
+pylogger.info(f"OS Is Windows: {os.name == 'nt'}")
+pylogger.info(f"OS Is Apple: {is_mac}")
+pylogger.info(f"os.name? : {os.name}")
+pylogger.info(f"sys.platform? : {sys.platform}")
+pylogger.info(f"Has elevated privileges? : {ran_root}")
+
+if is_mac:
+    is_linux = False
+    print(f"{colours['red']}<!-- WARNING! APPLE DEVICES ARE UNTESTED, AND NOT PLANNED FOR ON ANYTHING. -->")
+    print(f"<!-- ANYTHING MAY GO WRONG, DESPITE THERE BEING NOTHING INTENTIONALLY STOPPING APPLE DEVICES FROM RUNNING PYHOST. -->{colours['white']}")
+    print(f"{colours['yellow']}<!-- HERE BE DRAGONS -->{colours['white']}")
+    if jmod.getvalue("first_launch", "settings.json", True, dt=app_settings) is True:
+        input("Press enter to continue, and acknowledge the potential risks of running Pyhost on an Apple device. ")
+        print("You will not see this message again.")
+        time.sleep(5)
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
-log_filename = str(datetime.date.today().strftime("%Y-%m-%d"))
-# Sets up logging
-logging.basicConfig(
-    # Gets a readable datetime format for the log filename
-    filename=f"logs/{log_filename}.log",
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logging.basicConfig(
-    # Gets a readable datetime format for the log filename
-    filename=f"logs/{log_filename}.log",
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.ERROR
-)
-logging.info("Pyhost logging started successfully!")
+pylogger.info("Pyhost logging started successfully!")
 
 if __name__ == "__main__": # Checks if the user is running the app for the first time
     from library.application import application
@@ -170,38 +206,38 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
             if err.errno == 13:
                 port = jmod.getvalue("FtpPort", "settings.json", 4035, dt=app_settings)
                 print(f"Port {port} is already taken! Can't start FTP server.")
-                logging.error(f"Port {port} is already taken! Can't start FTP server.")
+                pylogger.error(f"Port {port} is already taken! Can't start FTP server.", err)
     else:
-        logging.info("FTP server is disabled.")
+        pylogger.info("FTP server is disabled.")
 
     API_Enabled = jmod.getvalue(key="api.autoboot", json_dir="settings.json", default=False, dt=app_settings)
     if API_Enabled is True:
-        logging.info("API is Enabled. Starting.")
+        pylogger.info("API is Enabled. Starting.")
         try:
             apicontroller.initapi()
         except OSError as err:
             if err.errno == 13:
                 port = jmod.getvalue("api.port", "settings.json", 4045, dt=app_settings)
-                logging.error(f"Port {port} is already taken! Can't start API.")
+                pylogger.error(f"Port {port} is already taken! Can't start API.", err)
                 print(f"Port {port} is already taken! Can't start API.")
                 exit()
             else:
                 print("An unknown error occurred while starting the API. Please check the logs for more info.")
-                logging.error("An unknown error occurred while starting the API.")
+                pylogger.error("An unknown error occurred while starting the API.", err)
     else:
-        logging.info("API is disabled.")
+        pylogger.info("API is disabled.")
 
     # Starts WebGUI thread if webgui is enabled
     webgui_enabled = jmod.getvalue("webgui.autoboot", "settings.json", True, dt=app_settings)
     if webgui_enabled is True:
         webcontroller.run(silent_gui=-1) # It'll check in the function with -1
     else:
-        logging.info("WebGUI is disabled.")
+        pylogger.info("WebGUI is disabled.")
 
 # Starts the session man
 def tokenMan():
     from library.userman import session_json
-    logging.info("Session manager started.")
+    pylogger.info("Session manager started.")
     try:
         while True:
             sessions = session_json.list()
@@ -256,11 +292,16 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
                 port = jmod.getvalue(key='port', json_dir=config_file)
                 if port == jmod.getvalue(key="api.port", json_dir=app_settings_dir, default=4045, dt=app_settings):
                     print(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
-                    logging.error(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
+                    pylogger.warning(f"Port {port} is already taken by the API! Can't start \"{name}\". Skipping.")
                     continue
                 elif port == jmod.getvalue(key="webgui.port", json_dir=app_settings_dir, default=4040, dt=app_settings):
                     print(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
-                    logging.error(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
+                    pylogger.warning(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
+                    continue
+                elif port < 1024 and is_linux is True and ran_root is False:
+                    print(f"{colours['yellow']}Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024 (the lowest port we are allowed to run on)")
+                    print(f"You can change the port by entering the command 'edit {name}' then selecting option 2 (port) and changing it to a number greater than 1023{colours['white']}")
+                    pylogger.warning(f"Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024")
                     continue
                 apptype = jmod.getvalue(key='apptype', json_dir=config_file)
                 if ports_taken[port] == name:
@@ -273,7 +314,7 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
                     ) is True else ""
 
                     print(f"Auto-Initializing project: \"{name}\" on port {port} (http{do_ssl}://localhost:{port})")
-                    logging.info(f"Auto-Initializing project: \"{name}\" on port {port}")
+                    pylogger.info(f"Auto-Initializing project: \"{name}\" on port {port}")
                     if apptype == application.types.webpage():
                         # If the application is a webpage, start it with the 'start' method of the 'instance' module
                         website = multiprocessing.Process(
@@ -300,7 +341,7 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
                 else:
                     # If the port is already taken, log an error and skip this application
                     print(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". Skipping")
-                    logging.error(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". "
+                    pylogger.warning(f"Port {port} is already taken by {ports_taken[port]}! Can't start \"{name}\". "
                                   f"Skipping")
                     continue
 

@@ -1,10 +1,13 @@
-import os, shutil, logging, sys, datetime, http.server, socketserver, json, hashlib, time
+import os, shutil, sys, datetime, http.server, socketserver, json, hashlib, time
 from .application import application as app
 from .jmod import jmod
 from .data_tables import web_config_dt, wsgi_config_dt, app_settings
 import multiprocessing
 import waitress
 import ssl
+
+from .pylog import pylog
+pylogger = pylog()
 
 colours = {
     "red": "\033[31m",
@@ -172,7 +175,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # Prints with green
         print("\033[92m" + f"Created app \"{app_name}\" successfully!" + "\033[0m")
-        logging.info(f"Created app \"{app_name}\" successfully!")
+        pylogger.info(f"Created app \"{app_name}\" successfully!")
 
     def create_wsgi(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None, do_autostart:bool=True):
         '''
@@ -220,7 +223,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             json.dump(app_config, cf, indent=4)
 
         print(colours["green"]+ f"Created app \"{app_name}\" successfully!" + colours["white"])
-        logging.info(f"Created app \"{app_name}\" successfully!")
+        pylogger.info(f"Created app \"{app_name}\" successfully!")
         
         multiprocessing.Process(
             target=instance.start,
@@ -300,7 +303,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # Prints in green
         print("\033[92m" + f"Deleted app \"{app_name}\" successfully!" + "\033[0m")
-        logging.info(f"Deleted app \"{app_name}\" successfully!")
+        pylogger.info(f"Deleted app \"{app_name}\" successfully!")
 
     def start_interface(app_name=None, is_interface=True):
         '''a def for the user to start an app from the command line easily via getting the app name from the user'''
@@ -337,12 +340,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         if port == jmod.getvalue(key="api.port", json_dir="settings.json", default=4045, dt=app_settings):
                             if jmod.getvalue(key="api.running", json_dir="settings.json", dt=web_config_dt) == True:
                                 print(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")
-                                logging.error(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")
+                                pylogger.warning(f"Port {port} is already taken by the API! Can't start \"{app}\". Skipping.")
                                 continue
                         elif port == jmod.getvalue(key="webgui.port", json_dir="settings.json", default=4040, dt=app_settings):
                             if jmod.getvalue(key="webgui.pid", json_dir="settings.json", dt=web_config_dt) != None:
                                 print(f"Port {port} is already taken by the WebGUI! Can't start \"{app}\". Skipping.")
-                                logging.error(f"Port {port} is already taken by the WebGUI! Can't start \"{app}\". Skipping.")
+                                pylogger.warning(f"Port {port} is already taken by the WebGUI! Can't start \"{app}\". Skipping.")
                                 continue
                         
                         if app != app_name:
@@ -371,6 +374,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
         if app_name is str, it'll use the app_name as the app name and the config path will be instances/{app_name}/config.json
 
         silent = True will redirect stdout and stderr to /dev/null
+
+        Most likely to raise an OSError because of a bad port
         '''
         # Get the port from the config.json file
         config_path = os.path.abspath(f"instances/{app_name}/config.json")
@@ -433,6 +438,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             default=True,
             dt=config_data
         )
+        website_logger = pylog(filename=f'instances/{app_name}/logs/%TIMENOW%.log')
         
         notfoundpage = jmod.getvalue(key="404page", json_dir=config_path, default="404.html", dt=config_data)
 
@@ -455,7 +461,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     warden_enabled = warden.get("enabled", False)
                     wardened_dirs = warden.get("pages", None)
                 except Exception as err:
-                    logging.error(f"Failed to get warden settings for {app_name}: {err}")
+                    website_logger.error(f"Failed to get warden settings for {app_name}: {err}", err)
 
                 def ask_for_login():
                     # If PIN is not provided or incorrect, request PIN
@@ -472,7 +478,6 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     # If its -1, then it couldn't find the pin and the user needs to set it
                     pin_valid = self.path.find(f"/warden?pin={set_pin}") != -1
                     # Check if the requested path is wardened
-                    logging.info(pin_valid)
                     if pin_valid is False:
                         for page_dir in wardened_dirs:
                             if page_dir == "*": # If its *, then all pages are wardened
@@ -625,56 +630,54 @@ class instance: # Do not use apptype in calls until other apptypes are made
             sys.stdout = open(os.devnull, "w")
             sys.stderr = open(os.devnull, "w")
 
-        try:
-            # Create a socket server with the custom handler
-            with socketserver.TCPServer(("", port), CustomHandler) as httpd:
-                if jmod.getvalue(key="ssl_enabled", json_dir=config_path, dt=web_config_dt) == True:
-                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                    cert_dir = f"instances/{app_name}/cert.pem"
-                    private_dir = f"instances/{app_name}/private.key"
+        # Create a socket server with the custom handler
+        with socketserver.TCPServer(("", port), CustomHandler) as httpd:
+            if jmod.getvalue(key="ssl_enabled", json_dir=config_path, dt=web_config_dt) == True:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                cert_dir = f"instances/{app_name}/cert.pem"
+                private_dir = f"instances/{app_name}/private.key"
 
-                from .filetransfer import generate_ssl
-                generate_ssl(cert_dir, private_dir)
+            from .filetransfer import generate_ssl
+            generate_ssl(cert_dir, private_dir)
 
-                context.load_cert_chain(cert_dir, private_dir)
-                httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
-                
-                # Print a message to indicate the server has started unless silent is True
-                if not silent:
-                    print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
-                        f"You can visit it on http://localhost:{port}")
-
-                log_message(f"Server \"{app_name}\" is running.")
-                # Get the PID of the current thread (web server)
-
-                # Sets server to running in JSON file and save the PID
-                jmod.setvalue(
-                    key="running",
-                    json_dir=f"instances/{app_name}/config.json",
-                    value=True,
-                    dt=web_config_dt
-                )
-
-                # Start the server and keep it running until interrupted
-                logging.info(f"Server \"{app_name}\" is now running on port {port}")
-                httpd.serve_forever()
-
-        except OSError as e:
-            logging.error(f"Server \"{app_name}\" failed to start: {e}\n\n"+str(e.with_traceback(e.__traceback__)))
+            context.load_cert_chain(cert_dir, private_dir)
+            httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+            
+            # Print a message to indicate the server has started unless silent is True
             if not silent:
-                print(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
-            log_message(f"Server \"{app_name}\" failed to start: {e}\nIs there already something running on port {port}?")
+                print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
+                    f"You can visit it on http://localhost:{port}")
+
+            log_message(f"Server \"{app_name}\" is running.")
+            # Get the PID of the current thread (web server)
+
+            # Sets server to running in JSON file and save the PID
+            jmod.setvalue(
+                key="running",
+                json_dir=f"instances/{app_name}/config.json",
+                value=True,
+                dt=web_config_dt
+            )
+
+            # Start the server and keep it running until interrupted
+            website_logger.info(f"Server \"{app_name}\" is now running on port {port}")
+            httpd.serve_forever()
 
     def start(app_name, silent=True): # Silent = True problem resolved :D
         '''Always run using Multiprocessing.Process()'''
-        app_type = jmod.getvalue(key="apptype", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+        config_dir = f"instances/{app_name}/config.json"
+        app_type = jmod.getvalue(key="apptype", json_dir=config_dir, dt=web_config_dt)
+        port = jmod.getvalue(key="port", json_dir=config_dir, dt=wsgi_config_dt)
 
         # Starts the appropriate app type
         if app_type == app.types.webpage():
-            instance.webserver(app_name, silent)
+            try:
+                instance.webserver(app_name, silent)
+            except OSError as err:
+                print(f"Error starting webapp {app_name}{' silently. ' if silent is True else '! '}Is the port '{port}' already taken? Error: {err}")
+                print(f"If so, use the command 'edit {app_name}' then select option 2 (port) to change the port of the app.")
+                pylogger.warning(f"Error starting webapp {app_name}{' silently. ' if silent is True else '! '}Is the port '{port}' already taken? Error: {err}")
         elif app_type == app.types.WSGI():
-            port = jmod.getvalue(key="port", json_dir=f"instances/{app_name}/config.json", dt=wsgi_config_dt)
-
             def StartFlask(app_dir, app_name):
                 '''
                 Create a WSGI Server set primarily for Flask.
@@ -827,13 +830,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 )
 
                 if is_interface: print(f"Server \"{app_name}\" has been stopped.")
-                logging.info(f"Server \"{app_name}\" has been stopped.")
-        except FileNotFoundError as e:
+                pylogger.info(f"Server \"{app_name}\" has been stopped.")
+        except FileNotFoundError:
             print(f"Server \"{app_name}\" is not an existant app!")
-            logging.error(f"Server \"{app_name}\" is not an existant app!")
-        except Exception as e:
-            print(f"Failed to stop server \"{app_name}\": {e}")
-            logging.error(f"Failed to stop server \"{app_name}\": {e}")
+            pylogger.warning(f"Server \"{app_name}\" is not an existant app!")
+        except Exception as err:
+            print(f"Failed to stop server \"{app_name}\": {err}")
+            pylogger.error(f"Failed to stop server \"{app_name}\"", err)
 
     def update(app_name=None, is_interface=False):
 
@@ -870,8 +873,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                         break
                 except PermissionError as err:
                     print("We encountered a permissions error while trying to read if an app is outdated!")
-                    logging.error(str(err))
-                    logging.error(str(err.with_traceback(err.__traceback__)))
+                    pylogger.error("Permissions error encountered!", err)
                     return False
         
         # Overwrites internal with external directory
@@ -896,12 +898,12 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     shutil.rmtree(item_path)
             except PermissionError as err:
                 print("Permission error: Unable to remove a file or directory.")
-                logging.error(str(err))
+                pylogger.error("Permissions error: Unable to remove a file or directory.", err)
             except Exception as err:
                 print("An error occurred while removing a file or directory:")
                 print(str(err))
                 # Logs the error
-                logging.error(str(err))
+                pylogger.error("Can't remove a file or directory.", err)
         else:
             print("Update phase 2 completed: File removal.")
         # Updates all files

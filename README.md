@@ -42,7 +42,7 @@ It'll kill old sessions, start new ones and let you kill specific sessions!
 
 # Compatibility
 This works on every OS as far as I know.<br>
-As long as the OS can run Python3.12, it should be able to run this.<br>
+As long as the OS can run one of the listed compatible versions of python, it should be able to run this.<br>
 There's nothing stopping it from doing so at least<br>
 
 Only exception is MacOS/OSX. I don't have a mac to test it on and I'm assuming Mac uses different OS commands and directories.<br>
@@ -51,10 +51,12 @@ Only exception is MacOS/OSX. I don't have a mac to test it on and I'm assuming M
 So far I've tested it on<br>
 ZorinOS (ubuntu based)<br>
 Ubuntu<br>
-Windows 11
+Windows 11 (Developed on.)
 
-Tested Python Versions:
-- 3.12
+Tested/Compatible Python Versions:
+- 3.12 (Compatible and Tested)
+- 3.11 (Compatible)
+- 3.10 (Compatible and Tested)
 
 # Why do we exist?
 I've been asked this question somewhat often, so I decided to make a section for it.<br>
@@ -76,18 +78,22 @@ Additional configuration entirely optional.
 
 ## Possible Commands
 `webcreate` - Create a new website app.<br>
-`wsgicreate` - Create a new wsgi app.<br>
-`pyhost` - Access the settings of pyhoster.<br>
-`exit` - Exit the program.<br>
-`delete` - Delete a website app.<br>
+`wsgicreate` - Create a new wsgi app. (WIP)<br>
+`delete` - Delete an app.<br>
 `edit` - Edit a website app.<br>
 `start` - Start a website app.<br>
-`enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.<br>
 `stop` - Stop a website app<br>
 `restart` - Stop and then start a website app. Shorthand way of doing stop app_name && start app_name<br>
-`ftp` - Enter the FTP Command line interface. Change details, create users, etc
+`idle` - Go into an IDLE screen to display information while pyhost does its thing in the background!<br>
+`pyhost` - Access the settings of pyhoster.<br>
+`exit` - Exit the program.<br>
 `update` - Updates the content of a website app.<br>
 `rollback` - Reverts the content of a website app to the last update, or a specific version.<br>
+`enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.<br>
+`ftp` - Enter the FTP Command line interface. Change details, create users, etc<br>
+`userman` - Enter the UserMan Command line interface. Change details, create users, etc<br>
+`userman > sessions` - Enter the Session Manager CLI within the Userman CLI.<br>
+`warden` - Enter the Warden Command line interface. Change details, create users, etc<br>
 `cls` - Clear the screen of all text.<br>
 `ctrl + c` (signal 2) - Exit the program and shutdown all web apps.<br>
 

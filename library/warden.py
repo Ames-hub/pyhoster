@@ -1,8 +1,10 @@
-import logging, time, os
-import uuid
+import time, os
 from .jmod import jmod
 from .data_tables import app_settings, web_config_dt
 import multiprocessing
+
+from .pylog import pylog
+pylogger = pylog()
 
 colours = {
     "red": "\033[91m",
@@ -101,15 +103,14 @@ class warden:
                 print(f"\n{colours['green']}Welcome to the Warden{colours['white']}. Type 'help' for a list of commands.")
                 # information about warden's state in the app
                 os.system("cls" if os.name == "nt" else "clear")
-                print(f"Status for app: {app_name}")
-                print(f"WARDEN IS CURRENTLY {"RUNNING." if enabled else "INACTIVE."}")
-                print(f"I am currently protecting {len(pages)} pages.")
-                print(f"Those pages have been accessed {timesAccessed} times.\n")
+                print(f'Status for app: {app_name}')
+                print(f'WARDEN IS CURRENTLY {"RUNNING." if enabled else "INACTIVE."}')
+                print(f'I am currently protecting {len(pages)} pages.')
+                print(f'Those pages have been accessed {timesAccessed} times.\n')
 
                 cmd = input(f"{colours['red' if not enabled else 'green']}warden{colours['white']}> ")
             except Exception as err:
-                logging.info(err)
-                print(str(err))
+                pylogger.error("Error in warden.py", err)
 
             if cmd == "help":
                 print("Commands listed below...")
@@ -143,10 +144,10 @@ class warden:
             elif cmd == "password":
                 warden.change_password(app_name)
             elif cmd == "status":
-                print(f"Status for app: {app_name}")
-                print(f"WARDEN IS CURRENTLY {"RUNNING." if enabled else "INACTIVE."}")
-                print(f"I am currently protecting {len(pages)} pages.")
-                print(f"Those pages have been accessed {timesAccessed} times.\n")
+                print(f'Status for app: {app_name}')
+                print(f'WARDEN IS CURRENTLY {"RUNNING." if enabled else "INACTIVE."}')
+                print(f'I am currently protecting {len(pages)} pages.')
+                print(f'Those pages have been accessed {timesAccessed} times.\n')
                 input("Press enter to continue and erase this message...")
             else:
                 print("Invalid command.")

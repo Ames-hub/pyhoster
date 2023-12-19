@@ -1,4 +1,4 @@
-import logging, os, multiprocessing as mp, json, time
+import os, multiprocessing as mp, json, time, datetime
 from .data_tables import app_settings, web_config_dt, wsgi_config_dt
 from .filetransfer import ftp
 from .warden import warden
@@ -7,8 +7,13 @@ from .userman import userman
 from .API.Controller import controller as apicontroller
 from .WebGUI.webgui import webcontroller
 
+from .pylog import pylog
+pylogger = pylog()
+
 root_dir = os.getcwd()
 FTP_Enabled = bool(jmod.getvalue("FTP_Enabled", "settings.json", dt=app_settings, default=False))
+
+ran_root = os.geteuid() == 0 # Detects if the program was ran as root
 
 colours = {
     "red": "\033[31m",
@@ -26,7 +31,7 @@ def getkwrd(keywords, text, default=None):
         text = str(text).lower()
         keywords = [str(keyword).lower() for keyword in keywords]
     except ValueError as err:
-        logging.error(f"Error: Kward bad type. Error: {err}")
+        pylogger.warning(f"Error: Kward bad type. Error: {err}")
 
     for keyword in keywords:
         index = text.find(keyword + ":")
@@ -71,6 +76,7 @@ class application:
                 print("rollback: Rollback to latest backup of an app or an earlier snapshot!")
                 print("help: Displays this message")
                 print("cls: Clears the screen\n")
+                print("idle: Displays information about pyhost and its instances while it is left 'idle.'")
                 print("enter: Enters an app's GUI")
                 print("ftp: Enters the FTP GUI")
                 print("warden: Enters the Warden GUI")
@@ -99,8 +105,8 @@ class application:
                     arguments = text.split(" ")[1:] # Gets all arguments after the command
                     has_args = False if len(text.split(" ")) == 1 else True
                     # Begins listening for create, delete, edit, etc commands
-                    logging.info("New command entered! Debug Info:")
-                    logging.info(f"Command: {cmd} | Text: {text} | Has Args: {has_args}")
+                    pylogger.info("New command entered! Debug Info:")
+                    pylogger.info(f"Command: {cmd} | Text: {text} | Has Args: {has_args}")
                     if has_args == True:
                         app_name_arg = text.split(" ")[1]
                     if cmd == "create":
@@ -154,6 +160,8 @@ class application:
                                 app_name=app_name_arg,
                                 is_interface=False
                             )
+                    elif cmd == "idle":
+                        application.idle()
                     elif cmd == "ftp":
                         ftp.enter()
                         # Read doc string for more info. as a summary though,
@@ -255,9 +263,7 @@ class application:
             application.running = False
             # os.system('cls' if os.name == "nt" else "clear")
             print("...\nExit signal received: Program is now exiting.")
-            logging.info("Exit signal received: Program is now exiting.")
-            print("Shutting down logging system...")
-            logging.shutdown()
+            pylogger.info("Exit signal received: Program is now exiting.")
 
             print("Shutting down all web instances...")
             # Shuts down all the threads that run the webservers
@@ -272,7 +278,7 @@ class application:
                     os.kill(pid, 2)
                     # signal 2 == CTRL + C
             except Exception as err:
-                logging.error(f"Error stopping thread: {err}")
+                pylogger.error(f"Error stopping thread: {err}")
             print("All web instances have been shut down.")
 
             try:
@@ -348,7 +354,7 @@ class application:
                     os.kill(jmod.getvalue("api.pid", "settings.json", dt=app_settings), 9)
                     os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 9)
                 except:
-                    logging.info("Failed to kill API process. It may have already been killed.")
+                    pylogger.info("Failed to kill API process. It may have already been killed.")
             jmod.setvalue(
                 key="api.pid",
                 json_dir="settings.json",
@@ -402,6 +408,106 @@ class application:
 
             print("Exiting...")
             exit()
+
+    def idle():
+        '''
+        This function displays information about pyhost and its instances while it is left 'idle' and running in the background.
+        Must be triggered manually. its mainly for aesthetic
+
+        Looks best when the terminal is capable of displaying colours and clearing the screen.
+        (Which, surprisingly, some aren't.)
+        '''
+
+        def printer():
+            while True:
+                webgui_running = jmod.getvalue("webgui.running", "settings.json", dt=app_settings, default=False)
+                api_running = jmod.getvalue("api.running", "settings.json", dt=app_settings, default=False)
+                ftp_running = jmod.getvalue("FTP_Running", "settings.json", dt=app_settings, default=False)
+                webgui_pid = jmod.getvalue("webgui.pid", "settings.json", dt=app_settings, default=None)
+                api_pid = jmod.getvalue("api.pid", "settings.json", dt=app_settings, default=None)
+                ftp_pid = jmod.getvalue("ftppid", "settings.json", dt=app_settings, default=None)
+                webgui_port = jmod.getvalue("webgui.port", "settings.json", dt=app_settings, default=None)
+                api_port = jmod.getvalue("api.port", "settings.json", dt=app_settings, default=None)
+                ftp_port = jmod.getvalue("FTP_Port", "settings.json", dt=app_settings, default=None)
+
+                instances_list = ""
+                for instance in os.listdir("instances/"):
+                    with open(f"instances/{instance}/config.json", 'r') as config_file:
+                        config_data = json.load(config_file)
+                    if config_data.get("running") == True:
+                        instances_list += f"{instance} - {colours['green']}Running{colours['white']}\n"
+                        instances_list += f"    Port: {config_data.get('port')}\n"
+                        instances_list += f"    PID: {config_data.get('pid')}\n\n"
+                    else:
+                        instances_list += f"{instance} - {colours['red']}Not Running{colours['white']}\n"
+
+                # FTP Status
+                ftp_status = ""
+                if ftp_running == True:
+                    ftp_status += f"FTP Server - {colours['green']}Running{colours['white']}\n"
+                    ftp_status += f"    Port: {ftp_port}\n"
+                    ftp_status += f"    PID: {ftp_pid}\n\n"
+                else:
+                    ftp_status += f"FTP Server - {colours['red']}Not Running{colours['white']}\n"
+
+                # WebGUI Status
+                webgui_status = ""
+                if webgui_running == True:
+                    webgui_status += f"WebGUI - {colours['green']}Running{colours['white']}\n"
+                    webgui_status += f"    Port: {webgui_port}\n"
+                    webgui_status += f"    PID: {webgui_pid}\n\n"
+                else:
+                    webgui_status += f"WebGUI - {colours['red']}Not Running{colours['white']}\n"
+
+                # API Status
+                api_status = ""
+                if api_running == True:
+                    api_status += f"API - {colours['green']}Running{colours['white']}\n"
+                    api_status += f"    Port: {api_port}\n"
+                    api_status += f"    PID: {api_pid}\n\n"
+                else:
+                    api_status += f"API - {colours['red']}Not Running{colours['white']}\n"
+
+                screen = f'''
+<!-------- {application.rainbowify_text('PYHOST')} --------!>
+Pyhost is currently running in the background.
+To exit IDLE mode, press enter.
+
+{application.rainbowify_text('INSTANCES')}
+---------------------
+{instances_list}
+---------------------
+
+{ftp_status}
+{webgui_status}
+{api_status}
+'''
+                os.system("cls" if os.name == "nt" else "clear")
+                print(screen)
+                time.sleep(0.5)
+
+        idle_printer = mp.Process(target=printer, daemon=True)
+        idle_printer.start()
+        input() # It will wait here until enter is pressed
+        idle_printer.kill()
+        print("Exiting IDLE mode... Welcome back to the main menu!")
+
+    def rainbowify_text(text):
+        '''
+        This function takes a string and rainbowifies it.
+        '''
+        rainbow = [
+            colours["red"],
+            colours["orange"],
+            colours["yellow"],
+            colours["green"],
+            colours["blue"],
+            colours["purple"],
+        ]
+        rainbow_text = ""
+        for i, char in enumerate(text):
+            rainbow_text += rainbow[i % len(rainbow)] + char
+        return rainbow_text+colours["white"]
 
     def clear_console():
         print("Hello, if you see this message, that means clearing the console is not supported in your terminal (such as pufferpanel terminal).")
@@ -463,6 +569,7 @@ class application:
             return app_desc
 
         def get_port():
+            linux = os.name != "nt"
             while True:
                 try:
                     port: int = input("What port should the app run on? NUMBER (Default: 80) : ")
@@ -470,10 +577,24 @@ class application:
                         print("Cancelled!")
                         return True
                     if str(port) == "":
-                        port = 80
+                        port = 80 if not linux else 1024
                     assert type(int(port)) is int, "The port must be an integer!"
                     port = int(port)
                     assert port > 0 and port < 65535, "The port must be between 0 and 65535!"
+                    if linux:
+                        if not ran_root:
+                            assert port > 1024, f"{colours['red']}The port must be above 1024 as all ports below are reserved by Linux! To fix this, run the program as root! (or with higher privileges){colours['white']}"
+                        else:
+                            print("We can make this app, but if it is to ever be ran we need ROOT privileges!")
+                            is_ok = input("Continue anyway? (y/n)\n>>> ").lower()
+                            if is_ok == "y":
+                                break
+                            elif is_ok == "n":
+                                print("\nRetrying...")
+                                continue
+                            else:
+                                print("Invalid choice!")
+                                continue
                     break
                 except (AssertionError, ValueError) as err: # Forces the port to be valid
                     print(str(err))
@@ -599,7 +720,7 @@ class application:
             if is_interface:
                 print("Turned off autostarts." if state == False else "Turned on Autostarts.")
             
-            logging.info("Turned off autostarts." if state == False else "Turned on Autostarts.")
+            pylogger.info("Turned off autostarts." if state == False else "Turned on Autostarts.")
 
         def send_404_page(self, state:bool=True, is_interface:bool=False):
             if is_interface:
@@ -622,7 +743,7 @@ class application:
             if is_interface:
                 print("Turned off the 404 Page." if state == False else "Turned on the 404 Page.")
             
-            logging.info("Turned off the 404 Page." if state == False else "Turned on the 404 Page.")
+            pylogger.info("Turned off the 404 Page." if state == False else "Turned on the 404 Page.")
             print("\nPlease restart the app at the earliest convenient time to have changes take effect\n")
 
         def autobackup(self, enabled=None, is_interface=True):
@@ -669,7 +790,7 @@ class application:
             )
             if is_interface:
                 print(f"Set backups path to \"{path}\"")
-            logging.info(f"Set backups path to \"{path}\"")
+            pylogger.info(f"Set backups path to \"{path}\"")
 
         def api_enabled(self, enabled=None, is_interface=False):
             if is_interface or enabled==None:
@@ -690,4 +811,4 @@ class application:
                 dt=app_settings
             )
             print("Turned off the API Autoboot." if enabled == False else "Turned on the API Autoboot.")
-            logging.info("Turned off the API Autoboot." if enabled == False else "Turned on the API Autoboot.")
+            pylogger.info("Turned off the API Autoboot." if enabled == False else "Turned on the API Autoboot.")

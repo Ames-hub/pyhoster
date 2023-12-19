@@ -66,6 +66,10 @@ app_settings = {
     "do_autobackup": True,
     "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
     "ssl_enabled": True,
+    "logman": {
+        "enabled": True, # Only disable if you want to disable logging completely. Not recommended
+        "pid": None,
+    },
     "api": {
         "running": False,
         "autoboot": False,
