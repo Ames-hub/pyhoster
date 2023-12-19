@@ -100,4 +100,7 @@ app_settings = {
         "pid": None,
     },
     "active_tokens": {},
+    "linux": {
+        "password": None, # This should always be encrypted using a private key
+    }
 }

@@ -30,12 +30,20 @@ class controller:
         print(f"<--PyHost API is Online running on port {port} and awaiting requests-->")
         try:
             waitress.serve(app, host='0.0.0.0', port=port)
+            try:
+                time.sleep(0.5) # Wait for the API to start
+            except:
+                pass
         except PermissionError:
             print(f"We don't have enough permissions to run the API! Is there already an app bound to port \"{port}\"?")
             if port < 1024 and os.name != "nt":
                 print("If you are running on Linux, then the port must be greater than 1024.")
-            return
-        time.sleep(0.5) # Prevent the above print from being put on the "enter command" input line
+            try:
+                time.sleep(0.5) # Prevent the text from being printed on the same line as the "enter command" text 
+            except:
+                pass
+        
+        return True
 
     def timeout_login(interval_min=1):
         '''

@@ -264,6 +264,13 @@ if __name__ == "__main__":
             dt=app_settings
         )
 
+    # Writes a text file to library/ssl/ saying to NEVER share the private key
+    if not os.path.exists("library/ssl/README_IMPORTANT.txt"):
+        with open("library/ssl/README_IMPORTANT.txt", "a+") as f:
+            f.write("This folder contains the SSL certificates for the webserver. DO NOT SHARE THE PRIVATE KEY WITH ANYONE.\n")
+            f.write("If you do, they will be able to decrypt all traffic to and from your server, and steal any data sent to it.\n")
+            f.write("You should never need to touch these files, and if you do, you should know what you're doing.\n")
+
 if __name__ == '__main__': # This line ensures the script is being run directly and not imported
     app_settings_dir = os.path.abspath("settings.json")
 

@@ -6,6 +6,8 @@ from .jmod import jmod
 from .userman import userman
 from .API.Controller import controller as apicontroller
 from .WebGUI.webgui import webcontroller
+import sys, subprocess, hashlib, base64
+from cryptography.fernet import Fernet
 
 from .pylog import pylog
 pylogger = pylog()
@@ -54,7 +56,100 @@ def getkwrd(keywords, text, default=None):
     # Return Default if none of the keywords are found
     return default
 
+class keys:
+    '''
+    Treat the key this generates as a password, ofc.
+    '''
+    def __init__(self, keypath="library/ssl/linuxpw.key"):
+        # Define key_file attribute here
+        self.keypath = keypath
+
+        # Try to load the key from the file, generate a new one if it fails
+        loaded_Key = self.load()
+        self.private_key = loaded_Key if loaded_Key != None else self.generate_private_key()
+        print(self.private_key)
+        self.cipher_suite = Fernet(self.private_key)
+
+    def generate_private_key(self):
+        # Collect various system-related data to create a more random seed
+        seed_data = os.urandom(128)  # Using os.urandom for 'randomness'
+        # Adds extra randomness
+        seed_data += str(os.getpid()).encode()
+        seed_data += str(os.times()).encode()
+
+        # Hash the collected data to create a secure key
+        hashed_key = hashlib.sha256(seed_data).digest()
+
+        # Encode the key to base64 to make it compatible with Fernet
+        encoded_key = base64.urlsafe_b64encode(hashed_key)
+
+        self.save(encoded_key)
+        return encoded_key
+
+    def encrypt(self, text):
+        # Encrypt the text using the private key
+        encrypted_text = self.cipher_suite.encrypt(text.encode())
+        return encrypted_text
+
+    def decrypt(self, encrypted_text):
+        # Decrypt the text using the private key
+        decrypted_text = self.cipher_suite.decrypt(encrypted_text).decode()
+        return decrypted_text
+
+    def save(self, private_key):
+        print("saved")
+        with open(self.keypath, "wb") as f:  # Open the file in binary mode
+            f.write(private_key)
+
+    def load(self):
+        print("loaded")
+        try:
+            with open(self.keypath, "rb") as f:  # Open the file in binary mode
+                private_key = f.read().strip()
+        except FileNotFoundError:
+            private_key = self.generate_private_key()
+
+        return private_key
+
 class application:
+
+    def is_root():
+        # Check if the script is running as root
+        return os.geteuid() == 0
+
+    def elevate(ask_msg="To do this, We need your Root Password.\nWe will only save this data for later use if you Ok it.\n\n>>> "):
+        '''
+        A 
+        '''
+        # Elevate the script
+        if sys.platform == 'linux':
+            if not application.is_root():
+                print('Elevating script...')
+                # Prompt user for password input
+                application.clear_console()
+                password = input(ask_msg)
+                while True:
+                    save_pw = input("Do you want to save this password for later use? (y/n)\n>>> ").lower()
+                    if save_pw == "y":
+                        jmod.setvalue(
+                            key="linux.password",
+                            json_dir="settings.json",
+                            value=keys().encrypt(password),
+                            dt=app_settings
+                        )
+                        break
+                    elif save_pw == "n":
+                        save_pw = False
+                        break
+                # Command to run as root
+                command = 'python3.10 ' + sys.argv[0]  # Adjust this line based on your specific requirements
+                
+                # Use subprocess to run the command with sudo
+                try:
+                    subprocess.run(['sudo', '-S', command], input=password.encode(), check=True, text=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Error: {e}")
+                    sys.exit()
 
     def run(keybind_listen: bool = True):
         application.running = True
@@ -234,7 +329,7 @@ class application:
                             instance.backup(app_name=app_name_arg, is_interface=False, do_alert=True)
                     elif cmd == "help":
                         help_msg()
-                    elif cmd == "cls":
+                    elif cmd == "cls" or cmd == "clear":
                         application.clear_console()
                     elif cmd == "":
                         pass # Idk why, but it takes 1 press of enter to have the message appear. weird
@@ -315,6 +410,26 @@ class application:
                         os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 9)
                     except:
                         pass
+                
+            logman_pid = jmod.getvalue(
+                key="logman.pid",
+                json_dir="settings.json",
+                dt=app_settings,
+                default=None
+            )
+            try:
+                os.kill(logman_pid, 2)
+            except:
+                try:
+                    os.kill(logman_pid, 9)
+                except:
+                    pass
+            jmod.setvalue(
+                key="logman.pid",
+                json_dir="settings.json",
+                value=None,
+                dt=app_settings,
+            )
 
             print("Stopping Token manager...")
             sman_pid = jmod.getvalue(
