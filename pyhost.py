@@ -4,15 +4,26 @@
 # Have fun!
 
 # Importing modules
-import datetime
-import multiprocessing
-import os
-import shutil
-import time
-import sys
-from library.jmod import jmod
-from library.data_tables import web_config_dt, app_settings
-from library.pylog import pylog
+try:
+    import datetime
+    import multiprocessing
+    import os
+    import shutil
+    import time
+    import sys
+    import subprocess
+    from getpass import getpass
+    from library.jmod import jmod
+    from library.data_tables import web_config_dt, app_settings
+    from library.pylog import pylog
+except ImportError as err:
+    print(
+        "Failed to import required modules. Please run 'pip install -r requirements.txt' to install them.",
+        "For more information, view the logs."
+        )
+    from library.pylog import pylog
+    pylog().error("Failed to import required modules.", err)
+    exit()
 
 colours = {
     "red": "\033[31m",
@@ -69,19 +80,95 @@ os.makedirs("logs", exist_ok=True)
 
 pylogger.info("Pyhost logging started successfully!")
 
+class domain:
+    def get_via_input():
+            """
+            Prompts the user to enter a domain name and validates it.
+
+            Returns:
+            - str: The validated domain name entered by the user.
+            """
+            while True:
+                print("Do you have a domain name you'd like us to use? (eg, example.com or 192.168.0.192)")
+                print("If so, enter it here. If not, leave it blank and we'll use the default. (localhost)")
+                hostname = input(">>> ").lower()
+                if hostname == "":
+                    return "localhost"
+                if domain.parse(hostname):
+                    return hostname
+                print("Invalid hostname. Please try again.")
+
+    def load():
+        """
+        Loads the hostname from the 'settings.json' file.
+
+        Returns:
+            str: The hostname loaded from the 'settings.json' file.
+        """
+        return jmod.getvalue("hostname", "settings.json", "localhost", dt=app_settings)
+
+    def parse(hostname):
+        """
+        Check if a hostname is valid.
+
+        Args:
+            hostname (str): The hostname to be checked.
+
+        Returns:
+            bool: True if the hostname is valid, False otherwise.
+        """
+        hostname = str(hostname)
+        if hostname == "":
+            return False            
+        
+        if hostname in ["localhost", "127.0.0.1", "0.0.0.0"]:
+            return True # Allow localhost's
+        # allow internal IPs
+        if hostname.startswith("192.168.") or hostname.startswith("10.") or hostname.startswith("172."):
+            return True
+        
+        if hostname.count(".") < 1 or hostname == "":
+            return False
+        allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-."
+        char_filter = all(char in allowed_chars for char in hostname)
+        if char_filter is False:
+            return char_filter
+
+    def setdomain():
+        """
+        Sets the hostname for the application.
+
+        This function prompts the user to enter a hostname and updates the 'hostname' value in the 'settings.json' file.
+
+        Raises:
+            KeyboardInterrupt: If the user cancels the operation.
+            Exception: If an error occurs during the process.
+        """
+        try:
+            hostname = domain.get_via_input()
+            jmod.setvalue(
+                key="hostname",
+                json_dir="settings.json",
+                value=hostname,
+                dt=app_settings
+            )
+            pylogger.info(f"Hostname set to {hostname}")
+            print(f"Hostname set to {hostname}")
+            time.sleep(3)
+        except KeyboardInterrupt:
+            print("Cancelled")
+            exit()
+        except:
+            print("An error occurred.")
+
 if __name__ == "__main__": # Checks if the user is running the app for the first time
     from library.application import application
     application.clear_console()
-    # Checks if settings.json exists
-    if os.path.exists("settings.json") is False:
-        import json # Import here so that it never imports unless needed, freeing up memory.
-        # Creates settings.json
-        with open("settings.json", "w") as f:
-            json.dump(app_settings, f, indent=4, separators=(',', ': '))
 
-    first_launch = jmod.getvalue("first_launch", "settings.json", True, dt=app_settings)
-    if first_launch is True:
-        # Checks if the user has backups from a previous pyhost install
+    first_launch = jmod.getvalue("first_launch.app", "settings.json", True, dt=app_settings)
+    # Done in multiple if's like this to break up the code and make it easier to read via folding/shrinking the code with VSC
+    # Lets you focus on 1 section at a time this way
+    if first_launch is True: # Checks if the user has backups from a previous pyhost install
         linux = os.name != "nt" # If the OS is linux, it will be true
         if linux:
             backup_dir = f"/var/pyhoster/backups/"
@@ -121,14 +208,62 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
                     print("Finished importing backups!")
                 else:
                     print("Skipping backup import...")
+    if jmod.getvalue("hostname", "settings.json", dt=app_settings) == -1: # Gets the hostname, as some functions (as of 21/12/2023, the webgui's JS) require it
+        domain.setdomain()
 
-        # Sets the first_launch setting to false as the user has now launched the app
-        jmod.setvalue(
-            key="first_launch",
-            json_dir="settings.json",
-            value=False,
-            dt=app_settings
-        )
+    if is_linux:
+        # Gets this value should the user want to run web apps on ports below 1024 on Linux.
+        try:
+            with open("library/ssl/linux.pw", 'rb') as f:
+                if f.read() in [b'', b' ', '', None]:
+                    raise FileNotFoundError
+        except FileNotFoundError:
+            got_password = False
+        if not got_password:
+            while True:
+                print("Would you like to be able to run apps on ports below 1024? (y/n)")
+                yesno = input(">>> ").lower()
+                if yesno not in ["yes", "y", "n", "no", "nope"]:
+                    print("Invalid choice! Must be 'y' (yes) or 'n' (no)")
+                    continue
+                break
+            while True:
+                if yesno in ["y", "yes"]:
+                    print(f"In that case, we will require a {colours['green']}Root Password{colours['white']}.")
+                    print("This password will be stored, securely encrypted using your own personal key using cryptography in the 'linux.pw' file.")
+                    print(f"{colours['cyan']}Please enter the password we should use. Type \"!cancel!\" to cancel{colours['white']}")
+                    password = getpass("[Sudo] >>> ")
+                    if password == "!cancel!":
+                        print("Cancelled!")
+                        break
+                    # Tries to execute a command that requires root permissions to see if the password is correct
+                    print("Please confirm your password. (Note: We cannot check this password)")
+                    reconfirm = getpass("[Sudo] >>> ")
+                    if reconfirm != password:
+                        print("Passwords do not match!")
+                        continue
+                    else:
+                        print("Password confirmed! Beginning encryption...")
+                        # Encrypts the password
+                        from library.application import keys
+                        password = keys().encrypt(password)
+                        # Wait a couple seconds to make it seem like it's doing something complicated.
+                        # The encryption is solid, but it's also fast, so it doesn't take long to encrypt.
+                        # This can make it feel like it's not doing anything, so this is just to make it feel like it is
+                        # to a user who hasn't seen the code / can't program.
+                        # Saves the password
+                        with open("library/ssl/linux.pw", 'wb') as f:
+                            f.write(password)
+                        break
+                else:
+                    print("Skipping root setup...")
+                    time.sleep(1)
+                    break
+
+    # The code that sets first_launch to false is now in the application's exit code.
+    # application.py > application.run() > Look for code `except KeyboardInterrupt`
+    # Moved there so that "first launch" help screens can be shown else where and it only says its not first launch
+    # AFTER they exit the program for the first time
 
 # Only load these here to prevent a [WinError 3] error
 from library.API.Controller import controller as apicontroller
@@ -170,7 +305,7 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
     # Clears the screen and prints the welcome message
     os.system('cls' if os.name == "nt" else "clear")
     print(f"({main_pid}) Welcome to Pyhost! - A Customizable, simple to use Website Manager.")
-    print("https://github.com/Ames-Hub/pyhoster\n")
+    print("https://github.com/Ames-Hub/pyhoster | https://github.com/Ames-hub/pyhoster/issues\n")
     print("Message from developer:\nHello! If you have any issues, let me know and I will personally help out!\n")
 
     # Makes an init backup for every app which has its boundpath == content path.
@@ -266,9 +401,11 @@ if __name__ == "__main__":
 
     # Writes a text file to library/ssl/ saying to NEVER share the private key
     if not os.path.exists("library/ssl/README_IMPORTANT.txt"):
+        os.makedirs("library/ssl/", exist_ok=True)
         with open("library/ssl/README_IMPORTANT.txt", "a+") as f:
-            f.write("This folder contains the SSL certificates for the webserver. DO NOT SHARE THE PRIVATE KEY WITH ANYONE.\n")
+            f.write("This folder contains the SSL certificates for the webserver. DO NOT SHARE THE BLOODY ANYTHING IN HERE WITH ANYONE.\n")
             f.write("If you do, they will be able to decrypt all traffic to and from your server, and steal any data sent to it.\n")
+            f.write("And if your website has an admin panel, GUESS WHO HAS ACCESS TO IT NOW? That's right! They do as they just stole the username AND password!\n")
             f.write("You should never need to touch these files, and if you do, you should know what you're doing.\n")
 
 if __name__ == '__main__': # This line ensures the script is being run directly and not imported

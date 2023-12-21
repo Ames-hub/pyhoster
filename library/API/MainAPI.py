@@ -3,6 +3,7 @@ from flask import request
 import os
 import multiprocessing, flask
 from flask_cors import CORS
+import datetime
 try:
     from ..userman import userman
     from ..instance import instance
@@ -13,7 +14,6 @@ except ImportError as err:
     print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
     from library.pylog import pylog
     pylog().error(f"Import error in {__name__}", err)
-import datetime
 
 from ..pylog import pylog
 logapi = pylog(filename='logs/api/%TIMENOW%.log')

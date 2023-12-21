@@ -61,12 +61,19 @@ def generate_root_password():
 app_settings = {
     "do_autostart": True,
     "send_404_page": True,
-    "first_launch": True,
+    "first_launch": {
+        "app": True, # If the app (pyhost.py) has been launched before
+        "warden": True, # If the CLI walkthrough has been completed
+        "ftp": True, # Currently, from warden down all of these are not used YET. They are for future features
+        "api": True,
+        "webgui": True,
+        "sessionman": True,        
+    },
     "do_autobackup": True,
     "backups_path": None, # The preferred backup path set by the user. defaults to something else depending on the OS
     "ssl_enabled": True,
     "logman": {
-        "enabled": True, # Only disable if you want to disable logging completely. Not recommended
+        "enabled": True, # Only set to False if you want to disable logging completely. Not recommended
         "pid": None,
     },
     "api": {
@@ -99,7 +106,5 @@ app_settings = {
         "pid": None,
     },
     "active_tokens": {},
-    "linux": {
-        "password": None, # This should always be encrypted using a private key
-    }
+    # Linux password saved in own file in ./library/ssl/linpw
 }

@@ -72,8 +72,8 @@ class keys:
         # Try to load the key from the file, generate a new one if it fails
         loaded_Key = self.load()
         self.private_key = loaded_Key if loaded_Key != None else self.generate_private_key()
-        print(self.private_key)
         self.cipher_suite = Fernet(self.private_key)
+        pylogger.info("Starting encryption session...")
 
     def generate_private_key(self):
         # Collect various system-related data to create a more random seed
@@ -81,6 +81,8 @@ class keys:
         # Adds extra randomness
         seed_data += str(os.getpid()).encode()
         seed_data += str(os.times()).encode()
+        seed_data += str(os.uname()).encode()
+        seed_data += str(time.time()).encode()
 
         # Hash the collected data to create a secure key
         hashed_key = hashlib.sha256(seed_data).digest()
@@ -88,32 +90,38 @@ class keys:
         # Encode the key to base64 to make it compatible with Fernet
         encoded_key = base64.urlsafe_b64encode(hashed_key)
 
+        # Save the key to a file
+        pylogger.info("Generating new private key...")
         self.save(encoded_key)
         return encoded_key
 
     def encrypt(self, text):
         # Encrypt the text using the private key
+        pylogger.info("Encrypting text...")
         encrypted_text = self.cipher_suite.encrypt(text.encode())
         return encrypted_text
 
     def decrypt(self, encrypted_text):
         # Decrypt the text using the private key
+        pylogger.info("Decrypting text...")
         decrypted_text = self.cipher_suite.decrypt(encrypted_text).decode()
         return decrypted_text
 
     def save(self, private_key):
-        print("saved")
+        # Save the private key to a file
+        pylogger.info("Saving private key...")
+        os.makedirs(os.path.dirname(self.keypath), exist_ok=True)
         with open(self.keypath, "wb") as f:  # Open the file in binary mode
             f.write(private_key)
 
     def load(self):
-        print("loaded")
         try:
             with open(self.keypath, "rb") as f:  # Open the file in binary mode
                 private_key = f.read().strip()
         except FileNotFoundError:
             private_key = self.generate_private_key()
 
+        pylogger.info("Loading private key...")
         return private_key
 
 class application:
@@ -152,6 +160,7 @@ class application:
                 # Use subprocess to run the command with sudo
                 try:
                     subprocess.run(['sudo', '-S', command], input=password.encode(), check=True, text=True)
+                    exit() # Exit the non-root script
                 except subprocess.CalledProcessError as e:
                     print(f"Error: {e}")
                     sys.exit()
@@ -166,17 +175,8 @@ class application:
             if bool(os.environ.get("PYHOST_KEYBIND_LISTEN",True)) == False:
                 print("NONE: Input has been disabled. How did you even get here?")
             else:
-                print("Note: *<arg> = Required information, <arg> = Optional information")
-                print("do <arg_name>:'' = Keyword information. eg, port:'80'")
-                print("edit: Edits an app")
-                print("start: Starts an app")
-                print("restart: Turns off then on an app")
-                print("stop: Stops an app")
-                print("update: Updates an app")
-                print("rollback: Rollback to latest backup of an app or an earlier snapshot!")
-                print("help: Displays this message")
-                print("cls: Clears the screen\n")
                 print("idle: Displays information about pyhost and its instances while it is left 'idle.'")
+                print("cls: Clears the screen")
                 print("enter: Enters an app's GUI")
                 print("ftp: Enters the FTP GUI")
                 print("warden: Enters the Warden GUI")
@@ -184,16 +184,27 @@ class application:
                 print("api: Enters the API Command Line Interface")
                 print("gui: Opens the web GUI")
                 print("webgui: Enters the web GUI")
-                print("pyhost: Opens the settings menu\n")
-                print("create: Creates a new app")
+                print("pyhost: Opens the settings menu")
+                print("create: Creates a new app\n")
 
+                print("Information: <arg_name> = Keyword information. eg, port:'80'. An * simply means it is required.")
+                print("Entering a key-word like <key>:<value> will set the value of the key to the value. Eg, port:'80'")
+                print("Value must always be surrounded in quotation marks.")
+                print("-- Main Commands --")                
                 print("webcreate: Creates a new website app")
-                print("`webcreate *<app_name> port:'80' desc:'a cool app' autostart:'True|False' boundpath:'C:/users/ME/desktop/myCoolWebsitesContent/'`")
+                print("`webcreate *<app_name> port:'80' desc:'a cool app' autostart:'True or False' boundpath:'C:/users/ME/desktop/myCoolWebsitesContent/'`")
                 print("wsgicreate: Creates a new WSGI app")
-                print("`wsgicreate *<app_name> port:'80' desc:'a cool app' autostart:'True|False' boundpath:'C:/users/ME/desktop/cool_app.py'`")
-
+                print("`wsgicreate *<app_name> port:'80' desc:'a cool app' autostart:'True or False' boundpath:'C:/users/ME/desktop/cool_app.py'`")
                 print("delete: Deletes an app")
                 print("`delete *<app_name>`\n")
+
+                print("start: Starts an app")
+                print("edit: Edits an app")
+                print("restart: Turns off then on an app")
+                print("stop: Stops an app")
+                print("update: Updates an app")
+                print("rollback: Rollback to latest backup of an app or an earlier snapshot!")
+                print("help: Displays this message")
 
         from .instance import instance
         try:
@@ -526,6 +537,15 @@ class application:
             except:
                 pass
 
+            if jmod.getvalue("first_launch", "settings.json", True, dt=app_settings):
+                print("Remembering it is no longer your first time using PyHost.")
+                jmod.setvalue(
+                    key="first_launch.app",
+                    json_dir="settings.json",
+                    value=False,
+                    dt=app_settings
+                )
+            print("Thank you for choosing Pyhost!")
             print("Exiting...")
             exit()
 

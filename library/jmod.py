@@ -61,18 +61,25 @@ class jmod:
                 index = int(part[part.index('[') + 1:part.index(']')])  # Extract the array index
                 value = value[index]
             else:
-                if part in value:
-                    value = value[part]
-                else:
-                    # If the key doesn't exist, return the default value (default=None)
-                    return default
+                try:
+                    if part in value:
+                        value = value[part]
+                    else:
+                        # If the key doesn't exist, return the default value (default=None)
+                        return default
+                except TypeError:
+                    # The key is a value. Not a key
+                    raise KeyError(f"Key '{key}' in \"{json_dir}\" is a value, not a key, or it does not exist. Is your Json File setup correctly?")
         return value
 
     def setvalue(key, json_dir, value, default=None, dt=None):
         # Check if the file at json_dir exists
         if not os.path.exists(json_dir):
             # Create parent directories if they don't exist
-            os.makedirs(os.path.dirname(json_dir), exist_ok=True)
+            if "/" in json_dir or "\\" in json_dir:
+                os.makedirs(os.path.dirname(json_dir), exist_ok=True)
+            # If its not routing to another directory, it must be in the Current Working Dir so make a file instead
+            # Do so by letting the below code handle it
             
             # Create and fill the JSON file with dt if provided
             if dt is not None:
