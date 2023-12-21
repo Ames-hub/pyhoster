@@ -1,5 +1,4 @@
 import random
-import random
 import string
 web_config_dt = {
     "name": "defaultname", # Name of the app. Identifier

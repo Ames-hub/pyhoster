@@ -2,8 +2,13 @@ import os, json, sys, datetime, socketserver, http.server
 import webbrowser
 import ssl
 import time
-from ..jmod import jmod
-from ..data_tables import app_settings, web_config_dt
+try:
+    from ..jmod import jmod
+    from ..data_tables import app_settings, web_config_dt
+except ImportError as err:
+    print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
+    from pylog import pylog
+    pylog().error(f"Import error in {__name__}", err)
 root_dir = os.getcwd()
 setting_dir = "settings.json"
 import multiprocessing

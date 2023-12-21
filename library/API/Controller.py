@@ -1,6 +1,11 @@
-from ..jmod import jmod
-from ..data_tables import app_settings
-from ..userman import userman
+try:
+    from ..jmod import jmod
+    from ..data_tables import app_settings
+    from ..userman import userman
+except ImportError as err:
+    print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
+    from library.pylog import pylog
+    pylog().error(f"Import error in {__name__}", err)
 import waitress, os, multiprocessing, time
 
 from ..pylog import pylog

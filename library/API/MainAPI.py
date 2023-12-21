@@ -1,13 +1,18 @@
 # The following code is an API built with Flask for PyHost.
 from flask import request
-from ..data_tables import app_settings
-import os, datetime
+import os
 import multiprocessing, flask
 from flask_cors import CORS
-from library.userman import userman
-from library.instance import instance
-from library.warden import warden
-from ..jmod import jmod
+try:
+    from ..userman import userman
+    from ..instance import instance
+    from ..warden import warden
+    from ..jmod import jmod
+    from ..data_tables import app_settings
+except ImportError as err:
+    print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
+    from library.pylog import pylog
+    pylog().error(f"Import error in {__name__}", err)
 import datetime
 
 from ..pylog import pylog

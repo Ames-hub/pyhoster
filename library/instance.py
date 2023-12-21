@@ -1,7 +1,12 @@
 import os, shutil, sys, datetime, http.server, socketserver, json, hashlib, time
-from .application import application as app
-from .jmod import jmod
-from .data_tables import web_config_dt, wsgi_config_dt, app_settings
+try:
+    from .application import application as app
+    from .jmod import jmod
+    from .data_tables import web_config_dt, wsgi_config_dt, app_settings
+except ImportError as err:
+    print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
+    from library.pylog import pylog
+    pylog().error(f"Import error in {__name__}", err)
 import multiprocessing
 import waitress
 import ssl

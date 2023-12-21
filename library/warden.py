@@ -1,7 +1,12 @@
-import time, os
-from .jmod import jmod
-from .data_tables import app_settings, web_config_dt
-import multiprocessing
+try:
+    import time, os
+    from .jmod import jmod
+    from .data_tables import app_settings, web_config_dt
+    import multiprocessing
+except ImportError as err:
+    print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
+    from library.pylog import pylog
+    pylog().error(f"Import error in {__name__}", err)
 
 from .pylog import pylog
 pylogger = pylog()
