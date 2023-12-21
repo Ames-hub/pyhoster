@@ -195,6 +195,24 @@ class userman:
         )
         if interface: print(f"User \"{username}\" has been locked.")
 
+    def parse_username(username):
+        '''
+        This function sets what is allowed to be a username and what is not.
+
+        Parameters:
+            username (str): The username to be parsed.
+
+        Returns:
+            tuple: A tuple containing a boolean value indicating whether the username is valid or not, and a string indicating the reason if it is not valid.
+        '''
+        username = str(username)
+        if username.isalnum() == False: # No symbols
+            return (False, "alnum")
+        elif len(username) <= 3: # Must be at least 3 characters long
+            return (False, "length")
+        else:
+            return (True, None)
+
     def unlock(username=None):
         if username is None:
             while True:
@@ -218,6 +236,63 @@ class userman:
             dt=app_settings
         )
         print(f"User \"{username}\" has been unlocked.")
+
+    def allow_ftpdirs(username=None, path=None):
+        # TODO: Integrate this properly with the userman enter function
+        # TODO: Change code to better suit its intended place of use
+        accepted_directories = {}
+        while True:
+            instances = os.listdir("instances/")
+            print("\nPlease select an app for the user to have access to.")
+            print("Type 'done' or 'cancel' to finish.\n")
+            for instance in instances:
+                if instance not in accepted_directories.keys():
+                    print(instance)
+                    print(f"{colours['gray']}{jmod.getvalue(key='description', json_dir=f'instances/{instance}/config.json', default='No description provided.')}{colours['reset']}")
+
+            app_choice = input("\nLock to app: ")
+            if app_choice in ["done", "cancel"]:
+                print(f"Done selecting {len(accepted_directories.keys())} apps.")
+                print("===============================")
+                for app in accepted_directories.keys():
+                    print(f"{app}: {accepted_directories[app]}")
+                print("===============================")
+                break
+            elif app_choice not in os.listdir("instances/"):
+                print("App does not exist.")
+                continue
+            elif app_choice in accepted_directories.keys():
+                print("App already selected.")
+                continue
+
+            while True:
+                # Asks if the user should be locked to content
+                lock_to_content = input("Lock to content folder only? (y/n): ")
+                if lock_to_content == "y":
+                    new_user['ftp_dirs'] = f"instances/{app_choice}/content"
+                    print(f"User will be locked to the content folder of the \"{app_choice}\" app.")
+                    break
+                else:
+                    new_user['ftp_dirs'] = f"instances/{app_choice}"
+                    print(f"User will be locked to the \"{app_choice}\" app.")
+                    break
+
+            accepted_directories.update({app_choice: new_user['ftp_dirs']})
+            add_another = False
+            while True:
+                cont = input("Add another app? (y/n): ")
+                if cont == "y":
+                    add_another = True
+                    break
+                else:
+                    add_another = False
+                    break
+
+            if add_another:
+                continue
+            else:
+                new_user['ftp_dirs'] = accepted_directories
+                break
 
     def add_user():
         '''
