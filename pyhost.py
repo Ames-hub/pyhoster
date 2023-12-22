@@ -381,15 +381,23 @@ if __name__ == "__main__": # Prevents errors with multiprocessing
 # Starts the session man
 def tokenMan():
     from library.userman import session_json
-    pylogger.info("Session manager started.")
+    from library.pylog import pylog
+    logs = pylog(filename="logs/sessionman.log")
+    logs.info("Session manager started.")
     try:
         while True:
             sessions = session_json.list()
             exp_hours = jmod.getvalue(key="tokenMan.expiration_hours", json_dir="settings.json", default=24, dt=app_settings)
-            for session in sessions:
+            exp_hours = exp_hours * 60 * 60  # Convert hours to seconds
+            current_time = time.time()  # Store the current time outside the loop
+            for session_key, session_data in sessions.items():
                 # Checks if the session has expired
-                if datetime.datetime.fromtimestamp(sessions[session]['start']).date() - datetime.datetime.now().date() >= datetime.timedelta(hours=exp_hours):
-                    session_json.remove(session) # Token is the key
+                elapsed_time = current_time - session_data['start']
+                if elapsed_time > exp_hours:
+                    session_json.remove(session_key)  # Token is the key
+                    logs.info("Removed expired session token.")
+                else:
+                    logs.info(f"Session token is still valid. It is {elapsed_time}ms old. Expires in {exp_hours - elapsed_time}ms. Continuing to moniter.")
     except KeyboardInterrupt:
         return True
 

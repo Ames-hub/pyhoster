@@ -9,7 +9,8 @@ except ImportError as err:
     pylog().error(f"Import error in {__name__}", err)
 
 from ..pylog import pylog
-apipylog = pylog(filename="logs/api/%TIMENOW%.log")
+apipylog = pylog()#filename="logs/api/%TIMENOW%.log")
+apipylog.info("API Controller has been initialized.")
 
 colours = {
     "red": "\033[91m",

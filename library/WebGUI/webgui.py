@@ -86,7 +86,9 @@ class webcontroller:
         silent = True will redirect stdout and stderr to /dev/null
         '''
         debug = False
-        webgui_logger = pylog(filename="logs/WebGUI/%TIMENOW%.log")
+        webgui_logger = pylog(
+            logform='WEBGUI | %loglevel% - %time% - %file% | '
+        )
 
         # Get the port from the config.json file
         config_path = os.path.abspath(f"library/WebGUI/config.json")
@@ -316,10 +318,6 @@ class webcontroller:
                 # Get client address and requested file
                 client_address = self.client_address[0]
                 requested_file = self.path
-                current_date = datetime.date.today().strftime("%Y-%m-%d")
-                log_file_path = f"logs/WebGUI/{current_date}.log"
-                os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-
                 # Open the log file and write the request information
                 if requested_file == "/":
                     webgui_logger.info(f"{datetime.datetime.now()} - WebGUI - IP {client_address} requested {requested_file} (the landing page)\n")

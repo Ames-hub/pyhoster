@@ -16,7 +16,10 @@ except ImportError as err:
     pylog().error(f"Import error in {__name__}", err)
 
 from ..pylog import pylog
-logapi = pylog(filename='logs/api/%TIMENOW%.log')
+logapi = pylog(
+    logform="%loglevel% - %time% %H:%M:%S - %file% | " # Being more specific as this is the API
+)# filename='logs/api/%TIMENOW%.log')
+logapi.info("API File Initialized.")
 
 app = flask.Flask(__name__)
 CORS(app, origins='*') #TODO: I'll improve this when I can give a damn
@@ -74,9 +77,6 @@ def start_app():
     multiprocessing.Process(
         target=instance.start_interface, args=(app_name, False)
     ).start()
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to start app \"{app_name}\". Working..."
-    )
     return {"status": 200}
 
 @app.route('/instances/stop/', methods=['OPTIONS'])
@@ -98,9 +98,6 @@ def stop_app():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Working...")
     instance.stop(app_name, False)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to stop app \"{app_name}\". Working..."
-    )
     return {"status": 200}
 
 @app.route('/instances/webcreate/', methods=['OPTIONS'])
@@ -136,9 +133,6 @@ def webcreate():
         boundpath=boundpath,
         do_autostart=do_autostart,
         )
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Working..."
-    )
     return {"status": 200}
 
 @app.route('/instances/delete/', methods=['OPTIONS'])
@@ -161,9 +155,6 @@ def webdelete():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Working...")
     instance.delete(app_name, is_interface=False, ask_confirmation=False, del_backups=del_backups)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to delete app \"{app_name}\". Working..."
-    )
     return {"status": 200}
 
 @app.route('/instances/delete/', methods=['OPTIONS'])
@@ -185,9 +176,6 @@ def get_status():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Working...")
     status = instance.get_status(app_name)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of app \"{app_name}\". Working..."
-    )
     return status, 200
 
 @app.route('/instances/getall/', methods=['OPTIONS'])
@@ -208,10 +196,6 @@ def get_all():
     for app in os.listdir('instances/'):
         status = instance.get_status(app, is_interface=False)
         status_dict[app] = status
-
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to get status of all apps. Working..."
-    )
     return status_dict, 200
 
 @app.route('/warden/setstatus/', methods=['OPTIONS'])
@@ -236,9 +220,6 @@ def set_warden_status():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Working...")
     warden.set_status(app_name, status)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to set Warden status to \"{status}\" for app \"{app_name}\". Working..."
-    )
     return {"status": 200}
 
 @app.route('/warden/getstatus/', methods=['OPTIONS'])
@@ -260,9 +241,6 @@ def get_warden_status():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Working...")
     status = warden.get_status(app_name)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to get Warden status. Working..."
-    )
     return {"status": status}
 
 @app.route('/warden/addpage/', methods=['OPTIONS'])
@@ -292,9 +270,6 @@ def add_warden_page():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Working...")
     msg = warden.add_page(app_name=app_name, page_dir=page_name, is_interface=False)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to add Warden page \"{page_name}\". Working..."
-    )
     # Uses match to check if the message is a success or failure and determine a html code
     answers = {
         "Page added.": 200,
@@ -327,9 +302,6 @@ def delete_warden_page():
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Working...")
     msg = warden.rem_page(app_name=app_name, page_dir=page_dir, is_interface=False)
-    logapi.info(
-        f"API/Remote user {userman.session.get_user(data['token'])} requested to delete Warden page \"{page_dir}\". Working..."
-    )
     status = 200 if msg == "Page removed." else 400
     return {"status": msg}, status
 
@@ -357,8 +329,5 @@ def login():
 
     apiprint(f"API/Remote user {data['username']} requested to login. Working...")
     session = userman.session(username, password, IP_Address=request.remote_addr)
-    logapi.info(
-        f"API/Remote user {data['username']} requested to login. Working..."
-    )
     status = session.htmlstatus
     return {"status": status, "session": session.token}
