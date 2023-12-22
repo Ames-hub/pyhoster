@@ -85,6 +85,7 @@ class webcontroller:
 
         silent = True will redirect stdout and stderr to /dev/null
         '''
+        debug = False
         webgui_logger = pylog(filename="logs/WebGUI/%TIMENOW%.log")
 
         # Get the port from the config.json file
@@ -156,7 +157,7 @@ class webcontroller:
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
-                self.content_directory = jmod.getvalue("contentloc", config_path, "library/WebGUI/content/", app_settings)
+                self.content_directory = "library/WebGUI/content/"
                 super().__init__(*args, directory=self.content_directory, **kwargs)
 
             if add_sec_heads:
@@ -258,6 +259,7 @@ class webcontroller:
                     if os.path.exists(requested_file_path):
                         # If the requested file exists, call the parent class's do_GET method
                         super().do_GET()
+                        return True
                     elif notfoundpage_enabled:
                         # If the requested file doesn't exist and a custom 404 page is enabled
                         if send_404:
@@ -319,49 +321,41 @@ class webcontroller:
                 os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
                 # Open the log file and write the request information
-                with open(log_file_path, "a") as log_file:
-                    if requested_file == "/":
-                        log_file.write(f"{datetime.datetime.now()} - WebGUI - IP {client_address} requested {requested_file} (the landing page)\n")
-                    else:
-                        log_file.write(f"{datetime.datetime.now()} - WebGUI - IP {client_address} requested file {requested_file}\n")
-
-        # Define a custom log message function
-        def log_message(message):
-            current_date = datetime.date.today().strftime("%Y-%m-%d")
-            log_file_path = os.path.abspath(f"logs/WebGUI/{current_date}.log")
-
-            os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-            with open(log_file_path, "a") as log_file:
-                log_file.write(f"{datetime.datetime.now()} - WebGUI - {message}\n")
+                if requested_file == "/":
+                    webgui_logger.info(f"{datetime.datetime.now()} - WebGUI - IP {client_address} requested {requested_file} (the landing page)\n")
+                else:
+                    webgui_logger.info(f"{datetime.datetime.now()} - WebGUI - IP {client_address} requested file {requested_file}\n")
 
         # Redirect stdout and stderr to /dev/null if silent is True
-        sys.stdout = open(os.devnull, "w")
-        sys.stderr = open(os.devnull, "w")
+        if not debug:
+            sys.stdout = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w")
 
         try:
             # Create a socket server with the custom handler
             with socketserver.TCPServer(("", port), CustomHandler) as httpd:
 
-                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                cert_dir = "library/WebGUI/cert.pem"
-                private_dir = "library/WebGUI/private.key"
-
-                from ..filetransfer import generate_ssl
-                generate_ssl(cert_dir, private_dir)
-
-                context.load_cert_chain(cert_dir, private_dir)
-                httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
-                
-                log_message(f"WebGUI is running.")
-                # Get the PID of the current thread (web server)
-
-                # Sets server to running in JSON file and save the PID
+                # Sets server to running in JSON file
                 jmod.setvalue(
                     key="running",
                     json_dir=config_path,
                     value=True,
                     dt=web_config_dt
                 )
+
+                if jmod.getvalue(config_path, "ssl_enabled", True, app_settings):
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    cert_dir = "library/WebGUI/cert.pem"
+                    private_dir = "library/WebGUI/private.key"
+
+                    from ..filetransfer import generate_ssl
+                    generate_ssl(cert_dir, private_dir)
+
+                    context.load_cert_chain(cert_dir, private_dir)
+                    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+                    webgui_logger.info(f"WebGUI is running with SSL.")
+                else:
+                    webgui_logger.info(f"WebGUI is running without SSL.")
 
                 # Start the server and keep it running until interrupted
                 webgui_logger.info(f"WebGUI is now running on port {port}")

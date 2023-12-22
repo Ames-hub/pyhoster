@@ -54,27 +54,12 @@ Ubuntu<br>
 Windows 11 (Developed on.)
 
 Tested/Compatible Python Versions:
-- 3.12 (Compatible and Tested)
-- 3.11 (Compatible)
-- 3.10 (Compatible and Tested)
+- 3.12 (Assumed compatible)
+- 3.11 (Compatible, Tested & Developed on)
+- 3.10 (Compatible)
 
 # Why do we exist?
-I've been asked this question somewhat often, so I decided to make a section for it.<br>
-When I was first trying to finally host my website that I had made, I was looking for a good service to do it.<br>
-I immediately went to the obvious ones, Nginx and Apache. I tried both, and they Both had their own problems.<br>
-
-Nginx, when I first started using it, Was not something that just Worked. You couldn't set a couple variables such as<br>
-"You can find my website's content and index file here, now do it." and when I did what it wanted, I got an SSL error<br>
-BEFORE I even considered using SSL! And it never ended up working properly. (until 1 time where it just works for no apparent reason)<br>
-
-I tried apache, messed around with it, got it working. but then 2 days later it stopped working and I couldn't figure out why.<br>
-I didn't even get an error message from the docker container!
-
-So I decided to make my own. I wanted something that was easy to use with atleast a basic UI<br>
-something easy to configure, and easy to manage but most importantly, something that just worked out of the box.<br>
-
-So I made pyhoster, A Python website manager where you merely have to type in a few hand-held commands and you're done.<br>
-Additional configuration entirely optional.
+I've faced challenges with mainstream web hosting services like Nginx and Apache. Nginx wasn't straightforward; even after following its instructions, I encountered SSL errors before considering SSL itself. Apache initially worked, but it mysteriously stopped functioning after a couple of days without any error messages. Frustrated, I decided to create my own solution—pyhoster. It's a Python-based website manager with a simple interface, requiring only a few commands for setup. No extensive configuration needed; it's meant to be a hassle-free hosting option.
 
 ## Possible Commands
 `webcreate` - Create a new website app.<br>

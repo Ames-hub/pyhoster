@@ -72,7 +72,6 @@ class warden:
             print("App does not exist.")
             return
 
-        # TODO Complete these commands. only enable, disable, add/rempage, and exit are done.
         commands = [
             "help - Displays this message.",
             "exit - Exits warden.",

@@ -1,5 +1,5 @@
 function startInstance(appName) {
-    fetch('http://localhost:4030/instances/start', {
+    fetch('http://localhost:4000/instances/start', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

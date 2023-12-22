@@ -80,7 +80,7 @@ app_settings = {
         "running": False,
         "autoboot": False,
         "app_dir": "library.API.MainAPI",
-        "port": 4045,
+        "port": 4000,
         "pid": None,
         "timeout_pid": None,
         "actionprint": False, # This prints all API actions to the console while active. Useful for debugging

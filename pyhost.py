@@ -11,7 +11,6 @@ try:
     import shutil
     import time
     import sys
-    import subprocess
     from getpass import getpass
     from library.jmod import jmod
     from library.data_tables import web_config_dt, app_settings
@@ -54,15 +53,25 @@ if __name__ == "__main__":
             dt=app_settings
         )
 
-ran_root = os.geteuid() == 0
 is_linux = sys.platform == "linux" # If the OS is linux, it will be true
 is_mac = sys.platform == "darwin"
-pylogger.info(f"OS Is Linux: {is_linux}")
-pylogger.info(f"OS Is Windows: {os.name == 'nt'}")
-pylogger.info(f"OS Is Apple: {is_mac}")
-pylogger.info(f"os.name? : {os.name}")
-pylogger.info(f"sys.platform? : {sys.platform}")
-pylogger.info(f"Has elevated privileges? : {ran_root}")
+pylogger.debug(f"OS Is Linux: {is_linux}")
+if is_linux:
+    # Gets the BRAND of linux
+    with open("/etc/os-release", 'r') as f:
+        for line in f.readlines():
+            if line.startswith("ID="):
+                linux_brand = line.replace("ID=", "").replace("\n", "")
+                break
+    pylogger.debug(f"    Linux Brand: {linux_brand}")
+pylogger.debug(f"OS Is Windows: {os.name == 'nt'}")
+pylogger.debug(f"OS Is Apple: {is_mac}")
+pylogger.debug(f"os.name? : {os.name}")
+pylogger.debug(f"sys.platform? : {sys.platform}")
+if is_linux:
+    pylogger.debug(f"Has elevated privileges? : {os.get_euid() == 0}")
+else:
+    pylogger.debug("Has elevated privileges? : N/A")
 
 if is_mac:
     is_linux = False
@@ -442,10 +451,11 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
                     print(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
                     pylogger.warning(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
                     continue
-                elif port < 1024 and is_linux is True and ran_root is False:
-                    print(f"{colours['yellow']}Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024 (the lowest port we are allowed to run on)")
-                    print(f"You can change the port by entering the command 'edit {name}' then selecting option 2 (port) and changing it to a number greater than 1023{colours['white']}")
-                    pylogger.warning(f"Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024")
+                elif port < 1024 and is_linux is True:
+                    if os.get_euid() == 0: # get_euid only works on linux. So its behind the above IF statement
+                        print(f"{colours['yellow']}Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024 (the lowest port we are allowed to run on)")
+                        print(f"You can change the port by entering the command 'edit {name}' then selecting option 2 (port) and changing it to a number greater than 1023{colours['white']}")
+                        pylogger.warning(f"Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024")
                     continue
                 apptype = jmod.getvalue(key='apptype', json_dir=config_file)
                 if ports_taken[port] == name:

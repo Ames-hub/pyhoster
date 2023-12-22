@@ -1,7 +1,7 @@
 function login() {
     let username = document.getElementById("username").value;
     let password = document.getElementById("password").value;
-    fetch("http://localhost:4030/userman/login", {
+    fetch("http://localhost:4000/userman/login", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -19,7 +19,7 @@ function login() {
         }
         else {
             if (data['status'] == 423) {
-                alert("Login failed. Your account was locked by Administrators or Automoderation.");
+                alert("Login failed.\nYour account was locked by Administrators or Warden.");
             }
             else if (data['status'] == 403) {
                 alert("Login failed. Is your Username or password incorrect?");

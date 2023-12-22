@@ -1,4 +1,6 @@
-import os, multiprocessing as mp, json, time, datetime
+import os, multiprocessing as mp, json, time
+if os.name == "nt":
+    import ctypes
 try:
     from .data_tables import app_settings, web_config_dt, wsgi_config_dt
     from .filetransfer import ftp
@@ -19,8 +21,6 @@ pylogger = pylog()
 
 root_dir = os.getcwd()
 FTP_Enabled = bool(jmod.getvalue("FTP_Enabled", "settings.json", dt=app_settings, default=False))
-
-ran_root = os.geteuid() == 0 # Detects if the program was ran as root
 
 colours = {
     "red": "\033[31m",
@@ -124,46 +124,133 @@ class keys:
         pylogger.info("Loading private key...")
         return private_key
 
+def idle_mode_printer():
+    while True:
+        webgui_running = jmod.getvalue("webgui.running", "settings.json", dt=app_settings, default=False)
+        api_running = jmod.getvalue("api.running", "settings.json", dt=app_settings, default=False)
+        ftp_running = jmod.getvalue("FTP_Running", "settings.json", dt=app_settings, default=False)
+        webgui_pid = jmod.getvalue("webgui.pid", "settings.json", dt=app_settings, default=None)
+        api_pid = jmod.getvalue("api.pid", "settings.json", dt=app_settings, default=None)
+        ftp_pid = jmod.getvalue("ftppid", "settings.json", dt=app_settings, default=None)
+        webgui_port = jmod.getvalue("webgui.port", "settings.json", dt=app_settings, default=None)
+        api_port = jmod.getvalue("api.port", "settings.json", dt=app_settings, default=None)
+        ftp_port = jmod.getvalue("FTP_Port", "settings.json", dt=app_settings, default=None)
+
+        instances_list = ""
+        for instance in os.listdir("instances/"):
+            with open(f"instances/{instance}/config.json", 'r') as config_file:
+                config_data = json.load(config_file)
+            if config_data.get("running") == True:
+                instances_list += f"{instance} - {colours['green']}Running{colours['white']}\n"
+                instances_list += f"    Port: {config_data.get('port')}\n"
+                instances_list += f"    PID: {config_data.get('pid')}\n\n"
+            else:
+                instances_list += f"{instance} - {colours['red']}Not Running{colours['white']}\n"
+
+        # FTP Status
+        ftp_status = ""
+        if ftp_running == True:
+            ftp_status += f"FTP Server - {colours['green']}Running{colours['white']}\n"
+            ftp_status += f"    Port: {ftp_port}\n"
+            ftp_status += f"    PID: {ftp_pid}\n\n"
+        else:
+            ftp_status += f"FTP Server - {colours['red']}Not Running{colours['white']}\n"
+
+        # WebGUI Status
+        webgui_status = ""
+        if webgui_running == True:
+            webgui_status += f"WebGUI - {colours['green']}Running{colours['white']}\n"
+            webgui_status += f"    Port: {webgui_port}\n"
+            webgui_status += f"    PID: {webgui_pid}\n\n"
+        else:
+            webgui_status += f"WebGUI - {colours['red']}Not Running{colours['white']}\n"
+
+        # API Status
+        api_status = ""
+        if api_running == True:
+            api_status += f"API - {colours['green']}Running{colours['white']}\n"
+            api_status += f"    Port: {api_port}\n"
+            api_status += f"    PID: {api_pid}\n\n"
+        else:
+            api_status += f"API - {colours['red']}Not Running{colours['white']}\n"
+
+        screen = f'''
+<!-------- {application.rainbowify_text('PYHOST')} --------!>
+Pyhost is currently running in the background.
+To exit IDLE mode, press enter.
+
+{application.rainbowify_text('INSTANCES')}
+---------------------
+{instances_list}
+---------------------
+
+{ftp_status}
+{webgui_status}
+{api_status}
+'''
+        os.system("cls" if os.name == "nt" else "clear")
+        print(screen)
+        time.sleep(0.5)
+
 class application:
 
     def is_root():
-        # Check if the script is running as root
-        return os.geteuid() == 0
+        if os.name == 'nt':  # If the system is Windows
+            try:
+                # ctypes.windll.shell32.IsUserAnAdmin() returns True if the script is run as admin
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            except:
+                return False
+        else:  # If the system is Unix-like
+            # os.geteuid() returns 0 if the script is run as root
+            return os.geteuid() == 0
 
     def elevate(ask_msg="To do this, We need your Root Password.\nWe will only save this data for later use if you Ok it.\n\n>>> "):
-        '''
-        A 
-        '''
-        # Elevate the script
-        if sys.platform == 'linux':
-            if not application.is_root():
-                print('Elevating script...')
-                # Prompt user for password input
-                application.clear_console()
-                password = input(ask_msg)
-                while True:
-                    save_pw = input("Do you want to save this password for later use? (y/n)\n>>> ").lower()
-                    if save_pw == "y":
-                        jmod.setvalue(
-                            key="linux.password",
-                            json_dir="settings.json",
-                            value=keys().encrypt(password),
-                            dt=app_settings
-                        )
-                        break
-                    elif save_pw == "n":
-                        save_pw = False
-                        break
-                # Command to run as root
-                command = 'python3.10 ' + sys.argv[0]  # Adjust this line based on your specific requirements
-                
-                # Use subprocess to run the command with sudo
-                try:
-                    subprocess.run(['sudo', '-S', command], input=password.encode(), check=True, text=True)
-                    exit() # Exit the non-root script
-                except subprocess.CalledProcessError as e:
-                    print(f"Error: {e}")
-                    sys.exit()
+            """
+            Elevates the script to run with root privileges on Linux.
+
+            Args:
+                ask_msg (str, optional): Message to prompt the user for the root password. Defaults to a predefined message.
+
+            Raises:
+                subprocess.CalledProcessError: If there is an error while running the command with sudo.
+
+            Notes:
+                - This function is only available on Linux.
+                - On Windows, administrative privileges are not required.
+            """
+            # Elevate the script
+            if sys.platform == 'linux':
+                if not application.is_root():
+                    print('Elevating script...')
+                    # Prompt user for password input
+                    application.clear_console()
+                    password = input(ask_msg)
+                    while True:
+                        save_pw = input("Do you want to save this password for later use? (y/n)\n>>> ").lower()
+                        if save_pw == "y":
+                            jmod.setvalue(
+                                key="linux.password",
+                                json_dir="settings.json",
+                                value=keys().encrypt(password),
+                                dt=app_settings
+                            )
+                            break
+                        elif save_pw == "n":
+                            save_pw = False
+                            break
+                    # Command to run as root
+                    command = 'python3.10 ' + sys.argv[0]  # Adjust this line based on your specific requirements
+                    
+                    # Use subprocess to run the command with sudo
+                    try:
+                        subprocess.run(['sudo', '-S', command], input=password.encode(), check=True, text=True)
+                        exit() # Exit the non-root script
+                    except subprocess.CalledProcessError as e:
+                        print(f"Error: {e}")
+                        sys.exit()
+            else:
+                print("This feature is only available on Linux! On windows, We do not need Admin to do what we need.")
 
     def run(keybind_listen: bool = True):
         application.running = True
@@ -273,6 +360,12 @@ class application:
                             )
                     elif cmd == "idle":
                         application.idle()
+                        continue
+                    elif cmd == "status":
+                        if has_args:
+                            instance.get_status(app_name=app_name_arg)
+                        else:
+                            instance.get_status(is_interface=True)
                     elif cmd == "ftp":
                         ftp.enter()
                         # Read doc string for more info. as a summary though,
@@ -372,8 +465,10 @@ class application:
                         print("Invalid command. Please try again or do `help`")
         except KeyboardInterrupt:
             application.running = False
-            # os.system('cls' if os.name == "nt" else "clear")
-            print("...\nExit signal received: Program is now exiting.")
+            # Sets all the JSON file's running key to False
+            from .jmod import jmod
+            dotdotdot = "...\n" if not jmod.getvalue("logman.enabled", "settings.json", True, app_settings) else ""
+            print(f"{dotdotdot}Exit signal received: Program is now exiting.")
             pylogger.info("Exit signal received: Program is now exiting.")
 
             print("Shutting down all web instances...")
@@ -389,31 +484,8 @@ class application:
                     os.kill(pid, 2)
                     # signal 2 == CTRL + C
             except Exception as err:
-                pylogger.error(f"Error stopping thread: {err}")
+                pylogger.error(f"Error stopping thread: {err}", err)
             print("All web instances have been shut down.")
-
-            try:
-                active_threads = mp.active_children()
-                for thread in active_threads:
-                    os.kill(thread.pid, 2)
-                print("All threads have been gracefully shut down. (1)")
-            except PermissionError:
-                try:
-                    active_threads = mp.active_children() # Gets all active threads again as some may have been shut down
-                    for thread in active_threads:
-                        os.kill(thread.pid, 9)
-                        print("All threads have been shut down. (2)")
-                except PermissionError:
-                    try:
-                        active_threads = mp.active_children()
-                        for thread in active_threads:
-                            thread.terminate()
-                        print("All threads have been shut down. (3)")
-                    except PermissionError:
-                        print("Permission Error: Unable to shutdown all threads!")
-
-            # Sets all the JSON file's running key to False
-            from .jmod import jmod
 
             # Sets the API to not running
             if jmod.getvalue("api.running", "settings.json", dt=app_settings):
@@ -426,26 +498,6 @@ class application:
                         os.kill(jmod.getvalue("api.timeout_pid", "settings.json", dt=app_settings), 9)
                     except:
                         pass
-                
-            logman_pid = jmod.getvalue(
-                key="logman.pid",
-                json_dir="settings.json",
-                dt=app_settings,
-                default=None
-            )
-            try:
-                os.kill(logman_pid, 2)
-            except:
-                try:
-                    os.kill(logman_pid, 9)
-                except:
-                    pass
-            jmod.setvalue(
-                key="logman.pid",
-                json_dir="settings.json",
-                value=None,
-                dt=app_settings,
-            )
 
             print("Stopping Token manager...")
             sman_pid = jmod.getvalue(
@@ -537,7 +589,7 @@ class application:
             except:
                 pass
 
-            if jmod.getvalue("first_launch", "settings.json", True, dt=app_settings):
+            if jmod.getvalue("first_launch.app", "settings.json", True, dt=app_settings) == True:
                 print("Remembering it is no longer your first time using PyHost.")
                 jmod.setvalue(
                     key="first_launch.app",
@@ -545,6 +597,29 @@ class application:
                     value=False,
                     dt=app_settings
                 )
+
+            # Wait until logging queue is empty to prevent data loss
+            print("Stopping Log Worker...")
+            logman_pid = jmod.getvalue(
+                key="logman.pid",
+                json_dir="settings.json",
+                dt=app_settings,
+                default=None
+            )
+            try:
+                os.kill(logman_pid, 2)
+            except:
+                try:
+                    os.kill(logman_pid, 9)
+                except:
+                    pass
+            jmod.setvalue(
+                key="logman.pid",
+                json_dir="settings.json",
+                value=None,
+                dt=app_settings,
+            )
+            print("Log Worker has been stopped.")
             print("Thank you for choosing Pyhost!")
             print("Exiting...")
             exit()
@@ -558,75 +633,7 @@ class application:
         (Which, surprisingly, some aren't.)
         '''
 
-        def printer():
-            while True:
-                webgui_running = jmod.getvalue("webgui.running", "settings.json", dt=app_settings, default=False)
-                api_running = jmod.getvalue("api.running", "settings.json", dt=app_settings, default=False)
-                ftp_running = jmod.getvalue("FTP_Running", "settings.json", dt=app_settings, default=False)
-                webgui_pid = jmod.getvalue("webgui.pid", "settings.json", dt=app_settings, default=None)
-                api_pid = jmod.getvalue("api.pid", "settings.json", dt=app_settings, default=None)
-                ftp_pid = jmod.getvalue("ftppid", "settings.json", dt=app_settings, default=None)
-                webgui_port = jmod.getvalue("webgui.port", "settings.json", dt=app_settings, default=None)
-                api_port = jmod.getvalue("api.port", "settings.json", dt=app_settings, default=None)
-                ftp_port = jmod.getvalue("FTP_Port", "settings.json", dt=app_settings, default=None)
-
-                instances_list = ""
-                for instance in os.listdir("instances/"):
-                    with open(f"instances/{instance}/config.json", 'r') as config_file:
-                        config_data = json.load(config_file)
-                    if config_data.get("running") == True:
-                        instances_list += f"{instance} - {colours['green']}Running{colours['white']}\n"
-                        instances_list += f"    Port: {config_data.get('port')}\n"
-                        instances_list += f"    PID: {config_data.get('pid')}\n\n"
-                    else:
-                        instances_list += f"{instance} - {colours['red']}Not Running{colours['white']}\n"
-
-                # FTP Status
-                ftp_status = ""
-                if ftp_running == True:
-                    ftp_status += f"FTP Server - {colours['green']}Running{colours['white']}\n"
-                    ftp_status += f"    Port: {ftp_port}\n"
-                    ftp_status += f"    PID: {ftp_pid}\n\n"
-                else:
-                    ftp_status += f"FTP Server - {colours['red']}Not Running{colours['white']}\n"
-
-                # WebGUI Status
-                webgui_status = ""
-                if webgui_running == True:
-                    webgui_status += f"WebGUI - {colours['green']}Running{colours['white']}\n"
-                    webgui_status += f"    Port: {webgui_port}\n"
-                    webgui_status += f"    PID: {webgui_pid}\n\n"
-                else:
-                    webgui_status += f"WebGUI - {colours['red']}Not Running{colours['white']}\n"
-
-                # API Status
-                api_status = ""
-                if api_running == True:
-                    api_status += f"API - {colours['green']}Running{colours['white']}\n"
-                    api_status += f"    Port: {api_port}\n"
-                    api_status += f"    PID: {api_pid}\n\n"
-                else:
-                    api_status += f"API - {colours['red']}Not Running{colours['white']}\n"
-
-                screen = f'''
-<!-------- {application.rainbowify_text('PYHOST')} --------!>
-Pyhost is currently running in the background.
-To exit IDLE mode, press enter.
-
-{application.rainbowify_text('INSTANCES')}
----------------------
-{instances_list}
----------------------
-
-{ftp_status}
-{webgui_status}
-{api_status}
-'''
-                os.system("cls" if os.name == "nt" else "clear")
-                print(screen)
-                time.sleep(0.5)
-
-        idle_printer = mp.Process(target=printer, daemon=True)
+        idle_printer = mp.Process(target=idle_mode_printer, daemon=True)
         idle_printer.start()
         input() # It will wait here until enter is pressed
         idle_printer.kill()
@@ -722,6 +729,7 @@ To exit IDLE mode, press enter.
                     port = int(port)
                     assert port > 0 and port < 65535, "The port must be between 0 and 65535!"
                     if linux:
+                        ran_root = os.geteuid() == 0 # Detects if the program was ran as root
                         if not ran_root:
                             assert port > 1024, f"{colours['red']}The port must be above 1024 as all ports below are reserved by Linux! To fix this, run the program as root! (or with higher privileges){colours['white']}"
                         else:

@@ -749,17 +749,17 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         if is_interface:
             if port != None:
-                print(f"Server \"{app_name}\" is running on port {port}.")
+                print(f"It is running on port {port}.")
             else:
-                print(f"Server \"{app_name}\" is not running on a port.")
+                print(f"It is not bound to a port, but is set for {port}")
         
         warden_enabled = jmod.getvalue(key="warden.enabled", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
 
         if is_interface:
             if warden_enabled == True:
-                print(f"Server \"{app_name}\" has warden enabled.")
+                print(f"Warden is enabled.")
             else:
-                print(f"Server \"{app_name}\" has warden disabled.")
+                print("Warden is not running.")
 
         autostart = jmod.getvalue(key="autostart", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
 

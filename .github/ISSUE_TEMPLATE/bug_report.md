@@ -22,10 +22,8 @@ Steps to reproduce the behavior:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. Windows 11]
- - Python Version: [e.g. 3.12.0]
- - Happens on latest release of pyhost? : [answer Yes/No]
-
 **Additional context**
 Add any other context about the problem here.
+
+**Please DO include the latest log file you can find!**
+It'll look something like a file in the "logs" folder called `latest.log`

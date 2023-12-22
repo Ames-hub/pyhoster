@@ -90,6 +90,7 @@ class session_json:
         return sessions
 
 class userman:
+    # TODO: Find out why the heck the background goes dark when calling this function
     def enter():
         while True:
             try:
@@ -198,6 +199,12 @@ class userman:
             json_dir='settings.json',
             dt=app_settings
         )
+
+        # Finds all sessions the user has and kills them
+        for session in session_json.list().keys():
+            if session_json.list()[session]['username'] == username:
+                userman.session.kill_token(session)
+
         if interface: print(f"User \"{username}\" has been locked.")
 
     def parse_username(username):
