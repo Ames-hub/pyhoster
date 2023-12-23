@@ -30,15 +30,18 @@
     <div id="apps_bar">
         <!-- For every app, an app will be put here -->
     </div>
-    <div id="createapp">
+    <form id="createapp">
         <h1>Create an app</h1>
-        <input type="text" class="createinputs" id="create_appname" placeholder="App name"></input>
-        <input type="text" class="createinputs" id="create_port" placeholder="App port"></input>
-    </div>
-    <div id="deleteapp">
+        <input type="text" class="createinputs" id="create_appname" placeholder="App name" required>
+        <input type="number" class="createinputs" min="1" max="65535" id="create_port" placeholder="App port" required>
+        <textarea class="create_appdesc" placeholder="Type your description for the app here should you want one..."></textarea>
+        <input type="submit" id="create_submit" value="Submit New App">
+    </form>
+    <form id="deleteapp">
         <h1>Delete app</h1>
         <input type="text" class="deleteinputs" id="delete_appname" placeholder="App name"></input>
-    </div>
+        <button type="submit">Delete it</button>
+    </form>
     <script src="javascript/tokenverif.js"></script>
     <script src="javascript/getAllStats.js"></script>
     <script src="javascript/status_detector.js"></script>

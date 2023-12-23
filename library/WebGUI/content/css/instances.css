@@ -106,9 +106,9 @@ body {
     position: relative;
     top: 10px;
     left: 10px;
-    width: 40%;
+    width: 30%;
     height: 30px;
-    border-radius: 20px;
+    border-radius: 10px;
     background-color: #444444;
     color: white;
     padding: 5px;
@@ -119,6 +119,32 @@ body {
     display: flex;
     flex-direction: column;
     flex-wrap: wrap;
+}
+.create_appdesc {
+    position: absolute;
+    right: 5%;
+    top: 10%;
+    width: 50%;
+    max-width: 400px;
+    height: 80%;
+    resize: none; /* Disable resizing of the input box */
+    overflow-y: auto; /* Add a scrollbar when the content exceeds the box height */
+    background-color: #444444;
+    color: white;
+}
+#create_appdesc::placeholder {
+    text-align: top;
+}
+#create_submit {
+    position: relative;
+    bottom: -70px;
+    width: 150px;
+    height: 40px;
+    border-radius: 5px;
+    background-color: #272727;
+    color: white;
+    margin-left: 10px;
+    cursor: pointer;
 }
 
 #deleteapp {

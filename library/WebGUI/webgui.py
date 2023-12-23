@@ -590,3 +590,69 @@ class webcontroller:
         )
         # Assume LocalHost as this function can't open a remote GUI on a different machine.
         webbrowser.open(f"https://localhost:{port}/login.html", 2)
+
+class webgui_files:
+    def update_connection_details():
+        '''
+        Updates the connection details in the WebGUI's files by finding Where the IP:PORT is and updating it.
+        This way, no need for placeholders or mid-transcation editing.
+
+        Returns True if successful, False if not. 
+        '''
+        # Get the connection details from the settings.json file
+        hostname = jmod.getvalue(
+            key="hostname",
+            json_dir=setting_dir,
+            default="localhost",
+            dt=web_config_dt
+        )
+        port = jmod.getvalue(
+            key="webgui.port",
+            json_dir=setting_dir,
+            default=4040,
+            dt=web_config_dt
+        )
+
+        # Goes through every JS and HTML file in the content directory
+        content_dir = "library/WebGUI/content/"
+        for root, dirs, files in os.walk(content_dir):
+            for file in files:
+                # Finds where the IP:PORT is and replaces it with the new IP:PORT
+                # IP and Port will normally be in the context of a fetch request to the API
+                # Here, we do not assume that we will find the default "http://localhost:4000" as this function may have
+                # Been ran in the past.
+                if file.endswith(".js"):
+                    # Open the file and read its content
+                    with open(os.path.join(root, file), "r") as file:
+                        content = file.read()
+                    
+                    new_file_lines = []
+                    # Finds the index of where the IP should begin
+                    for line in content.splitlines():
+                        jsfetch_index = line.find("fetch(")
+                        if jsfetch_index != -1:
+                            # We have found one instance of fetch, we will assume the IP and port are on the same line as this fetch
+                            # Gets rid of content before fetch index
+                            line = line[jsfetch_index:]
+                            jsfetch_index = line.find("fetch(") # Update index
+                            # The IP must be surrounded by quotes, so we find the index of the first quote
+                            quote1_index = line.find('"')
+                            # Then we find the index of the second quote
+                            quote2_index = line.find('"', quote1_index+1)
+                            # Then we get the IP and port from the string
+                            ip_port = line[quote1_index+1:quote2_index]
+                            # we can now split these
+                            old_hostname, old_port = ip_port.split(":")
+                            # Hostname will include http:// or https://. We do not remove this.
+                            # We now have the IP and port, so we can update the line
+                            line = line.replace(f"{old_hostname}:{old_port}", f"{hostname}:{port}")
+                            new_file_lines.append(line)
+                        else:
+                            # If there is no fetch, we don't need to update the line
+                            new_file_lines.append(line)
+                    else:
+                        # We have finished looping through the file, so we can now write the new content to the file
+                        with open(os.path.join(root, file), "w") as openedfile:
+                            openedfile.write("\n".join(new_file_lines))
+                elif file.endswith(".html"):
+                    pass

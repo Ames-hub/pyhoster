@@ -162,7 +162,12 @@ class domain:
                 dt=app_settings
             )
             pylogger.info(f"Hostname set to {hostname}")
-            print(f"Hostname set to {hostname}")
+            print(f"Hostname set to {hostname}. Updating program...")
+
+            from library.WebGUI.webgui import webgui_files
+            webgui_files.update_connection_details()
+            del webgui_files
+
             time.sleep(3)
         except KeyboardInterrupt:
             print("Cancelled")

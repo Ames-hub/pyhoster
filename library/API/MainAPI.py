@@ -3,7 +3,6 @@ from flask import request
 import os
 import multiprocessing, flask
 from flask_cors import CORS
-import datetime
 try:
     from ..userman import userman
     from ..instance import instance
