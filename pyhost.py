@@ -5,7 +5,6 @@
 
 # Importing modules
 try:
-    import datetime
     import multiprocessing
     import os
     import shutil
@@ -15,6 +14,7 @@ try:
     from library.jmod import jmod
     from library.data_tables import web_config_dt, app_settings
     from library.pylog import pylog
+    from library.domains import pyhost_domain
 except ImportError as err:
     print(
         "Failed to import required modules. Please run 'pip install -r requirements.txt' to install them.",
@@ -89,92 +89,6 @@ os.makedirs("logs", exist_ok=True)
 
 pylogger.info("Pyhost logging started successfully!")
 
-class domain:
-    def get_via_input():
-            """
-            Prompts the user to enter a domain name and validates it.
-
-            Returns:
-            - str: The validated domain name entered by the user.
-            """
-            while True:
-                print("Do you have a domain name you'd like us to use? (eg, example.com or 192.168.0.192)")
-                print("If so, enter it here. If not, leave it blank and we'll use the default. (localhost)")
-                hostname = input(">>> ").lower()
-                if hostname == "":
-                    return "localhost"
-                if domain.parse(hostname):
-                    return hostname
-                print("Invalid hostname. Please try again.")
-
-    def load():
-        """
-        Loads the hostname from the 'settings.json' file.
-
-        Returns:
-            str: The hostname loaded from the 'settings.json' file.
-        """
-        return jmod.getvalue("hostname", "settings.json", "localhost", dt=app_settings)
-
-    def parse(hostname):
-        """
-        Check if a hostname is valid.
-
-        Args:
-            hostname (str): The hostname to be checked.
-
-        Returns:
-            bool: True if the hostname is valid, False otherwise.
-        """
-        hostname = str(hostname)
-        if hostname == "":
-            return False            
-        
-        if hostname in ["localhost", "127.0.0.1", "0.0.0.0"]:
-            return True # Allow localhost's
-        # allow internal IPs
-        if hostname.startswith("192.168.") or hostname.startswith("10.") or hostname.startswith("172."):
-            return True
-        
-        if hostname.count(".") < 1 or hostname == "":
-            return False
-        allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-."
-        char_filter = all(char in allowed_chars for char in hostname)
-        if char_filter is False:
-            return char_filter
-
-    def setdomain():
-        """
-        Sets the hostname for the application.
-
-        This function prompts the user to enter a hostname and updates the 'hostname' value in the 'settings.json' file.
-
-        Raises:
-            KeyboardInterrupt: If the user cancels the operation.
-            Exception: If an error occurs during the process.
-        """
-        try:
-            hostname = domain.get_via_input()
-            jmod.setvalue(
-                key="hostname",
-                json_dir="settings.json",
-                value=hostname,
-                dt=app_settings
-            )
-            pylogger.info(f"Hostname set to {hostname}")
-            print(f"Hostname set to {hostname}. Updating program...")
-
-            from library.WebGUI.webgui import webgui_files
-            webgui_files.update_connection_details()
-            del webgui_files
-
-            time.sleep(3)
-        except KeyboardInterrupt:
-            print("Cancelled")
-            exit()
-        except:
-            print("An error occurred.")
-
 if __name__ == "__main__": # Checks if the user is running the app for the first time
     from library.application import application
     application.clear_console()
@@ -223,7 +137,7 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
                 else:
                     print("Skipping backup import...")
     if jmod.getvalue("hostname", "settings.json", dt=app_settings) == -1: # Gets the hostname, as some functions (as of 21/12/2023, the webgui's JS) require it
-        domain.setdomain()
+        pyhost_domain.setdomain()
 
     if is_linux:
         # Gets this value should the user want to run web apps on ports below 1024 on Linux.
@@ -274,6 +188,11 @@ if __name__ == "__main__": # Checks if the user is running the app for the first
                     time.sleep(1)
                     break
 
+    if first_launch is True:
+        try:
+            input("\n\nEnd of setup. Take this time to read any potentially useful information.\nPress enter to continue when you are ready.")
+        except KeyboardInterrupt:
+            exit()
     # The code that sets first_launch to false is now in the application's exit code.
     # application.py > application.run() > Look for code `except KeyboardInterrupt`
     # Moved there so that "first launch" help screens can be shown else where and it only says its not first launch

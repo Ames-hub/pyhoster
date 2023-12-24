@@ -72,6 +72,7 @@ I've faced challenges with mainstream web hosting services like Nginx and Apache
 `idle` - Go into an IDLE screen to display information while pyhost does its thing in the background!<br>
 `pyhost` - Access the settings of pyhoster.<br>
 `exit` - Exit the program.<br>
+`domain` - Set the domain name/IP Address used by PyHost for the WebGUI and any other features<br>
 `update` - Updates the content of a website app.<br>
 `rollback` - Reverts the content of a website app to the last update, or a specific version.<br>
 `enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.<br>

@@ -595,7 +595,7 @@ class webgui_files:
     def update_connection_details():
         '''
         Updates the connection details in the WebGUI's files by finding Where the IP:PORT is and updating it.
-        This way, no need for placeholders or mid-transcation editing.
+        This way, no need for placeholders or mid-transaction editing.
 
         Returns True if successful, False if not. 
         '''
@@ -607,15 +607,17 @@ class webgui_files:
             dt=web_config_dt
         )
         port = jmod.getvalue(
-            key="webgui.port",
+            key="api.port",
             json_dir=setting_dir,
-            default=4040,
+            default=4000,
             dt=web_config_dt
         )
+        # TODO: Add SSL support to the API
+        protocal = "http" # This will be configurable to ssl later
 
         # Goes through every JS and HTML file in the content directory
         content_dir = "library/WebGUI/content/"
-        for root, dirs, files in os.walk(content_dir):
+        for root, _, files in os.walk(content_dir):
             for file in files:
                 # Finds where the IP:PORT is and replaces it with the new IP:PORT
                 # IP and Port will normally be in the context of a fetch request to the API
@@ -623,36 +625,42 @@ class webgui_files:
                 # Been ran in the past.
                 if file.endswith(".js"):
                     # Open the file and read its content
-                    with open(os.path.join(root, file), "r") as file:
-                        content = file.read()
+                    with open(os.path.join(root, file), "r") as readfile:
+                        content = readfile.read()
                     
-                    new_file_lines = []
+                    filelines = content.splitlines()
                     # Finds the index of where the IP should begin
-                    for line in content.splitlines():
+                    for line in filelines.copy():
                         jsfetch_index = line.find("fetch(")
                         if jsfetch_index != -1:
                             # We have found one instance of fetch, we will assume the IP and port are on the same line as this fetch
                             # Gets rid of content before fetch index
-                            line = line[jsfetch_index:]
-                            jsfetch_index = line.find("fetch(") # Update index
-                            # The IP must be surrounded by quotes, so we find the index of the first quote
-                            quote1_index = line.find('"')
-                            # Then we find the index of the second quote
-                            quote2_index = line.find('"', quote1_index+1)
-                            # Then we get the IP and port from the string
-                            ip_port = line[quote1_index+1:quote2_index]
-                            # we can now split these
-                            old_hostname, old_port = ip_port.split(":")
-                            # Hostname will include http:// or https://. We do not remove this.
-                            # We now have the IP and port, so we can update the line
-                            line = line.replace(f"{old_hostname}:{old_port}", f"{hostname}:{port}")
-                            new_file_lines.append(line)
-                        else:
-                            # If there is no fetch, we don't need to update the line
-                            new_file_lines.append(line)
-                    else:
-                        # We have finished looping through the file, so we can now write the new content to the file
-                        with open(os.path.join(root, file), "w") as openedfile:
-                            openedfile.write("\n".join(new_file_lines))
-                elif file.endswith(".html"):
-                    pass
+                            jsfetch_index = line.find("fetch(")+7 # Removes everything before the http://
+                            endfetch_index = line.find(", {")-1 # Finds the end of the fetch request. This is what it normally looks like
+                            # Extracts the IP and port from the range
+                            ip_port = line[jsfetch_index:endfetch_index]
+                            # Extract protocol
+                            old_protocol = ip_port[:ip_port.find("://")]
+
+                            # Remove the protocol part to get the rest of the URL
+                            url_without_protocol = ip_port[len(old_protocol) + 3:]
+
+                            # Extract hostname
+                            old_hostname = url_without_protocol[:url_without_protocol.find(":")]
+
+                            # Extract port
+                            old_port_index = url_without_protocol.find(":") + 1
+                            old_port_end_index = old_port_index
+                            while old_port_end_index < len(url_without_protocol) and url_without_protocol[old_port_end_index].isdigit():
+                                old_port_end_index += 1
+                            old_port = url_without_protocol[old_port_index:old_port_end_index]
+
+                            newUrl = f"{protocal}://{hostname}:{port}"
+                            oldUrl = f"{old_protocol}://{old_hostname}:{old_port}"
+                            break
+                    
+                    # Replaces all instances of the old IP:PORT with the new IP:PORT
+                    content = content.replace(oldUrl, newUrl)
+                    # Now we update the file
+                    with open(os.path.join(root, file), "w") as writingtofile:
+                        writingtofile.write(content)

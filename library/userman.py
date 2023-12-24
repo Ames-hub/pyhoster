@@ -253,58 +253,46 @@ class userman:
         # TODO: Integrate this properly with the userman enter function
         # TODO: Change code to better suit its intended place of use
         accepted_directories = {}
-        while True:
-            instances = os.listdir("instances/")
-            print("\nPlease select an app for the user to have access to.")
-            print("Type 'done' or 'cancel' to finish.\n")
-            for instance in instances:
-                if instance not in accepted_directories.keys():
-                    print(instance)
-                    print(f"{colours['gray']}{jmod.getvalue(key='description', json_dir=f'instances/{instance}/config.json', default='No description provided.')}{colours['reset']}")
-
-            app_choice = input("\nLock to app: ")
-            if app_choice in ["done", "cancel"]:
-                print(f"Done selecting {len(accepted_directories.keys())} apps.")
-                print("===============================")
-                for app in accepted_directories.keys():
-                    print(f"{app}: {accepted_directories[app]}")
-                print("===============================")
-                break
-            elif app_choice not in os.listdir("instances/"):
-                print("App does not exist.")
-                continue
-            elif app_choice in accepted_directories.keys():
-                print("App already selected.")
-                continue
-
+        if username != None and path == None:
             while True:
-                # Asks if the user should be locked to content
-                lock_to_content = input("Lock to content folder only? (y/n): ")
-                if lock_to_content == "y":
-                    new_user['ftp_dirs'] = f"instances/{app_choice}/content"
-                    print(f"User will be locked to the content folder of the \"{app_choice}\" app.")
-                    break
-                else:
-                    new_user['ftp_dirs'] = f"instances/{app_choice}"
-                    print(f"User will be locked to the \"{app_choice}\" app.")
-                    break
+                instances = os.listdir("instances/")
+                print(f"\nPlease select an app for the user \"{username}\" to have access to.")
+                print("Type 'done' or 'cancel' to finish.\n")
+                for instance in instances:
+                    if instance not in accepted_directories.keys():
+                        print(instance)
+                        print(f"{colours['gray']}{jmod.getvalue(key='description', json_dir=f'instances/{instance}/config.json', default='No description provided.')}{colours['reset']}")
 
-            accepted_directories.update({app_choice: new_user['ftp_dirs']})
-            add_another = False
-            while True:
-                cont = input("Add another app? (y/n): ")
-                if cont == "y":
-                    add_another = True
+                app_choice = input("\nLock to app: ")
+                if app_choice in ["done", "cancel"]:
+                    print(f"Done selecting {len(accepted_directories.keys())} apps.")
+                    print("===============================")
+                    for app in accepted_directories.keys():
+                        print(f"{app}: {accepted_directories[app]}")
+                    print("===============================")
                     break
-                else:
-                    add_another = False
-                    break
+                elif app_choice not in os.listdir("instances/"):
+                    print("App does not exist.")
+                    continue
+                elif app_choice in accepted_directories.keys():
+                    print("App already selected.")
+                    continue
 
-            if add_another:
-                continue
-            else:
-                new_user['ftp_dirs'] = accepted_directories
-                break
+                while True:
+                    # Asks if the user should be locked to content
+                    lock_to_content = input("Lock to content folder only? (y/n): ")
+                    if lock_to_content == "y":
+                        new_user['ftp_dirs'] = f"instances/{app_choice}/content"
+                        print(f"User will be locked to the content folder of the \"{app_choice}\" app.")
+                        break
+                    else:
+                        new_user['ftp_dirs'] = f"instances/{app_choice}"
+                        print(f"User will be locked to the \"{app_choice}\" app.")
+                        break
+
+                accepted_directories.update({app_choice: new_user['ftp_dirs']})
+        else:
+            raise NotImplementedError("This function is not yet implemented for those combination of arguments.")
 
     def add_user():
         '''
@@ -366,93 +354,7 @@ class userman:
                 continue
         # Get the ftp_dirs
         if handle_ftp:
-            accepted_directories = {}
-            while True:
-                instances = os.listdir("instances/")
-                print("\nPlease select an app for the user to have access to.")
-                print("Type 'done' or 'cancel' to finish.\n")
-                for instance in instances:
-                    if instance not in accepted_directories.keys():
-                        print(instance)
-                        print(f"{colours['gray']}{jmod.getvalue(key='description', json_dir=f'instances/{instance}/config.json', default='No description provided.')}{colours['reset']}")
-
-                app_choice = input("\nLock to app: ")
-                if app_choice in ["done", "cancel"]:
-                    print(f"Done selecting {len(accepted_directories.keys())} apps.")
-                    print("===============================")
-                    for app in accepted_directories.keys():
-                        print(f"{app}: {accepted_directories[app]}")
-                    print("===============================")
-                    break
-                elif app_choice not in os.listdir("instances/"):
-                    print("App does not exist.")
-                    continue
-                elif app_choice in accepted_directories.keys():
-                    print("App already selected.")
-                    continue
-
-                while True:
-                    # Asks if the user should be locked to content
-                    lock_to_content = input("Lock to content folder only? (y/n): ")
-                    if lock_to_content == "y":
-                        new_user['ftp_dirs'] = f"instances/{app_choice}/content"
-                        print(f"User will be locked to the content folder of the \"{app_choice}\" app.")
-                        break
-                    else:
-                        new_user['ftp_dirs'] = f"instances/{app_choice}"
-                        print(f"User will be locked to the \"{app_choice}\" app.")
-                        break
-
-                accepted_directories.update({app_choice: new_user['ftp_dirs']})
-                add_another = False
-                while True:
-                    cont = input("Add another app? (y/n): ")
-                    if cont == "y":
-                        add_another = True
-                        break
-                    else:
-                        add_another = False
-                        break
-
-                if add_another:
-                    continue
-                else:
-                    new_user['ftp_dirs'] = accepted_directories
-                    break
-
-        # Get the ftp_permissions
-        while True:
-            # Asks the user if they want to use 1 of 3 presets or custom
-            preset = input("We need to handle user FTP permissions.\nWould you like to use a preset? (y/n): ")
-            if preset == "y":
-                # Asks the user which preset they want to use
-                preset = input("Which preset would you like to use?\n1. Read\n2. Read and Write\n>>> ")
-                if preset == "1":
-                    new_user['ftp_permissions'] = "elr"
-                    break
-                elif preset == "2":
-                    new_user['ftp_permissions'] = "elradfmw"
-                    break
-                else:
-                    print("Invalid preset.")
-                    continue
-            elif preset == "n":
-                # Asks the user for custom ftp_permissions
-                while True:
-                    perm = input("ftp_permissions (elradfmwM): ")
-                    if perm == "":
-                        print("ftp_permissions cannot be blank.")
-                        continue
-                    elif perm.isalnum() == False:
-                        print("ftp_permissions must be alphanumeric.")
-                        continue
-                    else:
-                        new_user['ftp_permissions'] = perm
-                        break
-                break
-            else:
-                print("Invalid input.")
-                continue
+            userman.allow_ftpdirs(username=username)
 
         # Asks if the user wants to handle setting up their access to the API
         while True:

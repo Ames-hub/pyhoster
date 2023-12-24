@@ -1,5 +1,7 @@
 import waitress, os, multiprocessing, time
 try:
+    from OpenSSL import SSL
+    from ..filetransfer import generate_ssl
     from ..jmod import jmod
     from ..data_tables import app_settings
     from ..userman import userman
@@ -34,10 +36,22 @@ class controller:
         os.environ["FLASK_APP"] = "PyHostAPI"  # Set the name of your Flask app
         apipylog.info(f"Starting PyHost API on port {port}")
         print(f"<--PyHost API is Online running on port {port} and awaiting requests-->")
+
+        # certfile_dir = os.path.abspath('library/ssl/apicert.pem')
+        # keyfile_dir = os.path.abspath('library/ssl/api.key')
+
+        # Generate SSL certificate if it doesn't exist
+        # generate_ssl(certfile_dir, keyfile_dir)
+
         try:
-            waitress.serve(app, host='0.0.0.0', port=port)
+            # ssl_context = SSL.Context(SSL.SSLv23_METHOD)
+            # ssl_context.use_privatekey_file(keyfile_dir)
+            # ssl_context.use_certificate_file(certfile_dir)
+            
+            waitress.serve(app, host='0.0.0.0', port=port, url_scheme='http')
+
             try:
-                time.sleep(0.5) # Wait for the API to start
+                time.sleep(0.5)  # Wait for the API to start
             except:
                 pass
         except PermissionError:
@@ -45,10 +59,10 @@ class controller:
             if port < 1024 and os.name != "nt":
                 print("If you are running on Linux, then the port must be greater than 1024.")
             try:
-                time.sleep(0.5) # Prevent the text from being printed on the same line as the "enter command" text 
+                time.sleep(0.5)  # Prevent the text from being printed on the same line as the "enter command" text
             except:
                 pass
-        
+
         return True
 
     def timeout_login(interval_min=1):

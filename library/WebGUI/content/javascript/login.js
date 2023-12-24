@@ -15,7 +15,7 @@ function login() {
     .then(data => {
         if (data['status'] == 200) {
             document.cookie = "session=" + data['session'] + "; SameSite=lax";
-            window.location.replace("https://localhost:4040/");
+            window.location.replace("/"); // Redirects to the index page
         }
         else {
             if (data['status'] == 423) {

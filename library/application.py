@@ -2,6 +2,7 @@ import os, multiprocessing as mp, json, time
 if os.name == "nt":
     import ctypes
 try:
+    from .domains import pyhost_domain
     from .data_tables import app_settings, web_config_dt, wsgi_config_dt
     from .filetransfer import ftp
     from .warden import warden
@@ -440,6 +441,8 @@ class application:
                         help_msg()
                     elif cmd == "cls" or cmd == "clear":
                         application.clear_console()
+                    elif cmd == "domain" or cmd == "hostname":
+                        pyhost_domain.setdomain()
                     elif cmd == "":
                         pass # Idk why, but it takes 1 press of enter to have the message appear. weird
                     elif cmd == "pyhost" or cmd == "settings":
