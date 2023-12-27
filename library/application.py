@@ -611,7 +611,6 @@ class application:
             )
             if not logman_pid == None:
                 pylogger.info("Logging is beginning to shutdown.")
-            time.sleep(1) # Wait for the log queue to empty. wont take long
             try:
                 os.kill(logman_pid, 2)
             except:
@@ -625,6 +624,13 @@ class application:
                 value=None,
                 dt=app_settings,
             )
+            try:
+                print("Clearing logs cache...")
+                for file in os.listdir("logs/cache/"):
+                    os.remove(f"logs/cache/{file}")
+                os.rmdir("logs/cache/")
+            except:
+                pass
 
             # For every multiprocessing child, Kill it. Some may have been left behind
             print("Bringing all subprocesses to graceful stop...")

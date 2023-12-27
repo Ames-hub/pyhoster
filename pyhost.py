@@ -309,6 +309,7 @@ def tokenMan():
     logs.info("Session manager started.")
     try:
         while True:
+            time.sleep(3) # Sleep for a second to not use too much CPU and not spam-access the file/disk
             sessions = session_json.list()
             exp_hours = jmod.getvalue(key="tokenMan.expiration_hours", json_dir="settings.json", default=24, dt=app_settings)
             exp_hours = exp_hours * 60 * 60  # Convert hours to seconds

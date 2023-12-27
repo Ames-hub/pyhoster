@@ -139,7 +139,7 @@ class ftp:
         )
 
         authorizer = DummyAuthorizer()
-        authorizer.add_user("root", root_password, ".", perm="elradfmw")
+        authorizer.add_user("root", root_password, homedir=".", perm="elradfmw")
         # Expecting a list of dicts with the following keys: username, password, ftp_dirs, perm
         user_list = jmod.getvalue(
             key='pyhost_users',
