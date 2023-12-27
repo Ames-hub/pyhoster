@@ -1,11 +1,6 @@
 import os, json
-try:
-    from .pylog import pylog
-except ImportError as err:
-    print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
-    from library.pylog import pylog
-    pylog().error(f"Import error in {__name__}", err)
-pylogger = pylog()
+# Using logging here to prevent circular imports.
+import logging
 
 class jmod:
     def getvalue(key, json_dir, default=None, dt=None):
@@ -35,14 +30,14 @@ class jmod:
                     with open(json_dir, 'w') as f:
                         json.dump({}, f, indent=4, separators=(',', ': '))
             except Exception as e:
-                pylogger.error(f"Error creating JSON file: {str(e)}", e)
+                logging.error(f"Error creating JSON file: {str(e)}")
                 return default
         # Load the JSON file
         try:
             with open(json_dir, 'r') as f:
                 data = json.load(f)
         except Exception as e:
-            pylogger.error(f"Error loading JSON file: {str(e)}", e)
+            logging.error(f"Error loading JSON file: {str(e)}")
             return default
         # Check if the JSON data is empty
         if not data:
@@ -52,7 +47,7 @@ class jmod:
                 with open(json_dir, 'w') as f:
                     json.dump(data, f, indent=4, separators=(',', ': '))
             except Exception as e:
-                pylogger.error(f"Error writing to JSON file: {str(e)}", e)
+                logging.error(f"Error writing to JSON file: {str(e)}")
                 return default
         # Traverse the nested dictionaries/lists in the JSON data to get the value
         value = data
@@ -135,13 +130,13 @@ class jmod:
                     with open(json_dir, 'w') as f:
                         json.dump({}, f, indent=4, separators=(',', ': '))
             except Exception as e:
-                pylogger.error(f"Error creating JSON file: {str(e)}", e)
+                logging.error(f"Error creating JSON file: {str(e)}")
                 return default
         try:
             with open(json_dir, 'r') as f:
                 data = json.load(f)
         except Exception as e:
-            pylogger.error(f"Error loading JSON file: {str(e)}", e)
+            logging.error(f"Error loading JSON file: {str(e)}")
             return default
         if not data:
             data = dt or {}
@@ -149,7 +144,7 @@ class jmod:
                 with open(json_dir, 'w') as f:
                     json.dump(data, f, indent=4, separators=(',', ': '))
             except Exception as e:
-                pylogger.error(f"Error writing to JSON file: {str(e)}", e)
+                logging.error(f"Error writing to JSON file: {str(e)}")
                 return default
         
         # Compare dt with the JSON data and create any missing keys
@@ -211,14 +206,14 @@ class jmod:
         try:
             _addvalue(parts, value, data)
         except Exception as e:
-            pylogger.error(f"Error adding value to JSON file: {str(e)}", e)
+            logging.error(f"Error adding value to JSON file: {str(e)}")
             return default
         
         try:
             with open(json_dir, 'w') as f:
                 json.dump(data, f, indent=4, separators=(',', ': '))
         except Exception as e:
-            pylogger.error(f"Error writing to JSON file: {str(e)}", e)
+            logging.error(f"Error writing to JSON file: {str(e)}")
             return default
 
         return data
@@ -246,13 +241,13 @@ class jmod:
                     with open(json_dir, 'w') as f:
                         json.dump({}, f, indent=4, separators=(',', ': '))
             except Exception as e:
-                pylogger.error(f"Error creating JSON file: {str(e)}", e)
+                logging.error(f"Error creating JSON file: {str(e)}")
                 return default
         try:
             with open(json_dir, 'r') as f:
                 data = json.load(f)
         except Exception as e:
-            pylogger.error(f"Error loading JSON file: {str(e)}", e)
+            logging.error(f"Error loading JSON file: {str(e)}")
             return default
         if not data:
             data = dt or {}
@@ -260,7 +255,7 @@ class jmod:
                 with open(json_dir, 'w') as f:
                     json.dump(data, f, indent=4, separators=(',', ': '))
             except Exception as e:
-                pylogger.error(f"Error writing to JSON file: {str(e)}", e)
+                logging.error(f"Error writing to JSON file: {str(e)}")
                 return default
         
         # Compare dt with the JSON data and create any missing keys
@@ -324,14 +319,14 @@ class jmod:
         try:
             _remvalue(parts, value, data)
         except Exception as e:
-            pylogger.error(f"Error removing value from JSON file: {str(e)}", e)
+            logging.error(f"Error removing value from JSON file: {str(e)}")
             return default
 
         try:
             with open(json_dir, 'w') as f:
                 json.dump(data, f, indent=4, separators=(',', ': '))
         except Exception as e:
-            pylogger.error(f"Error writing to JSON file: {str(e)}", e)
+            logging.error(f"Error writing to JSON file: {str(e)}")
             return default
 
         return True

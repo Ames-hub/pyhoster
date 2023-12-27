@@ -53,43 +53,42 @@ if __name__ == "__main__":
             dt=app_settings
         )
 
-is_linux = sys.platform == "linux" # If the OS is linux, it will be true
-is_mac = sys.platform == "darwin"
-pylogger.debug(f"OS Is Linux: {is_linux}")
-if is_linux:
-    # Gets the BRAND of linux
-    with open("/etc/os-release", 'r') as f:
-        for line in f.readlines():
-            if line.startswith("ID="):
-                linux_brand = line.replace("ID=", "").replace("\n", "")
-                break
-    pylogger.debug(f"    Linux Brand: {linux_brand}")
-pylogger.debug(f"OS Is Windows: {os.name == 'nt'}")
-pylogger.debug(f"OS Is Apple: {is_mac}")
-pylogger.debug(f"os.name? : {os.name}")
-pylogger.debug(f"sys.platform? : {sys.platform}")
-if is_linux:
-    pylogger.debug(f"Has elevated privileges? : {os.get_euid() == 0}")
-else:
-    pylogger.debug("Has elevated privileges? : N/A")
+    is_linux = sys.platform == "linux" # If the OS is linux, it will be true
+    is_mac = sys.platform == "darwin"
+    pylogger.debug(f"OS Is Linux: {is_linux}")
+    if is_linux:
+        # Gets the BRAND of linux
+        with open("/etc/os-release", 'r') as f:
+            for line in f.readlines():
+                if line.startswith("ID="):
+                    linux_brand = line.replace("ID=", "").replace("\n", "")
+                    break
+        pylogger.debug(f"    Linux Brand: {linux_brand}")
+    pylogger.debug(f"OS Is Windows: {os.name == 'nt'}")
+    pylogger.debug(f"OS Is Apple: {is_mac}")
+    pylogger.debug(f"os.name? : {os.name}")
+    pylogger.debug(f"sys.platform? : {sys.platform}")
+    if is_linux:
+        pylogger.debug(f"Has elevated privileges? : {os.get_euid() == 0}")
+    else:
+        pylogger.debug("Has elevated privileges? : N/A")
 
-if is_mac:
-    is_linux = False
-    print(f"{colours['red']}<!-- WARNING! APPLE DEVICES ARE UNTESTED, AND NOT PLANNED FOR ON ANYTHING. -->")
-    print(f"<!-- ANYTHING MAY GO WRONG, DESPITE THERE BEING NOTHING INTENTIONALLY STOPPING APPLE DEVICES FROM RUNNING PYHOST. -->{colours['white']}")
-    print(f"{colours['yellow']}<!-- HERE BE DRAGONS -->{colours['white']}")
-    if jmod.getvalue("first_launch", "settings.json", True, dt=app_settings) is True:
-        input("Press enter to continue, and acknowledge the potential risks of running Pyhost on an Apple device. ")
-        print("You will not see this message again.")
-        time.sleep(5)
+    if is_mac:
+        is_linux = False
+        print(f"{colours['red']}<!-- WARNING! APPLE DEVICES ARE UNTESTED, AND NOT PLANNED FOR ON ANYTHING. -->")
+        print(f"<!-- ANYTHING MAY GO WRONG, DESPITE THERE BEING NOTHING INTENTIONALLY STOPPING APPLE DEVICES FROM RUNNING PYHOST. -->{colours['white']}")
+        print(f"{colours['yellow']}<!-- HERE BE DRAGONS -->{colours['white']}")
+        if jmod.getvalue("first_launch", "settings.json", True, dt=app_settings) is True:
+            input("Press enter to continue, and acknowledge the potential risks of running Pyhost on an Apple device. ")
+            print("You will not see this message again.")
+            time.sleep(5)
 
 # Ensures all neccesary directories exist
 os.makedirs("instances", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
-pylogger.info("Pyhost logging started successfully!")
-
 if __name__ == "__main__": # Checks if the user is running the app for the first time
+    pylogger.info("Pyhost logging started successfully!")
     from library.application import application
     application.clear_console()
 
@@ -319,9 +318,7 @@ def tokenMan():
                 elapsed_time = current_time - session_data['start']
                 if elapsed_time > exp_hours:
                     session_json.remove(session_key)  # Token is the key
-                    logs.info("Removed expired session token.")
-                else:
-                    logs.info(f"Session token is still valid. It is {elapsed_time}ms old. Expires in {exp_hours - elapsed_time}ms. Continuing to moniter.")
+                    logs.info(f"Removed expired session token | {session_key}")
     except KeyboardInterrupt:
         return True
 

@@ -69,7 +69,10 @@ class webcontroller:
         webgui_thread.start()
         time.sleep(0.25) # Wait for the server to start
         port = jmod.getvalue(key="webgui.port", json_dir=setting_dir, default=4040, dt=app_settings)
-        print(f"<--WebGUI is now running on \"https://localhost:{port}\"-->")
+        hostname = jmod.getvalue(key="hostname", json_dir=setting_dir, default="localhost", dt=app_settings)
+        if hostname == -1:
+            hostname = "localhost"
+        print(f"<--WebGUI is now running on \"https://{hostname}:{port}\"-->")
         jmod.setvalue(
             key="webgui.pid",
             json_dir="settings.json",
@@ -360,11 +363,15 @@ class webcontroller:
                 httpd.serve_forever()
                 # Once it reaches here, it stops.
                 webgui_logger.info("WebGUI has been stopped.")
+                return True
         except OSError as err:
             webgui_logger.error(f"WebGUI failed to start!", err)
             if not silent:
                 print(f"WebGUI failed to start: {err}\nIs there already something running on port {port}?")
-    
+        except KeyboardInterrupt:
+            webgui_logger.info("WebGUI has been stopped.")
+            return True
+
     def stopgui():
         # Get the PID of the WebGUI
         webgui_pid = jmod.getvalue(

@@ -25,7 +25,7 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Change the index file of a website easily
 - WARDEN, Our basic lockout system allows you to lock out users from a specific webpage (or all webpages) with a password!
 - Optionally running API to control what happens in pyhost externally
-- Auto-Generate self-signed SSL certificates and put them to use easily!
+- Auto-Generate self-signed SSL certificates and put them to use easily! (You can also use your own cert by replacing the file it makes)
 - link a website's content to any folder in your system
 - Make your changes, then update the website with a simple command
 - Built-in function to implement a custom "Page not found" page
@@ -96,7 +96,7 @@ PyHoster has a few default pages that you can use for your website.<br>
 
 ### Security configuration
 PyHoster has a few optional security features built in.<br>
-- SSL - PyHoster can generate a self-signed SSL certificate for your website or use your own. (Default: False)
+- SSL - PyHoster can generate a self-signed SSL certificate for your website or use your own. (Default: True)
 - File directory Listing toggle. - Toggle whether or not to allow directory listing. (Default: False)
 - Security Headers toggler - PyHoster can add security headers to your website. (Default: True)
 - CSP Directives - add CSP directives to your website! (Default: True)

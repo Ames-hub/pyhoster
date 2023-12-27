@@ -2,38 +2,185 @@ import multiprocessing
 import traceback
 import datetime
 import inspect
+import random
+import json
+import time
 import os
 
-log_queue = multiprocessing.Queue()
-priority_queue = multiprocessing.Queue()
+global_cachedir = os.path.join(os.getcwd(), "logs/cache/")
+
+cacheitem_data_table = {
+    "msg": None,
+    "exception": None,
+    "priority": None,
+    "directory": None,
+}
+
+class logQueue:
+    def __init__(self, cachedir) -> None:
+        self.cachedir = cachedir
+        self.priority_closed = False
+        self.normal_closed = False
+
+    def is_empty(self, queue_type):
+        """
+        Check if a directory is empty based on the specified queue type.
+
+        Args:
+            queue_type (str): The queue type to consider ('priority', 'normal', or 'both').
+
+        Returns:
+            bool: True if the directory is empty for the specified queue type, False otherwise.
+        """
+        directory = self.cachedir
+        # Get the list of files in the directory
+        cache = os.listdir(directory)
+
+        if queue_type == "both":
+            if len(cache) == 0:
+                return True
+            else:
+                return False
+
+        # Iterate over each file in the directory
+        for item in cache:
+            # Open the file
+            with open(os.path.join(directory, item), 'r') as f:
+                try:
+                    # Load the JSON data from the file
+                    item_queue_type = json.load(f)['priority']
+                except json.JSONDecodeError:
+                    # Skip the file if it is not a valid JSON
+                    continue
+
+                # Check if the queue type matches the item's queue type
+                if queue_type == "priority" and item_queue_type is True:
+                    return False
+                elif queue_type == "normal" and item_queue_type is False:
+                    return False
+
+        # Return True if no matching items found
+        return True
+
+    def close(self, priority=False):
+        if priority:
+            self.priority_closed = True
+        else:
+            self.normal_closed = True
+
+    def open(self, priority=False):
+        if priority:
+            self.priority_closed = False
+        else:
+            self.normal_closed = False
+
+    def get(self, priority=False):
+        """
+        Retrieve data from the cache directory.
+
+        Args:
+            priority (bool, optional): If True, retrieve data with priority. Defaults to False.
+
+        Returns:
+            dict: The retrieved data from the cache directory.
+        """
+        # Get the list of files in the cache directory
+        cache = os.listdir(self.cachedir)
+
+        # Create a dictionary to store the queue numbers and corresponding items
+        numbers = {}
+
+        # Iterate over each item in the cache directory
+        for item in cache:
+            with open(os.path.join(self.cachedir, item), 'r') as f:
+                try:
+                    item_priority = json.load(f)['priority']
+                except json.JSONDecodeError:
+                    continue
+
+                # If priority is True and item_priority is True, retrieve the item with highest priority
+                if priority is True and item_priority is True:
+                    number = self.get_queue_number(item)
+                    numbers[number] = item
+                    break
+
+            # Retrieve the queue number for the item
+            number = self.get_queue_number(item)
+            numbers[number] = item
+
+        # Get the item with the minimum queue number
+        try:
+            item = numbers[min(numbers.keys())]
+        except ValueError:
+            return None # Return None if no items found
+
+        # Read the data from the selected item
+        with open(os.path.join(self.cachedir, item), 'r') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+
+        # Remove the selected item from the cache directory
+        tries = 0
+        while True:
+            try:
+                if tries == 5:
+                    time.sleep(0.1)
+                elif tries >= 10:
+                    break # Continue on without removing the file if the file cannot be removed after 10 tries. This prevents an infinite loop.
+                os.remove(os.path.join(self.cachedir, item))
+                break
+            except PermissionError:
+                tries += 1
+                continue
+                # This catches when the error when the file is being written to by another process
+                # We do not continue on without removing the file because that would result in the same log being written multiple times
+        return data
+
+    def put(self, msg:str, logto, exception:Exception=None, priority=False):
+            """
+            Writes a log message to a specified log file.
+
+            Args:
+                msg (str): The log message to be written.
+                logto: The directory where the log file should be written.
+                exception (Exception, optional): An optional exception object to be included in the log message. Defaults to None.
+                priority (bool, optional): A flag indicating whether the log message has high priority. Defaults to False.
+            """
+            filename = self.get_filename()
+
+            item = cacheitem_data_table.copy()
+            item['directory'] = logto
+            item['priority'] = bool(priority)
+            item['msg'] = msg
+            if exception:
+                item['exception'] = ''.join(traceback.format_exception(type(exception), exception, exception.__traceback__))
+            else:
+                item['exception'] = None
+
+            try:
+                with open(filename, 'w+') as f:
+                    json.dump(item, f, indent=4, separators=(',', ': '))
+            except PermissionError as err:
+                return [False, err]
+
+    def get_filename(self):
+        os.makedirs(os.path.dirname(self.cachedir), exist_ok=True)
+        file = f"qitem_{random.randint(1,99999999999999999999)}.json" # Make sure the file name is unique
+        filedir = os.path.join(self.cachedir, file)
+        return filedir
+
+    def get_queue_number(self, item):
+        item = str(item).replace("qitem_", "").replace(".json", "")
+        item = str(item).replace(self.cachedir, "")
+        try:
+            item = int(item)
+        except ValueError:
+            raise ValueError(f"Invalid item: {item}")
 
 class pylog:
-    """
-    A logging utility class for writing log messages to a file.
-    Built especially for multi-threaded applications or applications with multiple files that all want to log to the same file.
-    # GETTING STARTED
-    1. From pylog file, import logman and run it in a separate thread. (If you don't do this, your logs will not be written to the file)
-    2. From pylog file, import pylog
-    3. Create a pylog object. Eg,
-    >>> logger = pylog(
-    >>>     filename='logs/application.log',
-    >>> # Where it is saved and what it is called
-    >>>     logform='%loglevel% - %(time)s | '
-    >>> )
-    >>> # A Formatted prefix to every log message
-    
-    Args:
-        filename (str): The name of the log file. Defaults to 'logs/%TIMENOW%.log'.
-        logform (str): The log message format. Defaults to '%loglevel% - %(time)s - %(file)s | '.
-    Attributes:
-        filename (str): The name of the log file.
-        logform (str): The log message format.
-    """
-
-    def __init__(self, 
-        filename='logs/%TIMENOW%.log',
-        logform='%loglevel% - %time% - %file% | ',
-        ):
+    def __init__(self, filename='logs/%TIMENOW%.log', logform='%loglevel% - %time% - %file% | '):
         if not filename.endswith('.log'):
             filename += '.log'
 
@@ -43,122 +190,95 @@ class pylog:
         self.filename = filename
         self.logform = logform
 
+        self.cachedir = global_cachedir
+        self.queue = logQueue(self.cachedir)
+
     def info(self, message):
-        """
-        Logs an informational message.
-        Args:
-            message (str): The message to be logged.
-        """
         logform = self.parse_logform(self.levels.INFO)
         message = f'{logform}{message}'
-        log_queue.put({"msg": message, "directory": self.filename})
+        self.queue_in({"msg": message, "directory": self.filename})
 
     def warning(self, message):
-        """
-        Logs a warning message.
-        Args:
-            message (str): The message to be logged.
-        """
         logform = self.parse_logform(self.levels.WARNING)
         message = f'{logform}{message}'
-        log_queue.put({"msg": message, "directory": self.filename})
+        self.queue_in({"msg": message, "directory": self.filename})
 
     def error(self, message, exception: Exception):
-        """
-        Logs an error message along with the exception details.
-        Args:
-            message (str): The error message to be logged.
-            exception (Exception): The exception object.
-        """
         logform = self.parse_logform(self.levels.ERROR)
-        message = f'{logform}{message}\n{exception}\n{traceback.format_exc()}'
-        log_queue.put({"msg": message, "directory": self.filename})
+        message = f'{logform}{message}'
+        self.queue_in({"msg": message, "directory": self.filename, "exception": exception})
 
     def debug(self, message):
-        """
-        Logs a debug message.
-        Args:
-            message (str): The message to be logged.
-        """
         logform = self.parse_logform(self.levels.DEBUG)
         message = f'{logform}{message}'
-        log_queue.put({"msg": message, "directory": self.filename})
+        self.queue_in({"msg": message, "directory": self.filename}, True)
 
     def queue_in(self, obj, priority=False):
-        '''
-        Queues a message to be logged. The message will be logged in the order it was queued.
-        '''
-        if not priority:
-            log_queue.put({"msg": obj, "directory": self.filename})
-        else:
-            priority_queue.put({"msg": obj, "directory": self.filename})
+        exception = None
+        try:
+            exception = obj['exception']
+        except KeyError:
+            exception = None
+        self.queue.put(
+            msg=obj['msg'],
+            exception=exception,
+            priority=priority,
+            logto=self.filename
+        )
 
     def parse_logform(self, loglevel):
-        """
-        Parses the log message format and replaces placeholders with actual values.
-        Args:
-            loglevel (str): The log level.
-        Returns:
-            str: The parsed log message format.
-        """
         logform = self.logform
         logform = logform.replace('%loglevel%', loglevel)
         logform = logform.replace('%time%', datetime.datetime.now().strftime("%Y-%m-%d, %I%p"))
-        # Gets the lineno of the caller and the file name
         logform = logform.replace('%file%', f'{inspect.stack()[2][1]}:{inspect.stack()[2][2]}')
         return logform
 
     class levels:
-        # Log levels
         DEBUG = "DEBUG"
         INFO = "INFO"
         WARNING = "WARNING"
         ERROR = "ERROR"
 
 def logman():
-    '''
-    Worker that writes logs to file from the Queue.
-    Only run this function once and ensure it is only ran once. If it is not ran only once, your logs will be overwritten
-    IF you have multiple threads/files running this function. 
-    '''
+    cachedir = global_cachedir
+
     def chunk_searcher(chunk, search_for):
-        '''
-        Searches a chunk of text for a string. Returns True if found, False if not.
-        '''
         try:
             if search_for in chunk:
                 return True
             else:
                 return False
         except KeyboardInterrupt:
-            return -1 # Exit gracefully
+            return -1
 
     def writer():
-        if priority_queue.qsize() == 0:
-            log = log_queue.get()
+        queue = logQueue(cachedir)
+        if not queue.is_empty(queue_type="priority"):
+            log = queue.get(True)
         else:
-            log = priority_queue.get()
+            log = queue.get()
+
+        if log == None:
+            return True
+
         try:
             os.makedirs(os.path.dirname(log['directory']), exist_ok=True)
             with open(log['directory'], 'a+') as f:
                 f.write(log['msg'] + '\n')
         except (PermissionError, OSError) as err:
-            # Open a log file in the current directory (which it DOES have permission to write to)
             err_formatted = traceback.format_exc()
             err_log_msg = f'I encountered an error while logging the following message\n\"{log["msg"]}\"\nMy Error: {err}\n{err_formatted}'
             with open('pylog_error.log', 'r+') as f:
                 content = f.read()
             if len(content) < 200_000:
-                if err_log_msg not in content: # Doesn't write the same error twice
+                if err_log_msg not in content:
                     with open('pylog_error.log', 'a+') as f:
                         f.write(err_log_msg)
             else:
-                # Start threads, break the content into chunks, hand each thread a chunk and let them search through it for the content
-                # Probably overkill. I know.
                 threads = []
                 content = content.splitlines()
                 for i in range(3):
-                    chunk = content[i * 1000 : (i + 1) * 1000]
+                    chunk = content[i * 1000: (i + 1) * 1000]
                     thread = multiprocessing.Process(
                         target=chunk_searcher,
                         args=(chunk, err_log_msg)
@@ -171,15 +291,14 @@ def logman():
 
                 for thread in threads:
                     if thread.is_alive():
-                        thread.join() # Wait for the thread to finish
+                        thread.join()
 
                     result = thread.exitcode
                     if result == True:
-                        break # Found the error in the log file, no need to write it again
-                    elif result == -1: # Exit gracefully since the user pressed Ctrl+C
+                        break
+                    elif result == -1:
                         return True
-                else: # Else doesn't run if the for loop is broken out of.
-                    # Didn't find the error in the log file, write it
+                else:
                     with open('pylog_error.log', 'a+') as f:
                         f.write(err_log_msg)
 
@@ -188,7 +307,9 @@ def logman():
             writer()
     except KeyboardInterrupt:
         print("...\nWaiting for logs to be written to file...")
-        log_queue.close()
-        while log_queue.qsize() > 0:
+        queue = logQueue(cachedir)
+        queue.close()
+        queue.close(True)
+        while queue.is_empty(queue_type="both") != True:
             writer()
         print("Done writing logs to file.")

@@ -1,84 +1,134 @@
-# Custom Logging Function
+# pylog.py Documentation
 
-### Overview
-This script defines a custom logging utility named `pylog` for writing log messages to a file. It is designed to handle multi-threaded applications or scenarios with multiple files that need to log to the same file.
+This Python script provides a logging system that writes log messages to a file. It uses a priority queue system to manage the logs and writes them to a file asynchronously.
 
-## Getting Started
-1. Import the `logman` function from the `pylog` file and run it in a separate thread. This step is crucial for log messages to be written to the file.
-2. Import the `pylog` class from the `pylog` file.
-3. Create a `pylog` object, specifying the log file name and format.
-4. Create a `LogMan` thread and run it.
-5. Start logging using the created `pylog` object.
+## Import Statements
 
-### `pylog` Class
-#### Initialization
-- `filename` (str): The name of the log file. Defaults to 'logs/%TIMENOW%.log'.
-- `logform` (str): The log message format. Defaults to '%loglevel% - %time% - %files | '.
-- `uselatest` (bool): Whether to create a 'latest.log' file before renaming on the next session. Defaults to True.
+The script begins by importing necessary modules:
 
-#### Attributes
-- `filename` (str): The name of the log file.
-- `logform` (str): The log message format.
+- `multiprocessing`: This module allows for the creation of separate processes, which can run concurrently. This is used in the `logman` function to search for a specific string in chunks of text.
+- `traceback`: This module is used for handling and formatting exceptions. It's used in the `logQueue` and `pylog` classes to format exceptions that occur during logging.
+- `datetime`: This module is used to get the current date and time, which is used in the filename of the log file and in the log messages themselves.
+- `inspect`: This module is used to retrieve information about the current execution context. It's used in the `parse_logform` method of the `pylog` class to get the file name and line number where the log message was generated.
+- `json`: This module is used for reading and writing JSON files. It's used in the `logQueue` class to store and retrieve log messages in JSON format.
+- `os`: This module is used for interacting with the operating system, such as creating directories and listing files in a directory.
 
-### Log Levels
-- DEBUG
-- INFO
-- WARNING
-- ERROR
+## Global Variables
 
-### Methods
-0. `debug(message: str)`: Logs a debug message. Log msg's used with this method are moved to the top of the queue
-1. `info(message: str)`: Logs an informational message.
-2. `warning(message: str)`: Logs a warning message.
-3. `error(message: str, exception: Exception)`: Logs an error message along with exception details.
+The script defines a global variable `global_cachedir` which is the directory where the log files will be cached. This directory is used by the `logQueue` class to store and retrieve log messages.
 
-### Internal Methods
-1. `queue_in(message: str)`: Adds a message to the log queue.
-2. `parse_logform(loglevel: str) -> str`: Parses the log message format, replacing placeholders with actual values.
+## logQueue Class
 
-### `logman` Function
-- This function is a worker that writes logs to a file from the queue.
-- Should be run only once and ensure it runs only once to prevent log overwrites.
-- Handles scenarios with multiple threads/files running this function.
+This class manages the queue of log messages. It has several methods:
 
-### `writer` Function (Internal to `logman`)
-- Writes logs to the file from the queue.
-- Manages the creation and renaming of log files based on settings.
-- Handles errors and logs them appropriately.
+- `__init__`: Initializes the log queue with a specified cache directory.
+- `is_empty`: Checks if a directory is empty based on the specified queue type ('priority' or 'normal'). This is used to determine if there are any log messages of a certain priority that need to be written to the file.
+- `close` and `open`: These methods close and open the queue for a specific priority. This is used in the `logman` function to stop adding new log messages to the queue when a keyboard interrupt is received.
+- `get`: Retrieves data from the cache directory. If the `priority` argument is `True`, it retrieves data with priority; otherwise, it retrieves non-priority data.
+- `put`: Writes a log message to a specified log file. The `priority` argument determines whether the log message has high priority.
+- `get_filename`: Generates a filename for a new log file in the cache directory.
+- `get_queue_number`: Retrieves the queue number for a given item. This is used to determine the order in which log messages are written to the file.
 
-### Consequences to > 1 logman instances running
-If Logman is running more than once, it will result in Log files being
-1. Overwritten (potentially)
-2. Data being left out
-3. Exceptions
-It should never be allowed to happen.
-Logman exists and is only ran ONCE to prevent an old bug where if multiple files
-tried to write to the same log file, They'd overwrite eachother and there'd be conflicts.
-The queue system paired with logman allows for there to be no conflicts.
+## pylog Class
 
-### Priority Queue
-A Priority queue exists and mainly exists for `pylog.debug`
-If normal queue has 100 in it but priority has 1 in it, it'll do priority first.
-Same for the reverse
+This class manages the logging system. It has several methods:
 
-### Usage Example
+- `__init__`: Initializes the logger with a specified filename and log format.
+- `info`, `warning`, `error`, `debug`: These methods log a message with the corresponding log level. The `error` method also takes an exception as an argument, which is included in the log message.
+- `queue_in`: Puts a log message into the queue. The `priority` argument determines whether the log message has high priority.
+- `parse_logform`: Parses the log format string and replaces placeholders with actual values. The placeholders include the log level, the current time, and the file name and line number where the log message was generated.
+
+## logman Function
+
+This function manages the writing of log messages from the queue to the file. It has two inner functions:
+
+- `chunk_searcher`: Searches for a specific string in a chunk of text. This is used to avoid writing duplicate error messages to the `pylog_error.log` file.
+- `writer`: Writes log messages from the queue to the file. It first checks if there are any priority log messages in the queue, and if so, writes them to the file. Otherwise, it writes non-priority log messages to the file.
+
+The `logman` function runs an infinite loop that continuously calls the `writer` function to write log messages to the file. The loop can be interrupted with a keyboard interrupt, after which it will finish writing all remaining log messages to the file before terminating.
+
+# PRACTICAL USE
+## Logging with `pylog.py`
+
+This document explains the process of creating a new log using the `pylog.py` module.
+
+## Step 1: Import the `pylog` class
+
+First, you need to import the `pylog` class from the `pylog.py` module.
+
 ```python
-from pylog import logman
-import multiprocessing
-
-# Create and start the LogMan thread
-if __name__ == "__main__": # Only start once. Never start a second logman.
-    logman_thread = multiprocessing.Process(target=logman, args=())
-    logman_thread.start()
-
-# Create a pylog object
-logger = pylog(
-    filename='logs/application.log',
-    logform='%loglevel% - %(time)s | '
-)
-
-# Start logging
-logger.info('Hello World!')
+from pylog import pylog
 ```
 
-Note: Ensure the `logman` thread is running for log messages to be written to the file.
+## Step 2: Create an instance of `pylog`
+
+Next, create an instance of the `pylog` class. You can specify the filename and log format as arguments. If not provided, the default values will be used.
+
+```python
+logger = pylog(filename='my_log.log', logform='%loglevel% - %time% - %file% | ')
+```
+
+## Step 3: Log a message
+
+You can log a message using one of the following methods: `info`, `warning`, `error`, or `debug`. The message will be queued in the log file.
+
+```python
+logger.info("This is an informational message.")
+logger.warning("This is a warning message.")
+logger.error("This is an error message.")
+logger.debug("This is a debug message.")
+```
+
+If you're logging an error, you can also include an exception object as an argument:
+We don't just find the latest exception because another exception may have happened before we get to the error.
+```python
+try:
+    1/0
+except Exception as e:
+    logger.error("An error occurred.", e)
+```
+
+## Step 4: Write the logs to file
+
+The `logman` function is responsible for writing the logs to the file. It checks the queue for any logs and writes them to the file. If there's an error while writing the logs, it logs the error in a separate file named `pylog_error.log`.<br>
+logman is a blocking function, so it must be ran in a thread using either multiprocessing or threading.<br>
+(A blocking function: Code, in this case a function, which prevents more code from being ran until it is completed or terminated.)
+
+```python
+from pylog import logman
+import multiprocessing as mp
+
+if __name__ == "__main__": 
+    logman = mp.Process(target=logman, args=())
+    logman.start()
+```
+
+This function runs in an infinite loop, so it will keep checking for new logs and write them to the file until the program is interrupted.
+
+## Note
+
+The `pylog` class uses a priority queue for logging. If a log message is marked as a priority (like debug logs), it will be written to the file before other log messages.
+
+# Caching in `pylog.py`
+
+The `pylog.py` script uses a caching mechanism to handle logging operations. This mechanism is implemented through the `logQueue` class, which manages a cache directory where log messages are temporarily stored before being written to their respective log files.
+
+## How Does the Caching Work?
+
+The `logQueue` class manages the cache directory. Each log message is stored in a separate JSON file in the cache directory. The JSON file contains the log message, its priority, and the directory where it should be written.
+
+The `logQueue` class provides several methods for interacting with the cache:
+
+- `is_empty(queue_type)`: Checks if the cache is empty for a specific queue type ('priority' or 'normal').
+
+- `close(priority)`: Closes the cache for a specific queue type.
+
+- `open(priority)`: Opens the cache for a specific queue type.
+
+- `get(priority)`: Retrieves a log message from the cache. If the 'priority' argument is True, it retrieves a log message with a high priority.
+
+- `put(msg, logto, exception, priority)`: Adds a log message to the cache.
+
+## Conclusion
+This script provides a robust logging system that can handle a large number of log messages and write them to a file asynchronously. It uses a priority queue system to manage the logs, ensuring that high-priority logs are written to the file first.<br>
+(AI Generated documentation, Thank you OpenAI)

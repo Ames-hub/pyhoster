@@ -441,7 +441,7 @@ class application:
                         help_msg()
                     elif cmd == "cls" or cmd == "clear":
                         application.clear_console()
-                    elif cmd == "domain" or cmd == "hostname":
+                    elif cmd in ["domain","hostname","host","ip","dns"]: # Yes. I know some of these terms are not the same thing. Its just for ease of use. 
                         pyhost_domain.setdomain()
                     elif cmd == "":
                         pass # Idk why, but it takes 1 press of enter to have the message appear. weird
@@ -609,6 +609,9 @@ class application:
                 dt=app_settings,
                 default=None
             )
+            if not logman_pid == None:
+                pylogger.info("Logging is beginning to shutdown.")
+            time.sleep(1) # Wait for the log queue to empty. wont take long
             try:
                 os.kill(logman_pid, 2)
             except:
@@ -622,10 +625,21 @@ class application:
                 value=None,
                 dt=app_settings,
             )
+
+            # For every multiprocessing child, Kill it. Some may have been left behind
+            print("Bringing all subprocesses to graceful stop...")
+            for child in mp.active_children():
+                try:
+                    os.kill(child.pid, 2)
+                except:
+                    try:
+                        child.kill()
+                    except:
+                        pass
+
             print("Log Worker has been stopped.")
             print("Thank you for choosing Pyhost!")
             print("Exiting...")
-            exit()
 
     def idle():
         '''

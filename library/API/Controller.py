@@ -12,7 +12,8 @@ except ImportError as err:
 
 from ..pylog import pylog
 apipylog = pylog()#filename="logs/api/%TIMENOW%.log")
-apipylog.info("API Controller has been initialized.")
+if __name__ == "__main__":
+    apipylog.info("API Controller has been initialized.")
 
 colours = {
     "red": "\033[91m",
@@ -62,7 +63,8 @@ class controller:
                 time.sleep(0.5)  # Prevent the text from being printed on the same line as the "enter command" text
             except:
                 pass
-
+        except KeyboardInterrupt:
+            pass
         return True
 
     def timeout_login(interval_min=1):

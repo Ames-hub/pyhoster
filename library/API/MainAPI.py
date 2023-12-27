@@ -113,16 +113,21 @@ def webcreate():
     data = dict(request.get_json())
     try:
         app_name = str(data['app_name'])
-        app_desc = str(data['app_desc'])
         port = int(data['port'])
-        boundpath = str(data['boundpath'])
         do_autostart = bool(data['do_autostart'])
+        
+        # Optional data
+        app_desc = str(data.get('app_desc', None))
+        boundpath = str(data.get('boundpath', "internal"))
     except KeyError:
-        return 'Please provide an app_name, app_desc, port, boundpath, do_autostart in the POST data', 400
+        return {"msg":'Please provide an *app_name, *port, *do_autostart, app_desc, boundpath in the POST data'}, 400
     except TypeError:
-        return 'Please provide an app_name (str), app_desc (str), port (int), boundpath (str), do_autostart (bool) in the POST data', 400
+        return {"msg":'Please provide an *app_name (str), *port (int), *do_autostart (bool), app_desc (str), boundpath (str) in the POST data'}, 400
     except ValueError:
-        return 'Please provide an app_name, app_desc, port, boundpath, do_autostart in the POST data', 400
+        return {"msg":'Please provide an *app_name, *port, *do_autostart, app_desc, boundpath in the POST data'}, 400
+
+    if " " in app_name:
+        return {"msg": "Name cannot contain spaces"}, 400
 
     apiprint(f"API/Remote user {userman.session.get_user(data['token'])} requested to create app \"{app_name}\". Working...")
     instance.create_web(
@@ -131,8 +136,9 @@ def webcreate():
         port=port,
         boundpath=boundpath,
         do_autostart=do_autostart,
-        )
-    return {"status": 200}
+        is_interface=False
+    )
+    return {"msg":"Successful"}, 200
 
 @app.route('/instances/delete/', methods=['OPTIONS'])
 def deleteoptions():

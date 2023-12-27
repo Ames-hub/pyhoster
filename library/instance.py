@@ -30,7 +30,7 @@ root_dir = os.getcwd()
 setting_dir = "settings.json"
 
 class instance: # Do not use apptype in calls until other apptypes are made
-    def create_web(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None, do_autostart: bool = False):
+    def create_web(app_name:str=None, app_desc:str=None, port:int=None, boundpath:str=None, do_autostart: bool = False, is_interface:bool=True):
         '''All needed args that are not provided will be grabbed from the user'''
         try:
             if app_name != None:
@@ -62,18 +62,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
             except AssertionError:
                 print("The name must be a valid name! (Must be able to be put in a file's name)")
                 app_name = None
-        
-        # Gets input if not provided. Do not use Elif, so that if it failed assertion before it'll fix here
-        while app_name == None or " " in app_name:
+        if app_name == None:
             app_name = app.datareqs.get_name()
-            if " " in app_name:
-                print("The name cannot contain a space!")
-                app_name = None
-                continue
-
-        # Gets the app description
-        if app_desc == None:
-            app_desc = app.datareqs.get_desc()
 
         # Gets the port
         if port == None:
@@ -81,6 +71,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # Gets external bound directory
         if boundpath == None:
+            if not is_interface:
+                boundpath = str(os.path.abspath(f"instances/{app_name}/content/")) 
             while True:
                 try:
                     print("\nThis directory will be copied to the app's content folder. You work on the project in this directory.")
@@ -666,7 +658,22 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
             # Start the server and keep it running until interrupted
             website_logger.info(f"Server \"{app_name}\" is now running on port {port}")
-            httpd.serve_forever()
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                jmod.setvalue(
+                    key="running",
+                    json_dir=f"instances/{app_name}/config.json",
+                    value=False,
+                    dt=web_config_dt
+                )
+                jmod.setvalue(
+                    key="pid",
+                    json_dir=f"instances/{app_name}/config.json",
+                    value=None,
+                    dt=web_config_dt
+                )
+                return True
 
     def start(app_name, silent=True): # Silent = True problem resolved :D
         '''Always run using Multiprocessing.Process()'''
@@ -737,15 +744,18 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 else:
                     break
 
+        config_file = f"instances/{app_name}/config.json"
+        description = jmod.getvalue(key="description", json_dir=config_file, dt=web_config_dt)
+
         # Gets the status
-        running = jmod.getvalue(key="running", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+        running = jmod.getvalue(key="running", json_dir=config_file, dt=web_config_dt)
         if is_interface:
             if running == True:
                 print(f"Server \"{app_name}\" is running.")
             else:
                 print(f"Server \"{app_name}\" is not running.")
 
-        port = jmod.getvalue(key="port", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+        port = jmod.getvalue(key="port", json_dir=config_file, dt=web_config_dt)
 
         if is_interface:
             if port != None:
@@ -753,7 +763,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             else:
                 print(f"It is not bound to a port, but is set for {port}")
         
-        warden_enabled = jmod.getvalue(key="warden.enabled", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+        warden_enabled = jmod.getvalue(key="warden.enabled", json_dir=config_file, dt=web_config_dt)
 
         if is_interface:
             if warden_enabled == True:
@@ -761,7 +771,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             else:
                 print("Warden is not running.")
 
-        autostart = jmod.getvalue(key="autostart", json_dir=f"instances/{app_name}/config.json", dt=web_config_dt)
+        autostart = jmod.getvalue(key="autostart", json_dir=config_file, dt=web_config_dt)
 
         if is_interface:
             if autostart == True:
@@ -769,7 +779,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             else:
                 print(f"Server \"{app_name}\" will not autostart.")
 
-        return {"running": running, "port": port, "warden": warden_enabled,  "autostart": autostart}
+        return {"running": running, "port": port, "warden": warden_enabled,  "autostart": autostart, "description": description}
 
     def stop_interface():
         '''a def for the user to stop an app from the command line easily via getting the app name from the user'''
