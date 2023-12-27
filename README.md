@@ -85,7 +85,7 @@ I've faced challenges with mainstream web hosting services like Nginx and Apache
 
 # Technical and Configuration Details
 ### Environment variables
-PYHOST_KEYBIND_LISTEN: Boolean (True, False), if true, pyhoster will listen for keybinds. (Default: True)
+PYHOST_COMMANDS_LISTEN: Boolean (True, False), if true, pyhoster will start an input line. (Default: True)
 made toggleable for 'edge' cases where you want to use the keybinds for something else.
 
 ### Default pages

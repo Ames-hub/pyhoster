@@ -102,7 +102,7 @@ app_settings = {
     "ftppid": None,
     "tokenMan": {
         "enabled": True,
-        "expiration_hours": 24, # How long a session lasts in hours before expiring
+        "expiration_hours": 4, # How long a session lasts in hours before expiring
         "pid": None,
     },
     "active_tokens": {},

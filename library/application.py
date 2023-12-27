@@ -260,7 +260,7 @@ class application:
 
         def help_msg():
             print("Available Commands:")
-            if bool(os.environ.get("PYHOST_KEYBIND_LISTEN",True)) == False:
+            if bool(os.environ.get("PYHOST_COMMANDS_LISTEN",True)) == False:
                 print("NONE: Input has been disabled. How did you even get here?")
             else:
                 print("idle: Displays information about pyhost and its instances while it is left 'idle.'")
