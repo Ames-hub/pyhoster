@@ -1,4 +1,5 @@
-import waitress, os, multiprocessing, time
+import os, multiprocessing, time
+import uvicorn # Used for ASGI
 try:
     from OpenSSL import SSL
     from ..filetransfer import generate_ssl
@@ -26,38 +27,43 @@ colours = {
 }
 
 class controller:
-    def StartFlask():
+    def UvicornStart():
         '''
         Create a WSGI Server set primarily for Flask.
         '''
         app_dir = jmod.getvalue("api.app_dir", "settings.json", "library.API.MainAPI", app_settings)
-        port = jmod.getvalue("api.port", "settings.json", 4045, app_settings)
+        apiport = jmod.getvalue("api.port", "settings.json", 4045, app_settings)
         app = __import__(app_dir, fromlist=['']).app
-        os.environ["FLASK_ENV"] = "production"  # Set Flask environment to production
-        os.environ["FLASK_APP"] = "PyHostAPI"  # Set the name of your Flask app
-        apipylog.info(f"Starting PyHost API on port {port}")
-        print(f"<--PyHost API is Online running on port {port} and awaiting requests-->")
+        apipylog.info(f"Starting PyHost API on port {apiport}")
+        print(f"<--PyHost API is Online running on port {apiport} and awaiting requests-->")
 
-        # certfile_dir = os.path.abspath('library/ssl/apicert.pem')
-        # keyfile_dir = os.path.abspath('library/ssl/api.key')
+        certfile_dir = os.path.abspath('library/ssl/apicert.pem')
+        keyfile_dir = os.path.abspath('library/ssl/api.key')
 
-        # Generate SSL certificate if it doesn't exist
-        # generate_ssl(certfile_dir, keyfile_dir)
+        # Generate SSL certificate and key if it doesn't exist
+        hostname = jmod.getvalue("hostname", "settings.json", None, app_settings)
+        generate_ssl(certfile_dir, keyfile_dir, hostname)
 
         try:
-            # ssl_context = SSL.Context(SSL.SSLv23_METHOD)
-            # ssl_context.use_privatekey_file(keyfile_dir)
-            # ssl_context.use_certificate_file(certfile_dir)
-            
-            waitress.serve(app, host='0.0.0.0', port=port, url_scheme='http')
+            ssl_context = SSL.Context(SSL.SSLv23_METHOD)
+            ssl_context.use_privatekey_file(keyfile_dir)
+            ssl_context.use_certificate_file(certfile_dir)
+
+            uvicorn_config = uvicorn.Config(
+                app=app, host=hostname, port=apiport,
+                ssl_keyfile=keyfile_dir, ssl_certfile=certfile_dir,
+                log_level="warning" # TODO: Improve logging here
+            )
+            server = uvicorn.Server(uvicorn_config)
+            server.run()
 
             try:
-                time.sleep(0.5)  # Wait for the API to start
+                time.sleep(1.5)  # Wait for the API to start
             except:
                 pass
         except PermissionError:
-            print(f"We don't have enough permissions to run the API! Is there already an app bound to port \"{port}\"?")
-            if port < 1024 and os.name != "nt":
+            print(f"We don't have enough permissions to run the API! Is there already an app bound to port \"{apiport}\"?")
+            if apiport < 1024 and os.name != "nt":
                 print("If you are running on Linux, then the port must be greater than 1024.")
             try:
                 time.sleep(0.5)  # Prevent the text from being printed on the same line as the "enter command" text
@@ -84,7 +90,7 @@ class controller:
 
     def initapi():
         API_Process = multiprocessing.Process(
-            target=controller.StartFlask, args=()
+            target=controller.UvicornStart, args=()
             )
         API_Process.start()
         jmod.setvalue(

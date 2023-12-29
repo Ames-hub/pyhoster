@@ -14,7 +14,7 @@ setting_dir = "settings.json"
 import multiprocessing
 
 from ..pylog import pylog
-pylogger = pylog()
+pylogger = pylog("logs/%TIMENOW%.log")
 
 colours = {
     "red": "\033[31m",
@@ -90,11 +90,12 @@ class webcontroller:
         '''
         debug = False
         webgui_logger = pylog(
-            logform='WEBGUI | %loglevel% - %time% - %file% | '
+            filename="logs/webgui/%TIMENOW%.log",
+            logform='WEBGUI-%loglevel% - %time% - %file% | '
         )
 
         # Get the port from the config.json file
-        config_path = os.path.abspath(f"library/WebGUI/config.json")
+        config_path = os.path.abspath("library/WebGUI/config.json")
         if not os.path.exists(config_path):
             with open(config_path, 'w') as config_file:
                 web_config_dt["port"] = 4040
@@ -178,7 +179,7 @@ class webcontroller:
                     warden_enabled = warden.get("enabled", False)
                     wardened_dirs = warden.get("pages", None)
                 except Exception as err:
-                    pylogger.error(f"Failed to get warden settings for WebGUI: {err}", err)
+                    webgui_logger.error(f"Failed to get warden settings for WebGUI: {err}", err)
 
                 def ask_for_login():
                     # If PIN is not provided or incorrect, request PIN
@@ -344,7 +345,7 @@ class webcontroller:
                     dt=web_config_dt
                 )
 
-                if jmod.getvalue(config_path, "ssl_enabled", True, app_settings):
+                if jmod.getvalue(json_dir=config_path, key="ssl_enabled", default=True, dt=app_settings):
                     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                     cert_dir = "library/WebGUI/cert.pem"
                     private_dir = "library/WebGUI/private.key"
@@ -620,7 +621,7 @@ class webgui_files:
             dt=web_config_dt
         )
         # TODO: Add SSL support to the API
-        protocal = "http" # This will be configurable to ssl later
+        protocal = "https" # This will be configurable to ssl later
 
         # Goes through every JS and HTML file in the content directory
         content_dir = "library/WebGUI/content/"

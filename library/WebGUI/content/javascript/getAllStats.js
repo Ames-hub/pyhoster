@@ -1,5 +1,5 @@
 function getAllStats() {
-    fetch('http://localhost:4000/instances/getall', {
+    fetch('https://localhost:4000/instances/getall', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

@@ -2,6 +2,7 @@ import os, multiprocessing as mp, json, time
 if os.name == "nt":
     import ctypes
 try:
+    from .snapshots import snapshots
     from .domains import pyhost_domain
     from .data_tables import app_settings, web_config_dt, wsgi_config_dt
     from .filetransfer import ftp
@@ -418,25 +419,36 @@ class application:
                             instance.stop(app_name=app_name_arg)
                     elif cmd == "update":
                         if has_args == False:
-                            instance.update(is_interface=True)
+                            snapshots.update(is_interface=True)
                         else:
-                            instance.update(app_name=app_name_arg, is_interface=False)
-                    elif cmd == "rollback":
+                            snapshots.update(app_name=app_name_arg, is_interface=False)
+                    elif cmd in ["rollback", "restore", "revert"]:
                         if not has_args:
-                            instance.rollback(is_interface=True)
+                            snapshots.rollback(is_interface=True)
                         else:
                             rollback_ver = getkwrd(["ver", "version"], text=text)
 
-                            instance.rollback(
+                            snapshots.rollback(
                                 app_name=app_name_arg,
                                 is_interface=False,
                                 rollback_ver=rollback_ver,
                                 )
                     elif cmd == "backup":
                         if not has_args:
-                            instance.backup(is_interface=True)
+                            snapshots.backup(is_interface=True)
                         else:
-                            instance.backup(app_name=app_name_arg, is_interface=False, do_alert=True)
+                            snapshots.backup(app_name=app_name_arg, is_interface=False, do_alert=True)
+                    elif cmd == "outdated":
+                        if has_args:
+                            upToDate = snapshots.check_outdated(app_name=app_name_arg)
+                            if upToDate is False:
+                                print("The app is outdated!")
+                            elif upToDate is True:
+                                print("The app is up to date!")
+                            else:
+                                print("We could not determine if the app is outdated or not.")
+                        else:
+                            print("Please provide an app name with this command.")
                     elif cmd == "help":
                         help_msg()
                     elif cmd == "cls" or cmd == "clear":

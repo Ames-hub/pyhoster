@@ -27,9 +27,9 @@ Then run `python3.12 pyhost.py -O` to start the program.
 - Optionally running API to control what happens in pyhost externally
 - Auto-Generate self-signed SSL certificates and put them to use easily! (You can also use your own cert by replacing the file it makes)
 - link a website's content to any folder in your system
-- Make your changes, then update the website with a simple command
+- Make your changes, then `update` the website with a simple command
 - Built-in function to implement a custom "Page not found" page
-- Update messed up your app? No problem! with PyHost you can revert any changes with our full snapshot system!
+- Update messed up your app? No problem! with PyHost you can `rollback` any changes with our full snapshot system!
 - Run multiple websites at once
 - User friendly design
 
@@ -74,6 +74,7 @@ I've faced challenges with mainstream web hosting services like Nginx and Apache
 `exit` - Exit the program.<br>
 `domain` - Set the domain name/IP Address used by PyHost for the WebGUI and any other features<br>
 `update` - Updates the content of a website app.<br>
+`outdated (appname)` - Check if an app is outdated<br>
 `rollback` - Reverts the content of a website app to the last update, or a specific version.<br>
 `enter (feature)` - Enter the Command Line Interface (CLI) for a feature such as FTP, UserMan or Warden.<br>
 `ftp` - Enter the FTP Command line interface. Change details, create users, etc<br>

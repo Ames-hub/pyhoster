@@ -1,5 +1,5 @@
 # Pyhost is a completely free and opensource project built by FriendlyFox.exe AKA https://github.com/Ames-Hub
-# It is a lightweight, simple replacement for Nginx. It is built in Python and is very easy to use.
+# It is a lightweight, simple alternative for Nginx. It is built in Python and is very easy to use.
 # It is mainly built for compatibility with pufferpanel, but it can be used bloody anywhere as it's just a python script
 # Have fun!
 
@@ -10,8 +10,10 @@ try:
     import shutil
     import time
     import sys
+    import datetime
     from getpass import getpass
     from library.jmod import jmod
+    from library.snapshots import snapshots
     from library.data_tables import web_config_dt, app_settings
     from library.pylog import pylog
     from library.domains import pyhost_domain
@@ -209,7 +211,7 @@ def auto_backup():
     try:
         while True:
             try:
-                time.sleep(600)
+                time.sleep(600) # Sleep for 10 minutes
             except KeyboardInterrupt:
                 exit()
             apps = os.listdir("instances/")
@@ -218,8 +220,8 @@ def auto_backup():
                 contentpath = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_instance}/config.json")
 
                 if boundpath == contentpath:
-                    if instance.is_outdated(app_name=app_instance) is True:
-                        instance.backup(
+                    if snapshots.check_outdated(app_name=app_instance) is True:
+                        snapshots.backup(
                             app_name=app_instance,
                             is_interface=False,
                             do_alert=False
@@ -307,9 +309,10 @@ def tokenMan():
     from library.pylog import pylog
     logs = pylog(filename="logs/sessionman.log")
     logs.info("Session manager started.")
+    times_checked = 0
     try:
         while True:
-            time.sleep(3) # Sleep for a second to not use too much CPU and not spam-access the file/disk
+            time.sleep(5) # Sleep for a second to not use too much CPU and not spam-access the file/disk
             sessions = session_json.list()
             exp_hours = jmod.getvalue(key="tokenMan.expiration_hours", json_dir="settings.json", default=24, dt=app_settings)
             exp_hours = exp_hours * 60 * 60  # Convert hours to seconds
@@ -320,6 +323,15 @@ def tokenMan():
                 if elapsed_time > exp_hours:
                     session_json.remove(session_key)  # Token is the key
                     logs.info(f"Removed expired session token | {session_key}")
+    
+            times_checked += 1
+            if times_checked  % 800 == 0: # 800 * 5 = 4000 seconds = 1 hour. So this will run every hour or 24 times a day assuming the program is running 24/7 at 12:00am
+                logs.info(f"Checked through {times_checked} times. Logging basic info below.")
+                logs.info(f"Current specific time: {datetime.datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S')}")
+                logs.info(f"Current POSIX time: {current_time}")
+                logs.info(f"Current expiration time: {exp_hours}")
+                logs.info(f"Current session count: {len(sessions)}")
+                
     except KeyboardInterrupt:
         return True
 

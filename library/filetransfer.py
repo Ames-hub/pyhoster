@@ -30,6 +30,7 @@ def generate_ssl(certfile_dir, keyfile_dir, hostname="localhost"):
             public_exponent=65537,
             key_size=2048,
         )
+        os.makedirs(os.path.dirname(certfile_dir), exist_ok=True)
 
         name = x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, u"{}".format(hostname)),

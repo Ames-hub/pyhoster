@@ -1,3 +1,6 @@
+# Pylog is a Custom Logging Library for PyHost (specifically) but can be used for any python project.
+# It is built for when multiple files/functions need to log to the same file at the same time. Standard logging library poorly handles this.
+# Pylog is built to be threading safe and multiprocessing safe and handle the stress.
 import multiprocessing
 import traceback
 import datetime
@@ -7,7 +10,7 @@ import json
 import time
 import os
 
-global_cachedir = os.path.join(os.getcwd(), "logs/cache/")
+global_cachedir = os.path.join(os.getcwd(), "logs/.cache/")
 
 cacheitem_data_table = {
     "msg": None,
@@ -192,6 +195,31 @@ class pylog:
 
         self.cachedir = global_cachedir
         self.queue = logQueue(self.cachedir)
+
+    def log(self, message):
+        '''
+        Equivilant to any/all of the logging level functions. Except this one autodetects the logging level.
+        '''
+        message = str(message)
+        message_lower = message.lower()
+
+        for warning_indicator in ['warning', 'warn', 'alert', 'deprecated']:
+            if warning_indicator in message_lower:
+                self.warning(message)
+                return True
+
+        for error_indicator in ['error', 'err', 'exception']:
+            if error_indicator in message_lower:
+                self.error(message)
+                return True
+            
+        for debug_indicator in ['debug', 'dbg']:
+            if debug_indicator in message_lower:
+                self.debug(message)
+                return True
+
+        self.info(message)
+        return True
 
     def info(self, message):
         logform = self.parse_logform(self.levels.INFO)

@@ -3,12 +3,13 @@ try:
     from .application import application as app
     from .jmod import jmod
     from .data_tables import web_config_dt, wsgi_config_dt, app_settings
+    from .snapshots import snapshots
 except ImportError as err:
     print("Hello! To run Pyhost, you must run the file pyhost.py located in this projects root directory, not this file.\nThank you!")
     from library.pylog import pylog
     pylog().error(f"Import error in {__name__}", err)
 import multiprocessing
-import waitress
+import uvicorn # WSGI server
 import ssl
 
 from .pylog import pylog
@@ -292,7 +293,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
         if del_backups is True:
             backup_dir = jmod.getvalue(key="backup_dir", json_dir=setting_dir, dt=app_settings)
             if backup_dir == None: # None means nothing was set by the user as a preference
-                backup_dir = instance.get_backup_dir(app_name)
+                backup_dir = snapshots.get_backup_dir(app_name)
 
             # Deletes the backups
             if os.path.exists(backup_dir):
@@ -346,10 +347,13 @@ class instance: # Do not use apptype in calls until other apptypes are made
                                 continue
                         
                         if app != app_name:
-                            print(f"Port {port} is already in use by project {app}! Please change the port of one of the other projects or stop a one.")
+                            if is_interface:
+                                print(f"Port {port} is already in use by project {app}! Please change the port of one of the other projects or stop a one.")
+                                pylogger.warning(f"Port {port} is already in use by project {app}! Please change the port of one of the other projects or stop a one.")
                             return True
                         else:
-                            print(f"That app is already running! To stop it, use the stop command.")
+                            if is_interface:
+                                print(f"That app is already running! To stop it, use the stop command.")
                             return True
         
         website = multiprocessing.Process(
@@ -436,7 +440,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
             dt=config_data
         )
         website_logger = pylog(filename=f'instances/{app_name}/logs/%TIMENOW%.log')
-        
+        ssl_enabled = jmod.getvalue(key="ssl_enabled", json_dir=config_path, dt=web_config_dt)        
         notfoundpage = jmod.getvalue(key="404page", json_dir=config_path, default="404.html", dt=config_data)
 
         # Define a custom request handler with logging
@@ -629,7 +633,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
         # Create a socket server with the custom handler
         with socketserver.TCPServer(("", port), CustomHandler) as httpd:
-            if jmod.getvalue(key="ssl_enabled", json_dir=config_path, dt=web_config_dt) == True:
+            if ssl_enabled == True:
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 cert_dir = f"instances/{app_name}/cert.pem"
                 private_dir = f"instances/{app_name}/private.key"
@@ -641,9 +645,10 @@ class instance: # Do not use apptype in calls until other apptypes are made
             httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
             
             # Print a message to indicate the server has started unless silent is True
-            if not silent:
+            if not silent: 
                 print(f"Server \"{app_name}\" is running on port {port}. Check the logs for actions.\n"
-                    f"You can visit it on http://localhost:{port}")
+            f"You can visit it on http{'s' if ssl_enabled else ''}://localhost:{port}")
+                
 
             log_message(f"Server \"{app_name}\" is running.")
             # Get the PID of the current thread (web server)
@@ -690,14 +695,22 @@ class instance: # Do not use apptype in calls until other apptypes are made
                 print(f"If so, use the command 'edit {app_name}' then select option 2 (port) to change the port of the app.")
                 pylogger.warning(f"Error starting webapp {app_name}{' silently. ' if silent is True else '! '}Is the port '{port}' already taken? Error: {err}")
         elif app_type == app.types.WSGI():
-            def StartFlask(app_dir, app_name):
+            def StartAPI(app_dir, app_name):
                 '''
                 Create a WSGI Server set primarily for Flask.
                 '''
-                app = __import__(app_dir, fromlist=['']).app
+                keyfile = f"instances/{app_name}/private.key"
+                certfile = f"instances/{app_name}/cert.pem"
+
+                # Imports the app from the app directory
+                app = __import__(app_dir, fromlist=['']).app # .app is the name of the app variable in the app file. eg, `app = flask(__name__)`
+
                 os.environ["FLASK_ENV"] = "production"  # Set Flask environment to production
                 os.environ["FLASK_APP"] = app_name  # Set the name of your Flask app
-                waitress.serve(app, host='0.0.0.0', port=port)
+                uvicorn_config = uvicorn.Config(app=app, host="0.0.0.0", port=port, ssl_keyfile=keyfile, ssl_certfile=certfile)
+                server = uvicorn.Server(uvicorn_config)
+                server.run()
+
             # TODO: Add a way to get the app directory from the user and ACTUALLY implement this stuff
 
     def restart(app_name=None, is_interface=True):
@@ -818,7 +831,9 @@ class instance: # Do not use apptype in calls until other apptypes are made
             pid = config_data.get("pid")
 
             if pid is None:
-                print(f"PID is not defined in config.json for {app_name}!")
+                if is_interface:
+                    print(f"PID is not defined in config.json for {app_name}!")
+                pylogger.warning(f"PID is not defined in config.json for {app_name}!")
                 return False
 
             # Terminate the web server process gracefully.
@@ -831,7 +846,7 @@ class instance: # Do not use apptype in calls until other apptypes are made
                     os.kill(pid, 9) # Try by force, if 2 wont work.
                     success = True
                 except PermissionError:
-                    print("I don't have permission to stop this app! Please again later.")
+                    success = False
             # signal 2 = CTRL + C | signal 9 = KILL
             # This works because the process its interrupting is actually a python script
             # And this causes a keyboardinterrupt exception, which causes it to stop.
@@ -846,305 +861,15 @@ class instance: # Do not use apptype in calls until other apptypes are made
 
                 if is_interface: print(f"Server \"{app_name}\" has been stopped.")
                 pylogger.info(f"Server \"{app_name}\" has been stopped.")
+            else:
+                if is_interface: print(f"Server \"{app_name}\" couldn't be stopped!")
+                return success
         except FileNotFoundError:
             print(f"Server \"{app_name}\" is not an existant app!")
             pylogger.warning(f"Server \"{app_name}\" is not an existant app!")
         except Exception as err:
-            print(f"Failed to stop server \"{app_name}\": {err}")
+            if is_interface: print(f"Failed to stop server \"{app_name}\": {err}")
             pylogger.error(f"Failed to stop server \"{app_name}\"", err)
-
-    def update(app_name=None, is_interface=False):
-
-        if is_interface == True or app_name == None:
-            while True:
-                try:
-                    print("\nAll app names below...\nDescriptions are in " + "\033[90m" + "gray" + "\033[0m \nName is "+"\033[91m"+"red"+"\033[0m"+" if outdated, "+"\033[96m"+"cyan"+"\033[0m"+" if up to date and finally "+"\033[93m"+"yellow"+"\033[0m"+" if the content folder is empty\n")
-                    for app in os.listdir("instances/"):
-                        # Get the paths for external (boundpath) and internal (content_dir) directories
-                        boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app}/config.json")
-                        content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app}/config.json")
-
-                        if os.listdir(content_dir) == []: # Prints in yellow to indicate empty
-                            print("\033[93m" + app + "\033[0m")
-                            continue # Continue, nothing to compare.
-
-                        outdated = instance.is_outdated(app_name=app, boundpath_only=True)
-
-                        description = "\033[90m" + str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n") + "\033[0m"
-                        if outdated == False:
-                            print("\033[96m" + app + "\033[0m\n"+description) # prints cyan
-                        elif outdated == True:
-                            print("\033[91m" + app + "\033[0m\n"+description) # Prints red
-                        elif outdated == "nobp": # no boundpath result, stops it from looking in an old backup folder.
-                            pass # don't print it, so the user doesn't see it as an option to do so
-                        else:
-                            print(app+"\n"+description)
-
-                    app_name = input("\nPlease enter the app name to update. Press enter to refresh.\n>>> ")
-                    if app_name == "cancel":
-                        print("Cancelled!")
-                        return True
-                    elif app_name in os.listdir("instances/"):
-                        break
-                except PermissionError as err:
-                    print("We encountered a permissions error while trying to read if an app is outdated!")
-                    pylogger.error("Permissions error encountered!", err)
-                    return False
-        
-        # Overwrites internal with external directory
-        boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
-        content_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
-        # Takes a snapshot of the current content directory to back it up
-        if os.listdir(content_dir) != []:
-            if jmod.getvalue(key="do_autobackup", json_dir=setting_dir, dt=app_settings) == True:
-                instance.backup(app_name=app_name, is_interface=False)
-                print("Phase 1 completed: Snapshot taken.")
-            else:
-                print("Phase 1 Skipped: Auto Snapshots are disabled.")
-        else:
-            print("Phase 1 Skipped: Content directory is empty.")
-        # Removes all old files and directories
-        for item in os.listdir(content_dir):
-            item_path = os.path.join(content_dir, item)
-            try:
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-            except PermissionError as err:
-                print("Permission error: Unable to remove a file or directory.")
-                pylogger.error("Permissions error: Unable to remove a file or directory.", err)
-            except Exception as err:
-                print("An error occurred while removing a file or directory:")
-                print(str(err))
-                # Logs the error
-                pylogger.error("Can't remove a file or directory.", err)
-        else:
-            print("Update phase 2 completed: File removal.")
-        # Updates all files
-        shutil.copytree(src=boundpath, dst=content_dir, dirs_exist_ok=True)
-        print("Phase 3 completed: File duplication\n"+"\033[92m"+"Update completed."+"\033[0m")
-        jmod.setvalue(
-            key="last_updated",
-            json_dir=f"instances/{app_name}/config.json",
-            value=time.time(),
-            dt=web_config_dt
-        )
-
-    def is_outdated(app_name: str, boundpath_only: bool = False):
-        '''
-        returns a bool on if an app is outdated.
-        if boundpath is True, it will return "nobp" if the user has not set an external bound path.
-        '''
-        def calculate_file_hash(file_path):
-            BLOCKSIZE = 65536
-            hasher = hashlib.sha1()
-            file_path = str(file_path)
-            if os.path.isdir(file_path) or file_path.endswith('.log'):
-                return None
-            with open(file_path, 'rb') as file:
-                buf = file.read(BLOCKSIZE)
-                while len(buf) > 0:
-                    hasher.update(buf)
-                    buf = file.read(BLOCKSIZE)
-            file_hash = hasher.hexdigest()
-            return file_hash
-
-        def get_file_hashes(directory):
-            file_hashes = {}
-            for root, dirs, files in os.walk(directory):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, directory)
-                    file_hash = calculate_file_hash(file_path)
-                    if file_hash is not None:
-                        file_hashes[relative_path] = file_hash
-            return file_hashes
-
-        boundpath = jmod.getvalue(key="boundpath", json_dir=f"instances/{app_name}/config.json")
-        app_dir = jmod.getvalue(key="contentloc", json_dir=f"instances/{app_name}/config.json")
-
-        # app_dir and boundpath start in the content_dir, so move 1 directory up.
-        app_dir = os.path.abspath(os.path.join(app_dir, ".."))  # .. is up one directory
-        boundpath = os.path.abspath(os.path.join(boundpath, ".."))
-
-        # Changes the boundpath for if the app's boundpath == content_dir
-        if boundpath_only == False:
-            if boundpath == app_dir:
-                boundpath = instance.get_backup_dir(app_name)  # returns something like .../pyhoster/backups/<appname>/(versions list, formatted as "ver<ver number>")
-
-                # Gets the latest version
-                highest_ver = len(os.listdir(boundpath))
-                boundpath = os.path.join(boundpath, f"ver{highest_ver}/")  # Sets the boundpath to the highest version
-        else:
-            return "nobp"
-
-        # Get the file hashes for each file in the external (boundpath) directory
-        ext_hashes = get_file_hashes(boundpath)
-
-        # Get the file hashes for each file in the internal (content_dir) directory
-        int_hashes = get_file_hashes(app_dir)
-
-        # Check for outdated files
-        outdated = ext_hashes != int_hashes
-
-        return outdated
-
-    def get_backup_dir(app_name):
-        # Gets the directory to backup the app instance to
-        backup_dir = jmod.getvalue(key="backups_path", json_dir=setting_dir, dt=app_settings)
-        if backup_dir != None: os.path.join(backup_dir,app_name)
-        if backup_dir == None: # None means nothing was set by the user as a preference
-            linux = os.name != "nt" # If the OS is linux, it will be true
-            if linux:
-                backup_dir = f"/etc/pyhoster/backups/{app_name}/"
-            else:
-                # Gets the appdata directory for the user
-                appdata = os.getenv("APPDATA")
-                backup_dir = f"{appdata}/pyhoster/backups/{app_name}/"
-        backup_dir = os.path.abspath(backup_dir)
-        os.makedirs(backup_dir, exist_ok=True)
-        return backup_dir
-
-    def rollback(app_name=None, is_interface=False, rollback_ver=None):
-        orange = "\033[93m"
-        cyan = "\033[96m"
-        green = "\033[92m"
-        white = "\033[0m"
-        gray = "\033[90m"
-        
-        if is_interface == True or app_name == None:
-            timenow = time.time()
-            while True:
-                try:
-                    print("\nAll app names below. Descriptions are in "+gray+"gray"+white)
-                    print("Apps which were recently updated (4h ago maximum) are highlighed "+orange+"orange!"+white)
-                    print(f"If the app was not updated recently, it will be highlighted {green}green{white}.")
-                    print(f"And if we can't tell how long ago it was, we'll use {cyan}cyan{white}.\n")
-                    for app in os.listdir("instances/"):
-                        last_updated = jmod.getvalue(key="last_updated", json_dir=f"instances/{app}/config.json")
-                        app_desc = str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")
-                        if last_updated == None:
-                            print(cyan+app+white)
-                            print(gray+app_desc+white) # Time is unknown, print with cyan
-
-                        elif last_updated != None:
-                            # If its been less than 4 hours, print with orange
-                            if timenow - last_updated <= 14400:
-                                print(orange+app+white)
-                                print(gray+app_desc+white)
-                            else: # its been more than 4 hours, print with white
-                                print(app)
-                                print(gray+app_desc+white)
-
-                    app_name = input("What is the name of the app you wish to rollback? TEXT : ").lower()
-                    if app_name == "cancel":
-                        print("Cancelled!")
-                        return True
-                    assert app_name in os.listdir("instances/"), "The app must exist to be rolled back!"
-                    break
-                except AssertionError as err:
-                    print(str(err))
-                    continue
-
-        backup_dir = instance.get_backup_dir(app_name)
-
-        # Creates the backup directory if it doesn't exist
-        os.makedirs(backup_dir, exist_ok=True)
-        # Lists out all the versions and their last modified time
-        
-        instance.stop(app_name=app_name) # stops the app, as its about to be overwritten
-        
-        if is_interface == True or rollback_ver == None:
-            print(
-            "\nAll snapshots of the app can be seen below. If it was recently added, its "+orange+"orange"+white+", else its "+green+"green"+white+"."
-            )
-            for version in os.listdir(backup_dir):
-                try:
-                    last_modified = os.path.getmtime(os.path.join(backup_dir, version))
-                    if timenow - last_modified <= 14400:
-                        print(orange+version+white)
-                    else:
-                        print(green+version+white)
-                except:
-                    print(version+" | WARNING: POTENTIALLY UNSTABLE! (Last modified time could not be found.)")
-
-            while True:
-                try:
-                    rollback_ver = input("What version do you wish to rollback to? TEXT : ")
-                    if rollback_ver == "cancel":
-                        print("Cancelled!")
-                        return True
-                    assert rollback_ver in os.listdir(backup_dir), "The version must exist to be rolled back to!"
-                    break
-                except AssertionError as err:
-                    print(str(err))
-                    continue
-        
-        # Validates rollback_ver as a version
-        try:
-            assert rollback_ver in os.listdir(backup_dir), "The version must exist to be rolled back to!"
-        except AssertionError as err:
-            print(str(err))
-            return
-        
-        # Completely overwrites current app with backup
-        shutil.rmtree(f"instances/{app_name}/")
-        print("Phase 1 completed.")
-        shutil.copytree(src=os.path.join(backup_dir, rollback_ver), dst=f"instances/{app_name}/", dirs_exist_ok=True)
-        print("Phase 2 completed.")
-
-        # Starts the app again
-        multiprocessing.Process(
-            target=instance.start,
-            args=(app_name, True),
-            name=f"{app_name}_webserver",
-        ).start()
-
-        print(green+"Rollback completed!"+white)
-
-    def backup(app_name=None, is_interface=True, do_alert=False):
-        if app_name == None or is_interface == True:
-            while True:
-                try:
-                    print("\n")
-                    for app in os.listdir("instances/"):
-                        print(app)
-                        print("\033[90m"+str(jmod.getvalue(key="description", json_dir=f"instances/{app}/config.json")).replace("<nl>","\n")+"\033[0m")
-                    else:
-                        print("\nType Cancel to cancel the backup.")
-
-                    app_name = input("What is the name of the app you wish to backup? TEXT : ").lower()
-                    if app_name == "cancel":
-                        print("Cancelled!")
-                        return True
-                    
-                    assert app_name in os.listdir("instances/"), "The app must exist!"
-                    break # Breaks the loop if it passes the assertion tests
-                except AssertionError as err:
-                    print(str(err))
-                    continue
-                    
-        # Gets the directory to backup the app instance to
-        backup_dir = instance.get_backup_dir(app_name)
-
-        # Creates the backup directory if it doesn't exist
-        os.makedirs(backup_dir, exist_ok=True)
-
-        # Gets the version of the snapshot by listing the directory
-        version = "ver"+str(len(os.listdir(backup_dir)) + 1)
-        backup_dir = os.path.join(backup_dir, version) # Adds the version to the backup directory
-
-        # Gets the directory of the app
-        app_dir = os.path.abspath(f"instances/{app_name}/")
-        try:
-            # copies the app directory to the backup directory
-            shutil.copytree(src=app_dir, dst=backup_dir, dirs_exist_ok=True)
-
-            if do_alert == True or is_interface == True: 
-                print(f"Snapshot of \"{app_name}\" completed! (Version {version})")
-        except Exception as err:
-            print(f"Failed to create snapshot of \"{app_name}\": {err}")
 
     class edit():
         def __init__(self, app_name=None, is_interface=True) -> bool:
@@ -1271,7 +996,8 @@ class instance: # Do not use apptype in calls until other apptypes are made
             print("Stopping edit...")
             startup = input("Would you like to start the app up? Y/N : ").lower()
             if "y" in startup:
-                print(f"\"{self.app_name}\" started! (http://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=web_config_dt)})\nEdit completed and saved")
+                ssl_enabled = "s" if jmod.getvalue(key="ssl_enabled", json_dir=self.config_dir, dt=web_config_dt) == True else ""
+                print(f"\"{self.app_name}\" started! (http{ssl_enabled}://localhost:{jmod.getvalue('port', self.config_dir, default='FETCH_ERROR', dt=web_config_dt)})\nEdit completed and saved")
                 multiprocessing.Process(
                     target=instance.start,
                     args=(self.app_name, True,),

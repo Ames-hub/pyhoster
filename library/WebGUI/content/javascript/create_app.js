@@ -11,7 +11,7 @@ function createApp() {
         return;
     }
 
-    fetch('http://localhost:4000/instances/webcreate', {
+    fetch('https://localhost:4000/instances/webcreate', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

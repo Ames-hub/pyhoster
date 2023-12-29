@@ -1,7 +1,7 @@
 function login() {
     let username = document.getElementById("username").value;
     let password = document.getElementById("password").value;
-    fetch("http://localhost:4000/userman/login", {
+    fetch("https://localhost:4000/userman/login", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -14,7 +14,7 @@ function login() {
     .then(response => response.json())
     .then(data => {
         if (data['status'] == 200) {
-            document.cookie = "session=" + data['session'] + "; SameSite=lax";
+            document.cookie = "session=" + data['session'] + "; SameSite=lax; Secure;";
             window.location.replace("/"); // Redirects to the index page
         }
         else {
