@@ -1,5 +1,5 @@
 # pyhoster
-An nginx replacement built with python to manage multiple website instances easily, efficiently and with control.
+An nginx alternative built with python to manage multiple website instances easily, efficiently and with control.
 
 ## Installation
 Install python3.12 from the website or your package manager. (Such as MS store)

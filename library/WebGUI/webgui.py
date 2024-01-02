@@ -110,12 +110,7 @@ class webcontroller:
             return False
 
         # Loads settings
-        send_404 = jmod.getvalue( # If this setting is updated, the app needs to restart
-            key="send_404_page",
-            json_dir=setting_dir,
-            default=True,
-            dt=app_settings
-        )
+        send_404 = True
         default_index = jmod.getvalue(
             key="index",
             json_dir=config_path,
@@ -266,16 +261,9 @@ class webcontroller:
                         # If the requested file exists, call the parent class's do_GET method
                         super().do_GET()
                         return True
-                    elif notfoundpage_enabled:
-                        # If the requested file doesn't exist and a custom 404 page is enabled
-                        if send_404:
-                            # Get the absolute path of the custom 404 page
-                            notfoundpage_path = os.path.abspath(os.path.join(self.content_directory, notfoundpage))
-                        else:
-                            # If the custom 404 page is not enabled, serve the default HTML and return
-                            self.serve_default_html()
-                            return
-                        
+                    else:
+                        # Get the absolute path of the custom 404 page
+                        notfoundpage_path = os.path.abspath(os.path.join(self.content_directory, notfoundpage))
                         # Check if the custom 404 page exists
                         if os.path.exists(notfoundpage_path):
                             # Open the custom 404 page and read its content
@@ -291,9 +279,6 @@ class webcontroller:
                         else:
                             # If the custom 404 page doesn't exist, serve the default HTML
                             self.serve_default_html()
-                    else:
-                        # If the requested file doesn't exist and a custom 404 page is not enabled, serve the default HTML
-                        self.serve_default_html()
 
             if serve_default:
                 def serve_default_html(self):
