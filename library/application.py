@@ -440,6 +440,9 @@ class application:
                             snapshots.backup(app_name=app_name_arg, is_interface=False, do_alert=True)
                     elif cmd == "outdated":
                         if has_args:
+                            if app_name_arg not in os.listdir("instances/"):
+                                print("That app does not exist!")
+                                continue
                             upToDate = snapshots.check_outdated(app_name=app_name_arg)
                             if upToDate is False:
                                 print("The app is outdated!")
