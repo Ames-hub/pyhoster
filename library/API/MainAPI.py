@@ -23,7 +23,7 @@ logapi = pylog(
 logapi.info("API File Initialized.")
 
 app = quart.Quart(__name__)
-app = cors(app, allow_origin="*", allow_methods=["POST", "OPTIONS"], allow_headers=["Content-Type"])
+# app = cors(app, allow_origin="*", allow_methods=["POST", "OPTIONS"], allow_headers=["Content-Type"])
 
 def apiprint(msg):
     actionprint = jmod.getvalue("api.actionprint", "settings.json", False, app_settings)
@@ -190,19 +190,26 @@ async def get_warden_status():
         status = warden.get_status(app_name)
         return {"status": status}
 
+# @app.route('/userman/login', methods=['OPTIONS'])
+# async def login_options():
+#     # Handling CORS preflight request
+#     response = quart.Response()
+#     response.headers['Access-Control-Allow-Origin'] = '*'
+#     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+#     return response
 @app.route('/userman/login', methods=['POST'])
 async def login():
-    if quart.request.method == 'POST':
-        data = await quart.request.get_json()
-        try:
-            username = str(data['username'])
-            password = str(data['password'])
-        except KeyError:
-            return 'Please provide a username and password in the POST data', 400
-        except TypeError:
-            return 'Please provide a username (str) and password (str) in the POST data', 400
-
-        apiprint(f"API/Remote user {data['username']} requested to login. Working...")
-        session = userman.session(username, password, IP_Address=quart.request.remote_addr)
-        status = session.htmlstatus
-        return {"status": status, "session": session.token}
+    data = await quart.request.get_json()
+    try:
+        username = str(data['username'])
+        password = str(data['password'])
+    except KeyError:
+        return 'Please provide a username and password in the POST data', 400
+    except TypeError:
+        return 'Please provide a username (str) and password (str) in the POST data', 400
+    
+    apiprint(f"API/Remote user {data['username']} requested to login. Working...")
+    session = userman.session(username, password, IP_Address=quart.request.remote_addr)
+    status = session.htmlstatus
+    return {"status": status, "session": session.token}

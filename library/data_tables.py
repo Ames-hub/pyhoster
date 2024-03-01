@@ -90,6 +90,7 @@ app_settings = {
         "port": 4040, # No need for a pin as it requires a pyhost_user's login
         "pid": None,
         "silent": False,
+        "localonly": True # If this is True, only Localhost will be able to access the webgui
     },
     # Hostname is used mainly in JS to connect to the API
     "hostname": -1, # Just the hostname, no port. -1 here to indicate the system should use localhost and ask the user for a default hostname    

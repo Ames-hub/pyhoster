@@ -37,8 +37,8 @@ class controller:
         apipylog.info(f"Starting PyHost API on port {apiport}")
         print(f"<--PyHost API is Online running on port {apiport} and awaiting requests-->")
 
-        certfile_dir = os.path.abspath('library/ssl/apicert.pem')
-        keyfile_dir = os.path.abspath('library/ssl/api.key')
+        certfile_dir = os.path.abspath('library/ssl/webgui-api.pem')
+        keyfile_dir = os.path.abspath('library/ssl/webgui-api.key')
 
         # Generate SSL certificate and key if it doesn't exist
         hostname = jmod.getvalue("hostname", "settings.json", None, app_settings)

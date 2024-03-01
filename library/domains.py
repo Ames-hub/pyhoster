@@ -70,7 +70,7 @@ class pyhost_domain:
         if char_filter is False:
             return char_filter
 
-    def setdomain():
+    def setdomain(protocal='https'):
         """
         Sets the hostname for the application.
 
@@ -91,6 +91,32 @@ class pyhost_domain:
             )
             pylogger.info(f"Hostname set to {hostname}")
             print(f"Hostname set to {hostname}. Updating program...")
+
+            if protocal == -1:
+                tries = 0
+                while True:
+                    print("Which protocal would you like to use? (HTTPS or HTTP)")
+                    protocal = input(">>> ")
+                    if protocal.lower() in ["https", "http"]:
+                        break
+                    else:
+                        if tries == 2:
+                            print("Do you want us to pick for you? (y/n)")
+                            pick = input(">>> ")
+                            if pick.lower() in ["y", "yes"]:
+                                if jmod.getvalue("webgui.localonly", "settings.json", True, dt=app_settings):
+                                    protocal = "http"
+                                else:
+                                    protocal = "https"
+
+                                print(f"Protocal set to {protocal}.")
+                                break
+                            else:
+                                tries = 0
+                                continue
+                        tries += 1
+                        print("Invalid protocal. Please try again.")
+                        continue
 
             webgui_files.update_connection_details()
         except KeyboardInterrupt:

@@ -110,17 +110,10 @@ class webcontroller:
             return False
 
         # Loads settings
-        send_404 = True
         default_index = jmod.getvalue(
             key="index",
             json_dir=config_path,
             default="index.html",
-            dt=app_settings
-        )
-        notfoundpage_enabled = jmod.getvalue(
-            key="404page_enabled",
-            json_dir=config_path,
-            default=False,
             dt=app_settings
         )
         allow_dir_listing = jmod.getvalue(
@@ -129,31 +122,24 @@ class webcontroller:
             default=False,
             dt=app_settings
         )
-        csp_directives = jmod.getvalue(
-            key="csp_directives",
-            json_dir=config_path,
-            default=["Content-Security-Policy", "default-src 'self';","script-src 'self';",
-                    "style-src 'self';","img-src 'self';","font-src 'self'"],
-            dt=app_settings
-        )
-        add_sec_heads = jmod.getvalue(
-            key="do_securityheaders",
-            json_dir=config_path,
-            default=True,
-            dt=app_settings
-        )
-        serve_default = jmod.getvalue(
-            key="serve_default",
-            json_dir=config_path,
-            default=True,
-            dt=app_settings
-        )  
+        csp_directives = ["Content-Security-Policy", "default-src 'self';","script-src 'self';","style-src 'self';","img-src 'self';","font-src 'self'"]
+        add_sec_heads = True
+
+        notfoundpage_enabled = True
         notfoundpage = jmod.getvalue(
             key="404page",
             json_dir=config_path,
             default="404.html",
             dt=app_settings
             )
+        allow_external_ips = jmod.getvalue( # Gets localonly mode. If its not localonly, then its Remote mode
+            key="webgui.localonly",
+            json_dir=setting_dir,
+            default=True,
+            dt=app_settings
+        ) != True
+        ssl_enabled = jmod.getvalue(json_dir=config_path, key="ssl_enabled", default=True, dt=app_settings)
+        webgui_logger.info(f"Starting in {'Remote' if allow_external_ips else 'Closed'} mode")
 
         # Define a custom request handler with logging
         class CustomHandler(http.server.SimpleHTTPRequestHandler):
@@ -169,62 +155,25 @@ class webcontroller:
 
             def do_GET(self):
                 self.log_request_action()
-                try:
-                    warden = dict(jmod.getvalue(key="warden", json_dir=config_path, dt=web_config_dt))
-                    warden_enabled = warden.get("enabled", False)
-                    wardened_dirs = warden.get("pages", None)
-                except Exception as err:
-                    webgui_logger.error(f"Failed to get warden settings for WebGUI: {err}", err)
+                if not allow_external_ips:
+                    # If the request is not from localhost, return a 403
+                    if self.client_address[0] != "127.0.0.1":
+                        self.send_error(403, "Forbidden", "External IP addresses are not allowed")
+                        return
+                else:
+                    # If the request is from localhost and thats not allowed, return a 403
+                    if self.client_address[0] == "127.0.0.1":
+                        self.send_error(403, "Forbidden", "Localhost is not allowed. Use domain to access instead")
+                        return
 
-                def ask_for_login():
-                    # If PIN is not provided or incorrect, request PIN
-                    with open("library/webpages/warden_login.html", "rb") as file:
-                        content = file.read()
-                        self.send_response(401)
-                        self.send_header("Content-type", "text/html")
-                        self.send_header("WWW-Authenticate", 'Bearer realm="pyhost", charset="UTF-8"')
-                        self.end_headers()
-                        self.wfile.write(content)
-
-                if warden_enabled:
-                    set_pin = warden.get("pin", None)
-                    # If its -1, then it couldn't find the pin and the user needs to set it
-                    pin_valid = self.path.find(f"/warden?pin={set_pin}") != -1
-                    # Check if the requested path is wardened
-                    if pin_valid is False:
-                        for page_dir in wardened_dirs:
-                            if page_dir == "*": # If its *, then all pages are wardened
-                                # Ensures it is targetting a HTML file to prevent locking styling/js files
-                                if self.path.endswith(".html") or self.path.endswith(".htm"):
-                                    ask_for_login()
-                                    return
-                            if self.path == "/":
-                                ask_for_login()
-                                return
-                            elif self.path == page_dir:
-                                # If the requested path is wardened, serve the warden login page
-                                ask_for_login()
-                                return
-                            else:
-                                # Does not effect unwardened pages
-                                if "/warden?pin=" in self.path:
-                                    # return forbidden error
-                                    self.send_error(403, "Warden Forbidden", "The requested path is forbidden.")
-                                    return
-                    else:
-                        if self.path == f"/warden?pin={set_pin}": # This would mean its Root, set it to "/"
-                            self.path = "/"
-                        else:
-                            self.path.replace(f"/warden?pin={set_pin}", "")
-                            # Removes the pin from the path and continue on with the normal get request
+                # TODO: Warden will be replaced with UserMan Website access permissions later.
 
                 # Handle directory listing.
-                # Handles it by making sure the request leads to a file and not a directory
                 if not allow_dir_listing:
                     if self.path.endswith("/"):
                         # If the path is a directory and not the root, return a 403
                         if self.path != "/":
-                            self.send_error(403, "Directory listing is disabled", "The requested path is a directory and directory listing is disabled. This has been banned in the security configuration of this pyhost instance.")
+                            self.send_error(403, "Directory listing is disabled", "Directory Listing is Forcefully disabled")
                             return
 
                 # Check if the requested path is the root directory
@@ -250,7 +199,7 @@ class webcontroller:
                             self.wfile.write(content)
                     else:
                         # If the default index file doesn't exist, serve the default HTML
-                        self.serve_default_html()
+                        self.serve_notfound_html()
                 else:
                     # If the requested path is not the root directory
                     # Get the absolute path of the requested file
@@ -278,24 +227,38 @@ class webcontroller:
                                 self.wfile.write(content)
                         else:
                             # If the custom 404 page doesn't exist, serve the default HTML
-                            self.serve_default_html()
+                            self.serve_notfound_html()
 
-            if serve_default:
-                def serve_default_html(self):
+            if notfoundpage_enabled:
+                def serve_notfound_html(self):
                     # Get the path to the default HTML file
-                    default_html_path = os.path.abspath(f"{root_dir}/library/webpages/default.html")
-                    with open(default_html_path, 'rb') as default_html_file:
-                        content = default_html_file.read()
-                        # Replace placeholders in the HTML with actual values
-                        content = content.replace(b"{{app_name}}", bytes("PyHost WebGUI", "utf-8"))
+                    notfound_path = os.path.abspath(os.path.join(self.content_directory, notfoundpage))
+                    try:
+                        with open(notfound_path, 'rb') as html_file:
+                            content = html_file.read()
+                            # Replace placeholders in the HTML with actual values
+                            content = content.replace(b"{{app_name}}", bytes("PyHost WebGUI", "utf-8"))
 
-                        censored_content_dir = str(self.content_directory)
-                        if censored_content_dir.startswith("C:\\Users\\"):
-                            # Finds the next \ after "C:\Users\", then replaces the username with asterisks
-                            user_end_index = censored_content_dir.find("\\", len("C:\\Users\\"))
-                            if user_end_index != -1:
-                                censored_content_dir = "C:\\Users\\****" + censored_content_dir[user_end_index:]
-                        content = content.replace(b"{{content_dir}}", bytes(censored_content_dir, "utf-8"))
+                            censored_content_dir = str(self.content_directory)
+                            if censored_content_dir.startswith("C:\\Users\\"):
+                                # Finds the next \ after "C:\Users\", then replaces the username with asterisks
+                                user_end_index = censored_content_dir.find("\\", len("C:\\Users\\"))
+                                if user_end_index != -1:
+                                    censored_content_dir = "C:\\Users\\****" + censored_content_dir[user_end_index:]
+                            content = content.replace(b"{{content_dir}}", bytes(censored_content_dir, "utf-8"))
+                    except FileNotFoundError:
+                        with open("library/webpages/default.html", 'rb') as html_file:
+                            content = html_file.read()
+                            # Replace placeholders in the HTML with actual values
+                            content = content.replace(b"{{app_name}}", bytes("PyHost WebGUI", "utf-8"))
+
+                            censored_content_dir = str(self.content_directory)
+                            if censored_content_dir.startswith("C:\\Users\\"):
+                                # Finds the next \ after "C:\Users\", then replaces the username with asterisks
+                                user_end_index = censored_content_dir.find("\\", len("C:\\Users\\"))
+                                if user_end_index != -1:
+                                    censored_content_dir = "C:\\Users\\****" + censored_content_dir[user_end_index:]
+                            content = content.replace(b"{{content_dir}}", bytes(censored_content_dir, "utf-8"))
 
                     # Send the HTML content as a response
                     self.send_response(200)
@@ -330,10 +293,10 @@ class webcontroller:
                     dt=web_config_dt
                 )
 
-                if jmod.getvalue(json_dir=config_path, key="ssl_enabled", default=True, dt=app_settings):
+                if ssl_enabled is True or allow_external_ips is True:
                     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                    cert_dir = "library/WebGUI/cert.pem"
-                    private_dir = "library/WebGUI/private.key"
+                    cert_dir = os.path.abspath('library/ssl/webgui-api.pem')
+                    private_dir = os.path.abspath('library/ssl/webgui-api.key')
 
                     from ..filetransfer import generate_ssl
                     generate_ssl(cert_dir, private_dir)

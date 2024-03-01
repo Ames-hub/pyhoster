@@ -71,7 +71,7 @@ if __name__ == "__main__":
     pylogger.debug(f"os.name? : {os.name}")
     pylogger.debug(f"sys.platform? : {sys.platform}")
     if is_linux:
-        pylogger.debug(f"Has elevated privileges? : {os.get_euid() == 0}")
+        pylogger.debug(f"Has elevated privileges? : {os.geteuid() == 0}")
     else:
         pylogger.debug("Has elevated privileges? : N/A")
 
@@ -394,7 +394,7 @@ if __name__ == '__main__': # This line ensures the script is being run directly 
                     pylogger.warning(f"Port {port} is already taken by the WebGUI! Can't start \"{name}\". Skipping.")
                     continue
                 elif port < 1024 and is_linux is True:
-                    if os.get_euid() == 0: # get_euid only works on linux. So its behind the above IF statement
+                    if os.geteuid() == 0: # get_euid only works on linux. So its behind the above IF statement
                         print(f"{colours['yellow']}Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024 (the lowest port we are allowed to run on)")
                         print(f"You can change the port by entering the command 'edit {name}' then selecting option 2 (port) and changing it to a number greater than 1023{colours['white']}")
                         pylogger.warning(f"Skipping autostart on app '{name}' as it requires root permissions to run on port {port}, which is lower than 1024")
